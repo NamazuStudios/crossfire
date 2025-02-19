@@ -9,41 +9,91 @@ import jakarta.websocket.server.ServerEndpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+
 import static jakarta.websocket.CloseReason.CloseCodes.GOING_AWAY;
 import static jakarta.websocket.CloseReason.CloseCodes.UNEXPECTED_CONDITION;
 
 @Singleton
-@ServerEndpoint("/sdp/{matchId}")
+@ServerEndpoint("/sdp/{matchId}/{profileId}")
 public class SdpRelayEndpoint {
 
     private static final Logger logger = LoggerFactory.getLogger(SdpRelayEndpoint.class);
 
+    private static final ScheduledExecutorService pinger = Executors.newSingleThreadScheduledExecutor();
+
     private Subscription subscription;
 
+    private ScheduledFuture<?> pingFuture;
+
+    //TODO Replace this with an Element lookup
     private SdpRelayService sdpRelayService = MemorySdpRelayService.getInstance();
 
     @OnOpen
     public void onOpen(final @PathParam("matchId") String matchId,
+                       final @PathParam("profileId") String profileId,
                        final Session session) {
 
         final var remote = session.getAsyncRemote();
 
+        pingFuture = pinger.scheduleAtFixedRate(
+                () -> {
+                    try {
+                        session.getBasicRemote().sendPing(ByteBuffer.allocate(0));
+                    } catch (IOException e) {
+                        logger.error("No failed to ping remote.", e);
+                    }
+                },
+                30,
+                30,
+                TimeUnit.SECONDS
+        );
+
         subscription = getSdpRelayService().subscribeToUpdates(
                 matchId,
+                profileId,
                 remote::sendText,
-                ex -> doClose(session, ex));
+                ex -> doClose(session, ex)
+        );
 
     }
 
     @OnMessage
-    public void onMessage(final @PathParam("matchId") String matchId, final String message) {
-        getSdpRelayService().addSessionDescription(matchId, message);
+    public void onMessage(final @PathParam("matchId") String matchId,
+                          final @PathParam("profileId") String profileId,
+                          final String message) {
+        getSdpRelayService().addSessionDescription(matchId, profileId, message);
+    }
+
+    @OnMessage
+    public void onMessage(final @PathParam("matchId") String matchId,
+                          final Session session,
+                          final PongMessage message) throws IOException {
+        logger.debug("Received PongMessage from match: {}", matchId);
+
+        if (sdpRelayService.pingMatch(matchId)) {
+            logger.debug("Successfully reset match {}", matchId);
+        } else {
+            session.close();
+        }
     }
 
     @OnClose
     public void onClose(final Session session) {
+
         logger.debug("Session {} closed", session.getId());
-        if (subscription != null) subscription.unsubscribe();
+
+        if (pingFuture != null)
+            pingFuture.cancel(false);
+
+        if (subscription != null)
+            subscription.unsubscribe();
+
     }
 
     @OnError

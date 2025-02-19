@@ -1,15 +1,21 @@
 package dev.getelements.elements.crossfire;
 
+import dev.getelements.elements.sdk.ElementRegistry;
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.annotation.ElementServiceImplementation;
 import dev.getelements.elements.sdk.util.ConcurrentLockedPublisher;
 import dev.getelements.elements.sdk.util.Publisher;
 import jakarta.inject.Singleton;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
@@ -20,7 +26,10 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 @ElementServiceImplementation(SdpRelayService.class)
 public class MemorySdpRelayService implements SdpRelayService {
 
-    private final long QUEUE_TIMEOUT_SECONDS = 360;
+    private static final Logger logger = LoggerFactory.getLogger(MemorySdpRelayService.class);
+
+    // TODO Remove and replace with a proper ping/pong response
+    private final long QUEUE_TIMEOUT_SECONDS = 180;
 
     private final Map<String, MessageRelayQueue> queues = new ConcurrentHashMap<>();
 
@@ -28,13 +37,43 @@ public class MemorySdpRelayService implements SdpRelayService {
 
     private static final MemorySdpRelayService instance = new MemorySdpRelayService();
 
+    /**
+     * Gets the single shared instance.
+     *
+     * @return the single shared instance.
+     * @deprecated To be replaced with a lookup in {@link ElementRegistry}
+     */
+    @Deprecated
     public static MemorySdpRelayService getInstance() {
         return instance;
     }
 
     @Override
+    public boolean pingMatch(final String matchId) {
+
+        final var queue = queues.get(matchId);
+
+        if (queue == null) {
+            logger.warn("No Such match {}", matchId);
+            return false;
+        }
+
+        final var lock = queue.getLock();
+        lock.lock();
+
+        try {
+            queue.resetTimeout();
+            return true;
+        } finally {
+            lock.unlock();
+        }
+
+    }
+
+    @Override
     public void addSessionDescription(
             final String matchId,
+            final String profileId,
             final String sdpMessage) {
 
         final var queue = queues.computeIfAbsent(matchId, k -> new MessageRelayQueue());
@@ -42,7 +81,7 @@ public class MemorySdpRelayService implements SdpRelayService {
         lock.lock();
 
         try {
-            queue.publish(sdpMessage);
+            queue.publish(profileId, sdpMessage);
         } finally {
             lock.unlock();
         }
@@ -52,6 +91,7 @@ public class MemorySdpRelayService implements SdpRelayService {
     @Override
     public Subscription subscribeToUpdates(
             final String matchId,
+            final String profileId,
             final Consumer<String> sdpMessageConsumer,
             final Consumer<Throwable> sdpErrorConsumer) {
 
@@ -60,7 +100,7 @@ public class MemorySdpRelayService implements SdpRelayService {
         lock.lock();
 
         try {
-            return queue.subscribe(sdpMessageConsumer, sdpErrorConsumer);
+            return queue.subscribe(profileId, sdpMessageConsumer, sdpErrorConsumer);
         } finally {
             lock.unlock();
         }
@@ -77,9 +117,9 @@ public class MemorySdpRelayService implements SdpRelayService {
 
         private final Lock lock = new ReentrantLock();
 
-        private final List<String> backlog = new ArrayList<>();
+        private final List<SdpMessage> backlog = new ArrayList<>();
 
-        private final Publisher<String> messaggePublisher = new ConcurrentLockedPublisher<>(lock);
+        private final Publisher<SdpMessage> messagePublisher = new ConcurrentLockedPublisher<>(lock);
 
         private final Publisher<Throwable> exceptionPublisher = new ConcurrentLockedPublisher<>(lock);
 
@@ -87,17 +127,43 @@ public class MemorySdpRelayService implements SdpRelayService {
             return lock;
         }
 
-        public void publish(final String sdpMessage) {
-            backlog.addLast(sdpMessage);
-            messaggePublisher.publish(sdpMessage);
+        public void publish(final String profileId,
+                            final String sdpMessage) {
+            final var message = new SdpMessage(profileId, sdpMessage);
+            resetTimeout();
+            backlog.addLast(message);
+            messagePublisher.publish(message);
         }
 
-        public Subscription subscribe(final Consumer<String> sdpMessageConsumer,
+        public Subscription subscribe(final String profileId,
+                                      final Consumer<String> sdpMessageConsumer,
                                       final Consumer<Throwable> sdpErrorConsumer) {
-            backlog.forEach(sdpMessageConsumer);
-            return Subscription.begin()
-                    .chain(messaggePublisher.subscribe(sdpMessageConsumer))
-                    .chain(exceptionPublisher.subscribe(sdpErrorConsumer));
+
+            resetTimeout();
+
+            backlog.stream()
+                    .filter(msg -> !msg.originator().equals(profileId))
+                    .map(SdpMessage::payload)
+                    .forEach(sdpMessageConsumer);
+
+            final var subscription =  Subscription.begin()
+                    .chain(() -> backlog.removeIf(msg -> msg.originator().equals(profileId)))
+                    .chain(exceptionPublisher.subscribe(sdpErrorConsumer))
+                    .chain(messagePublisher.subscribe(m -> {
+                        if (!m.originator().equals(profileId)) {
+                            sdpMessageConsumer.accept(m.payload());
+                        }
+                    }));
+
+            return () -> {
+                try {
+                    lock.lock();
+                    subscription.unsubscribe();
+                } finally {
+                    lock.unlock();
+                }
+            };
+
         }
 
         private void timeout() {
@@ -108,7 +174,7 @@ public class MemorySdpRelayService implements SdpRelayService {
                 exceptionPublisher.publish(new TimeoutException("Queued timed out."));
             } finally {
                 exceptionPublisher.clear();
-                messaggePublisher.clear();
+                messagePublisher.clear();
                 lock.unlock();
             }
 
@@ -124,5 +190,7 @@ public class MemorySdpRelayService implements SdpRelayService {
         }
 
     }
+
+    private record SdpMessage(Object originator, String payload) {}
 
 }
