@@ -26,6 +26,12 @@ public class MemorySdpRelayService implements SdpRelayService {
 
     private final ScheduledExecutorService timeoutScheduler = Executors.newSingleThreadScheduledExecutor();
 
+    private static final MemorySdpRelayService instance = new MemorySdpRelayService();
+
+    public static MemorySdpRelayService getInstance() {
+        return instance;
+    }
+
     @Override
     public void addSessionDescription(
             final String matchId,

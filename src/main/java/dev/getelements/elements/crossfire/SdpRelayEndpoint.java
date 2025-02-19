@@ -20,7 +20,7 @@ public class SdpRelayEndpoint {
 
     private Subscription subscription;
 
-    private SdpRelayService sdpRelayService;
+    private SdpRelayService sdpRelayService = MemorySdpRelayService.getInstance();
 
     @OnOpen
     public void onOpen(final @PathParam("matchId") String matchId,
