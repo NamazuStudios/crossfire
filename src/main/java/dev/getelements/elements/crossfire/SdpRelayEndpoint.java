@@ -1,8 +1,6 @@
 package dev.getelements.elements.crossfire;
 
 import dev.getelements.elements.sdk.Subscription;
-import jakarta.inject.Inject;
-import jakarta.inject.Singleton;
 import jakarta.websocket.*;
 import jakarta.websocket.server.PathParam;
 import jakarta.websocket.server.ServerEndpoint;
@@ -19,7 +17,6 @@ import java.util.concurrent.TimeUnit;
 import static jakarta.websocket.CloseReason.CloseCodes.GOING_AWAY;
 import static jakarta.websocket.CloseReason.CloseCodes.UNEXPECTED_CONDITION;
 
-@Singleton
 @ServerEndpoint("/sdp/{matchId}/{profileId}")
 public class SdpRelayEndpoint {
 
@@ -31,8 +28,10 @@ public class SdpRelayEndpoint {
 
     private ScheduledFuture<?> pingFuture;
 
-    //TODO Replace this with an Element lookup
-    private SdpRelayService sdpRelayService = MemorySdpRelayService.getInstance();
+    private static SdpRelayService getSdpRelayService() {
+        //TODO Replace this with an Element lookup
+        return MemorySdpRelayService.getInstance();
+    }
 
     @OnOpen
     public void onOpen(final @PathParam("matchId") String matchId,
@@ -76,11 +75,12 @@ public class SdpRelayEndpoint {
                           final PongMessage message) throws IOException {
         logger.debug("Received PongMessage from match: {}", matchId);
 
-        if (sdpRelayService.pingMatch(matchId)) {
+        if (getSdpRelayService().pingMatch(matchId)) {
             logger.debug("Successfully reset match {}", matchId);
         } else {
             session.close();
         }
+
     }
 
     @OnClose
@@ -101,15 +101,6 @@ public class SdpRelayEndpoint {
         logger.debug("Closing session due to error {}", session.getId(), th);
         doClose(session, th);
         unsubscribe();
-    }
-
-    public SdpRelayService getSdpRelayService() {
-        return sdpRelayService;
-    }
-
-    @Inject
-    public void setSdpRelayService(final SdpRelayService sdpRelayService) {
-        this.sdpRelayService = sdpRelayService;
     }
 
     private void unsubscribe() {

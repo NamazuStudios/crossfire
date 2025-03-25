@@ -5,7 +5,6 @@ import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.annotation.ElementServiceImplementation;
 import dev.getelements.elements.sdk.util.ConcurrentLockedPublisher;
 import dev.getelements.elements.sdk.util.Publisher;
-import jakarta.inject.Singleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,7 +21,6 @@ import java.util.function.Consumer;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-@Singleton
 @ElementServiceImplementation(SdpRelayService.class)
 public class MemorySdpRelayService implements SdpRelayService {
 

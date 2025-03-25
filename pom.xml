@@ -10,6 +10,9 @@
     <version>1.0-SNAPSHOT</version>
 
     <properties>
+        <rs.api>4.0.0</rs.api>
+        <servlet.api>6.1.0</servlet.api>
+        <elements.version>3.0.0-SNAPSHOT</elements.version>
         <guice.version>7.0.0</guice.version>
         <java.version>21</java.version>
         <jain.version>1.2.269</jain.version>
@@ -35,38 +38,26 @@
         <!-- Provided by the ELements Runtime -->
 
         <dependency>
-            <groupId>com.google.inject</groupId>
-            <artifactId>guice</artifactId>
-            <version>${guice.version}</version>
-            <scope>provided</scope>
+            <groupId>dev.getelements.elements</groupId>
+            <artifactId>sdk-local</artifactId>
+            <version>${elements.version}</version>
         </dependency>
         <dependency>
             <groupId>dev.getelements.elements</groupId>
             <artifactId>sdk</artifactId>
-            <version>${element.sdk.version}</version>
+            <version>${elements.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>jakarta.ws.rs</groupId>
+            <artifactId>jakarta.ws.rs-api</artifactId>
+            <version>${rs.api}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>dev.getelements.elements</groupId>
-            <artifactId>sdk-util</artifactId>
-            <version>${element.sdk.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>jakarta.inject</groupId>
-            <artifactId>jakarta.inject-api</artifactId>
-            <version>${jakarta.inject.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.jetty</groupId>
-            <artifactId>jetty-server</artifactId>
-            <version>${jetty.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.jetty.websocket</groupId>
-            <artifactId>jetty-websocket-jetty-server</artifactId>
-            <version>${jetty.version}</version>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <version>${servlet.api}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -76,35 +67,18 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>org.eclipse.jetty.websocket</groupId>
-            <artifactId>jetty-websocket-jetty-server</artifactId>
-            <version>${jetty.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.jetty.ee10.websocket</groupId>
-            <artifactId>jetty-ee10-websocket-jakarta-server</artifactId>
-            <version>${jetty.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>jakarta.servlet</groupId>
-            <artifactId>jakarta.servlet-api</artifactId>
-            <version>${jakarta.servlet.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-            <version>${slf4j.version}</version>
+            <groupId>jakarta.websocket</groupId>
+            <artifactId>jakarta.websocket-client-api</artifactId>
+            <version>${jakarta.websocket.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
             <version>${logback.version}</version>
-            <scope>provided</scope>
+            <scope>test</scope>
         </dependency>
+
     </dependencies>
 
     <build>
