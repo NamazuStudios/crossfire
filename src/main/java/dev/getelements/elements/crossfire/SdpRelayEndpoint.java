@@ -1,6 +1,7 @@
 package dev.getelements.elements.crossfire;
 
 import dev.getelements.elements.sdk.Subscription;
+import dev.getelements.elements.sdk.annotation.ElementDefaultAttribute;
 import jakarta.websocket.*;
 import jakarta.websocket.server.PathParam;
 import jakarta.websocket.server.ServerEndpoint;
@@ -19,6 +20,9 @@ import static jakarta.websocket.CloseReason.CloseCodes.UNEXPECTED_CONDITION;
 
 @ServerEndpoint("/sdp/{matchId}/{profileId}")
 public class SdpRelayEndpoint {
+
+    @ElementDefaultAttribute("crossfire")
+    public static final String APP_SERVE_PREFIX = "dev.getelements.elements.app.serve.prefix";
 
     private static final Logger logger = LoggerFactory.getLogger(SdpRelayEndpoint.class);
 
