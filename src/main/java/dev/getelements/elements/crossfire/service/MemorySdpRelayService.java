@@ -1,4 +1,4 @@
-package dev.getelements.elements.crossfire;
+package dev.getelements.elements.crossfire.service;
 
 import dev.getelements.elements.sdk.ElementRegistry;
 import dev.getelements.elements.sdk.Subscription;

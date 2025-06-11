@@ -1,4 +1,4 @@
-package dev.getelements.elements.crossfire;
+package dev.getelements.elements.crossfire.service;
 
 public class TimeoutException extends RuntimeException {
 
