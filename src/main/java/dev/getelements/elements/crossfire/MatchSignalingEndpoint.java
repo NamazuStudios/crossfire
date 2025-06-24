@@ -18,13 +18,13 @@ import java.util.concurrent.TimeUnit;
 import static jakarta.websocket.CloseReason.CloseCodes.GOING_AWAY;
 import static jakarta.websocket.CloseReason.CloseCodes.UNEXPECTED_CONDITION;
 
-@ServerEndpoint("/sdp/{matchId}/{profileId}")
-public class SdpRelayEndpoint {
+@ServerEndpoint("/match/{matchId}/{profileId}")
+public class MatchSignalingEndpoint {
 
     @ElementDefaultAttribute("crossfire")
     public static final String APP_SERVE_PREFIX = "dev.getelements.elements.app.serve.prefix";
 
-    private static final Logger logger = LoggerFactory.getLogger(SdpRelayEndpoint.class);
+    private static final Logger logger = LoggerFactory.getLogger(MatchSignalingEndpoint.class);
 
     private static final ScheduledExecutorService pinger = Executors.newSingleThreadScheduledExecutor();
 
@@ -32,9 +32,9 @@ public class SdpRelayEndpoint {
 
     private ScheduledFuture<?> pingFuture;
 
-    private static SdpRelayService getSdpRelayService() {
+    private static MatchSignalingService getSdpRelayService() {
         //TODO Replace this with an Element lookup
-        return MemorySdpRelayService.getInstance();
+        return MemoryMatchSignalingService.getInstance();
     }
 
     @OnOpen

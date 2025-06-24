@@ -11,8 +11,10 @@
 
     <properties>
         <rs.api>4.0.0</rs.api>
+        <surefire.version>3.0.0-M9</surefire.version>
+        <maven.compiler.version>3.11.0</maven.compiler.version>
         <servlet.api>6.1.0</servlet.api>
-        <elements.version>3.2.0</elements.version>
+        <elements.version>3.3.0-SNAPSHOT</elements.version>
         <guice.version>7.0.0</guice.version>
         <java.version>21</java.version>
         <jain.version>1.2.269</jain.version>
@@ -23,6 +25,8 @@
         <element.sdk.version>2.2.0-SNAPSHOT</element.sdk.version>
         <jakarta.websocket.version>2.1.0</jakarta.websocket.version>
         <jakarta.servlet.version>6.0.0</jakarta.servlet.version>
+        <guice.version>7.0.0</guice.version>
+        <jakarta.validation.api.version>3.1.0</jakarta.validation.api.version>
     </properties>
 
     <dependencies>
@@ -41,11 +45,19 @@
             <groupId>dev.getelements.elements</groupId>
             <artifactId>sdk-local</artifactId>
             <version>${elements.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>dev.getelements.elements</groupId>
             <artifactId>sdk</artifactId>
             <version>${elements.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>dev.getelements.elements</groupId>
+            <artifactId>sdk-guice</artifactId>
+            <version>${elements.version}</version>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
@@ -73,12 +85,10 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-classic</artifactId>
-            <version>${logback.version}</version>
-            <scope>test</scope>
+            <groupId>jakarta.validation</groupId>
+            <artifactId>jakarta.validation-api</artifactId>
+            <version>${jakarta.validation.api.version}</version>
         </dependency>
-
     </dependencies>
 
     <build>
@@ -86,7 +96,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.11.0</version>
+                <version>${maven.compiler.version}</version>
                 <configuration>
                     <release>${java.version}</release>
                 </configuration>
@@ -94,7 +104,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.0.0-M9</version>
+                <version>${surefire.version}</version>
             </plugin>
         </plugins>
     </build>

@@ -21,10 +21,10 @@ import java.util.function.Consumer;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-@ElementServiceImplementation(SdpRelayService.class)
-public class MemorySdpRelayService implements SdpRelayService {
+@ElementServiceImplementation(MatchSignalingService.class)
+public class MemoryMatchSignalingService implements MatchSignalingService {
 
-    private static final Logger logger = LoggerFactory.getLogger(MemorySdpRelayService.class);
+    private static final Logger logger = LoggerFactory.getLogger(MemoryMatchSignalingService.class);
 
     // TODO Remove and replace with a proper ping/pong response
     private final long QUEUE_TIMEOUT_SECONDS = 180;
@@ -33,7 +33,7 @@ public class MemorySdpRelayService implements SdpRelayService {
 
     private final ScheduledExecutorService timeoutScheduler = Executors.newSingleThreadScheduledExecutor();
 
-    private static final MemorySdpRelayService instance = new MemorySdpRelayService();
+    private static final MemoryMatchSignalingService instance = new MemoryMatchSignalingService();
 
     /**
      * Gets the single shared instance.
@@ -42,7 +42,7 @@ public class MemorySdpRelayService implements SdpRelayService {
      * @deprecated To be replaced with a lookup in {@link ElementRegistry}
      */
     @Deprecated
-    public static MemorySdpRelayService getInstance() {
+    public static MemoryMatchSignalingService getInstance() {
         return instance;
     }
 

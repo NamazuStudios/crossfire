@@ -7,7 +7,7 @@ import java.util.function.Consumer;
 /**
  * Handles the interchange of SDP Messages.
  */
-public interface SdpRelayService {
+public interface MatchSignalingService {
 
     /**
      * Handles a ping response
