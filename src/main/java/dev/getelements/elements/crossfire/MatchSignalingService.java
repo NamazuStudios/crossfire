@@ -1,12 +1,16 @@
 package dev.getelements.elements.crossfire;
 
 import dev.getelements.elements.sdk.Subscription;
+import dev.getelements.elements.sdk.annotation.ElementPublic;
+import dev.getelements.elements.sdk.annotation.ElementServiceExport;
 
 import java.util.function.Consumer;
 
 /**
  * Handles the interchange of SDP Messages.
  */
+@ElementPublic
+@ElementServiceExport
 public interface MatchSignalingService {
 
     /**

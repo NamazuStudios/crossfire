@@ -2,7 +2,6 @@ package dev.getelements.elements.crossfire;
 
 import dev.getelements.elements.sdk.ElementRegistry;
 import dev.getelements.elements.sdk.Subscription;
-import dev.getelements.elements.sdk.annotation.ElementServiceImplementation;
 import dev.getelements.elements.sdk.util.ConcurrentLockedPublisher;
 import dev.getelements.elements.sdk.util.Publisher;
 import org.slf4j.Logger;
@@ -21,7 +20,6 @@ import java.util.function.Consumer;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-@ElementServiceImplementation(MatchSignalingService.class)
 public class MemoryMatchSignalingService implements MatchSignalingService {
 
     private static final Logger logger = LoggerFactory.getLogger(MemoryMatchSignalingService.class);
