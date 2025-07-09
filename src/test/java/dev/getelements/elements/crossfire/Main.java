@@ -5,6 +5,7 @@ import dev.getelements.elements.sdk.local.ElementsLocalBuilder;
 public class Main {
 
     public static void main(String[] args) {
+
         // Create the local instance of the Elements server
         final var local = ElementsLocalBuilder.getDefault()
                 .withElementNamed("example", "dev.getelements.elements.crossfire")

@@ -1,9 +1,8 @@
 package dev.getelements.elements.crossfire.guice;
 
-import _internal.com.google.inject.AbstractModule;
-import _internal.com.google.inject.PrivateModule;
-import dev.getelements.elements.crossfire.MemoryMatchSignalingService;
+import com.google.inject.PrivateModule;
 import dev.getelements.elements.crossfire.MatchSignalingService;
+import dev.getelements.elements.crossfire.MemoryMatchSignalingService;
 
 public class CrossfireModule extends PrivateModule {
 

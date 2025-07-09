@@ -1,9 +1,11 @@
 package dev.getelements.elements.crossfire;
 
-import dev.getelements.elements.sdk.ElementRegistry;
+import dev.getelements.elements.dao.mongo.match.MongoMultiMatchDao;
 import dev.getelements.elements.sdk.Subscription;
+import dev.getelements.elements.sdk.dao.MultiMatchDao;
 import dev.getelements.elements.sdk.util.ConcurrentLockedPublisher;
 import dev.getelements.elements.sdk.util.Publisher;
+import jakarta.inject.Inject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,18 +33,7 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
 
     private final ScheduledExecutorService timeoutScheduler = Executors.newSingleThreadScheduledExecutor();
 
-    private static final MemoryMatchSignalingService instance = new MemoryMatchSignalingService();
-
-    /**
-     * Gets the single shared instance.
-     *
-     * @return the single shared instance.
-     * @deprecated To be replaced with a lookup in {@link ElementRegistry}
-     */
-    @Deprecated
-    public static MemoryMatchSignalingService getInstance() {
-        return instance;
-    }
+    private MultiMatchDao mongoMultiMatchDao;
 
     @Override
     public boolean pingMatch(final String matchId) {
@@ -185,6 +176,15 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
             );
         }
 
+    }
+
+    public MultiMatchDao getMongoMultiMatchDao() {
+        return mongoMultiMatchDao;
+    }
+
+    @Inject
+    public void setMongoMultiMatchDao(MultiMatchDao mongoMultiMatchDao) {
+        this.mongoMultiMatchDao = mongoMultiMatchDao;
     }
 
     private record SdpMessage(Object originator, String payload) {}

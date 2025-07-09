@@ -1,5 +1,7 @@
 package dev.getelements.elements.crossfire;
 
+import dev.getelements.elements.sdk.Element;
+import dev.getelements.elements.sdk.ElementSupplier;
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.annotation.ElementDefaultAttribute;
 import jakarta.websocket.*;
@@ -32,10 +34,13 @@ public class MatchSignalingEndpoint {
 
     private ScheduledFuture<?> pingFuture;
 
-    private static MatchSignalingService getSdpRelayService() {
-        //TODO Replace this with an Element lookup
-        return MemoryMatchSignalingService.getInstance();
-    }
+    private final Element element = ElementSupplier
+            .getElementLocal(MatchSignalingEndpoint.class)
+            .get();
+
+    private final MatchSignalingService matchSignalingService = element
+            .getServiceLocator()
+            .getInstance(MatchSignalingService.class);
 
     @OnOpen
     public void onOpen(final @PathParam("matchId") String matchId,
@@ -57,7 +62,7 @@ public class MatchSignalingEndpoint {
                 TimeUnit.SECONDS
         );
 
-        subscription = getSdpRelayService().subscribeToUpdates(
+        subscription = matchSignalingService.subscribeToUpdates(
                 matchId,
                 profileId,
                 remote::sendText,
@@ -70,7 +75,7 @@ public class MatchSignalingEndpoint {
     public void onMessage(final @PathParam("matchId") String matchId,
                           final @PathParam("profileId") String profileId,
                           final String message) {
-        getSdpRelayService().addSessionDescription(matchId, profileId, message);
+        matchSignalingService.addSessionDescription(matchId, profileId, message);
     }
 
     @OnMessage
@@ -79,7 +84,7 @@ public class MatchSignalingEndpoint {
                           final PongMessage message) throws IOException {
         logger.debug("Received PongMessage from match: {}", matchId);
 
-        if (getSdpRelayService().pingMatch(matchId)) {
+        if (matchSignalingService.pingMatch(matchId)) {
             logger.debug("Successfully reset match {}", matchId);
         } else {
             session.close();
