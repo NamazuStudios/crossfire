@@ -1,8 +1,7 @@
-package dev.getelements.elements.crossfire.model;
+package dev.getelements.elements.crossfire.model.signal;
 
-import static dev.getelements.elements.crossfire.model.Signal.Type.SDP_OFFER;
+import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.SDP_OFFER;
 
-@SignalModel(SDP_OFFER)
 public class SdpOfferSignal implements Signal {
 
     private String profileId;

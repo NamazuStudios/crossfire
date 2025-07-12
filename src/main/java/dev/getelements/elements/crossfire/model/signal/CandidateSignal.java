@@ -1,8 +1,7 @@
-package dev.getelements.elements.crossfire.model;
+package dev.getelements.elements.crossfire.model.signal;
 
-import static dev.getelements.elements.crossfire.model.Signal.Type.CANDIDATE;
+import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.CANDIDATE;
 
-@SignalModel(CANDIDATE)
 public class CandidateSignal implements Signal {
 
     private String profileId;

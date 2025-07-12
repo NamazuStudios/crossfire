@@ -11,6 +11,7 @@
 
     <properties>
         <rs.api>4.0.0</rs.api>
+        <rocoto.version>6.2</rocoto.version>
         <surefire.version>3.0.0-M9</surefire.version>
         <maven.compiler.version>3.11.0</maven.compiler.version>
         <servlet.api>6.1.0</servlet.api>
@@ -26,6 +27,7 @@
         <jakarta.websocket.version>2.1.0</jakarta.websocket.version>
         <jakarta.servlet.version>6.0.0</jakarta.servlet.version>
         <guice.version>7.0.0</guice.version>
+        <jackson.version>2.18.2</jackson.version>
         <jakarta.validation.api.version>3.1.0</jakarta.validation.api.version>
     </properties>
 
@@ -69,6 +71,16 @@
             <groupId>dev.getelements.elements</groupId>
             <artifactId>sdk-local-maven</artifactId>
             <version>${elements.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.99soft.guice</groupId>
+            <artifactId>rocoto</artifactId>
+            <version>${rocoto.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
         </dependency>
     </dependencies>
 

@@ -1,5 +1,6 @@
-package dev.getelements.elements.crossfire;
+package dev.getelements.elements.crossfire.service;
 
+import dev.getelements.elements.crossfire.model.error.TimeoutException;
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.dao.MultiMatchDao;
 import dev.getelements.elements.sdk.util.ConcurrentLockedPublisher;

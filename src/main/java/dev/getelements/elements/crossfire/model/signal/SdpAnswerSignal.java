@@ -1,10 +1,9 @@
-package dev.getelements.elements.crossfire.model;
+package dev.getelements.elements.crossfire.model.signal;
 
 import jakarta.validation.constraints.NotNull;
 
-import static dev.getelements.elements.crossfire.model.Signal.Type.SDP_ANSWER;
+import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.SDP_ANSWER;
 
-@SignalModel(SDP_ANSWER)
 public class SdpAnswerSignal implements SignalWithRecipient {
 
     @NotNull

@@ -1,15 +1,14 @@
-package dev.getelements.elements.crossfire.model;
+package dev.getelements.elements.crossfire.model.signal;
 
-import static dev.getelements.elements.crossfire.model.Signal.Type.DISCONNECT;
+import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.HOST;
 
-@SignalModel(DISCONNECT)
-public class DisconnectSignal implements Signal {
+public class HostSignal implements Signal {
 
     private String profileId;
 
     @Override
     public Type getType() {
-        return DISCONNECT;
+        return HOST;
     }
 
     @Override
