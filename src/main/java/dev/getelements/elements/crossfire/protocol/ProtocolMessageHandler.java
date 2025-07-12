@@ -1,6 +1,7 @@
 package dev.getelements.elements.crossfire.protocol;
 
 import dev.getelements.elements.crossfire.model.ProtocolMessage;
+import dev.getelements.elements.sdk.annotation.ElementServiceExport;
 import jakarta.websocket.PongMessage;
 import jakarta.websocket.Session;
 
@@ -9,6 +10,7 @@ import java.io.IOException;
 /**
  * Handles all protocol messages.
  */
+@ElementServiceExport
 public interface ProtocolMessageHandler {
 
     /**
