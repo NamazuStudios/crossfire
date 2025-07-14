@@ -1,5 +1,7 @@
 package dev.getelements.elements.crossfire.model.handshake;
 
+import jakarta.validation.constraints.NotNull;
+
 import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.CONNECTED;
 
 /**
@@ -7,6 +9,7 @@ import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.CONN
  */
 public class ConnectedResponse implements HandshakeResponse {
 
+    @NotNull
     private String matchId;
 
     @Override

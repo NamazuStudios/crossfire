@@ -1,13 +1,18 @@
 package dev.getelements.elements.crossfire.model.signal;
 
+import jakarta.validation.constraints.NotNull;
+
 import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.CANDIDATE;
 
 public class CandidateSignal implements Signal {
 
+    @NotNull
     private String profileId;
 
+    @NotNull
     private String mid;
 
+    @NotNull
     private String candidate;
 
     @Override

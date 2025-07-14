@@ -9,10 +9,20 @@ import jakarta.websocket.Session;
 public interface HandshakeHandler {
 
     /**
+     * STarts the handshake handler with the given protocol message handler and session.
      *
-     * @param session
-     * @param request
+     * @param handler the protocol message handler
+     * @param session the session
      */
-    void onMessage(Session session, HandshakeRequest request);
+    void start(ProtocolMessageHandler handler, Session session);
+
+    /**
+     * Handles the handshake message request.
+     *
+     * @param handler
+     * @param session the session
+     * @param request the handshake request
+     */
+    void onMessage(ProtocolMessageHandler handler, Session session, HandshakeRequest request);
 
 }

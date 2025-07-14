@@ -32,6 +32,7 @@
     </properties>
 
     <dependencies>
+        <!-- Project Dependencies -->
         <dependency>
             <groupId>javax.sip</groupId>
             <artifactId>jain-sip-ri</artifactId>
@@ -64,11 +65,6 @@
         </dependency>
         <dependency>
             <groupId>dev.getelements.elements</groupId>
-            <artifactId>sdk-local</artifactId>
-            <version>${elements.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>dev.getelements.elements</groupId>
             <artifactId>sdk-local-maven</artifactId>
             <version>${elements.version}</version>
         </dependency>
@@ -81,6 +77,26 @@
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
             <version>${jackson.version}</version>
+        </dependency>
+
+        <!-- Provided Dependencies -->
+        <dependency>
+            <groupId>dev.getelements.elements</groupId>
+            <artifactId>sdk-local</artifactId>
+            <version>${elements.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.validation</groupId>
+            <artifactId>jakarta.validation-api</artifactId>
+            <version>${jakarta.validation.api.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.websocket</groupId>
+            <artifactId>jakarta.websocket-api</artifactId>
+            <version>${jakarta.websocket.version}</version>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 

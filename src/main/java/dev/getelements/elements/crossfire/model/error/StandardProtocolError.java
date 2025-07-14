@@ -1,6 +1,7 @@
 package dev.getelements.elements.crossfire.model.error;
 
 import dev.getelements.elements.rt.exception.BaseException;
+import jakarta.validation.constraints.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,8 +19,10 @@ public class StandardProtocolError implements ProtocolError {
 
     private static final Logger logger = LoggerFactory.getLogger(StandardProtocolError.class);
 
+    @NotNull
     private String code;
 
+    @NotNull
     private String message;
 
     @Override

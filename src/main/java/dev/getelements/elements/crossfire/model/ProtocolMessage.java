@@ -9,8 +9,7 @@ import dev.getelements.elements.crossfire.model.signal.*;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-import static dev.getelements.elements.crossfire.model.ProtocolMessage.Category.HANDSHAKE;
-import static dev.getelements.elements.crossfire.model.ProtocolMessage.Category.SIGNALING;
+import static dev.getelements.elements.crossfire.model.ProtocolMessage.Category.*;
 
 public interface ProtocolMessage {
 
@@ -46,7 +45,7 @@ public interface ProtocolMessage {
         /**
          * Represents a signal that carries an SDP answer.
          */
-        SDP_ANSWER(SIGNALING, SdpAnswerSignal.class),
+        SDP_ANSWER(SIGNALING_DIRECT, SdpAnswerSignal.class),
 
         /**
          * Represents a signal that carries a candidate for the WebRTC connection.
@@ -75,6 +74,15 @@ public interface ProtocolMessage {
         Type(Category category, Class<? extends ProtocolMessage> messageType) {
             this.category = category;
             this.messageType = messageType;
+        }
+
+        /**
+         * Gets the category of the message type.
+         *
+         * @return the category
+         */
+        public Category getCategory() {
+            return category;
         }
 
         /**
@@ -113,9 +121,16 @@ public interface ProtocolMessage {
         HANDSHAKE,
 
         /**
-         * Used in the signaling process, after a match starts.
+         * Used in the signaling process, after a match starts signals in this category will be sent to all profiles in
+         * the match via the signaling server.
          */
         SIGNALING,
+
+        /**
+         * Used for direct signaling between profiles in a match. After a match starts, profiles can send messages
+         * directly to the recipient profile via the signaling server.
+         **/
+        SIGNALING_DIRECT,
 
         /**
          * Used for error messages.
