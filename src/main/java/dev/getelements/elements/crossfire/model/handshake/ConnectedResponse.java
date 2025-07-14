@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.CONNECTED;
 
 /**
- * Indicates that the client has successfully connected to a match.
+ * Indicates that the client has successfully connected to a matched.
  */
 public class ConnectedResponse implements HandshakeResponse {
 
@@ -18,9 +18,9 @@ public class ConnectedResponse implements HandshakeResponse {
     }
 
     /**
-     * Returns the match ID of the connected match.
+     * Returns the matched ID of the connected matched.
      *
-     * @return the match id
+     * @return the matched id
      */
     public String getMatchId() {
         return matchId;

@@ -3,6 +3,7 @@ package dev.getelements.elements.crossfire.protocol;
 import dev.getelements.elements.crossfire.model.ProtocolMessage;
 import dev.getelements.elements.crossfire.model.error.ProtocolStateException;
 import dev.getelements.elements.sdk.annotation.ElementServiceExport;
+import dev.getelements.elements.sdk.model.match.MultiMatch;
 import dev.getelements.elements.sdk.model.profile.Profile;
 import jakarta.websocket.PongMessage;
 
@@ -60,13 +61,21 @@ public interface ProtocolMessageHandler {
     void onMessage(jakarta.websocket.Session session, ProtocolMessage message) throws IOException;
 
     /**
+     * Atomically and in a thread safe manner matches the profile to the session. This will switch the connection phase
+     * to SIGNALING if this method and the call to {@link #authenticated(AuthRecord)} also succeeds.
+     *
+     * @param multiMatch
+     */
+    void matched(MultiMatch multiMatch);
+
+    /**
      * Atomically and in a thread safe manner authenticates the session. This will switch the connection phase to
-     * SIGNALING and will be able to receive signaling messages.
+     * SIGNALING if this method and the call to {@link #matched(MultiMatch)} also succeeds.
      *
      * @param authRecord the connection phase
      * @throws ProtocolStateException in the event that the connection phase is not HANDSHAKE
      */
-    void auth(AuthRecord authRecord);
+    void authenticated(AuthRecord authRecord);
 
     /**
      * Represents an authentication record.

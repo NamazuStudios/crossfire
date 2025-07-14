@@ -7,6 +7,7 @@ import dev.getelements.elements.crossfire.model.handshake.HandshakeRequest;
 import dev.getelements.elements.crossfire.model.signal.Signal;
 import dev.getelements.elements.crossfire.model.signal.SignalWithRecipient;
 import dev.getelements.elements.crossfire.protocol.*;
+import dev.getelements.elements.sdk.model.match.MultiMatch;
 import jakarta.inject.Inject;
 import jakarta.websocket.PongMessage;
 import jakarta.websocket.Session;
@@ -16,8 +17,8 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static dev.getelements.elements.crossfire.model.ProtocolMessage.Category.HANDSHAKE;
 import static dev.getelements.elements.crossfire.protocol.ConnectionPhase.*;
+import static java.util.Objects.requireNonNull;
 
 public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
 
@@ -67,30 +68,55 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
         logger.debug("{}: Session {} received protocol message {}", phase, session.getId(), message.getType());
 
         switch (phase) {
-            case HANDSHAKE -> onHandshakeMessage(session, message);
-            case SIGNALING -> onSignalingMessage(session, message);
-            default -> invalid(message);
+            case HANDSHAKE -> onHandshakeMessage(phase, session, message);
+            case SIGNALING -> onSignalingMessage(phase, session, message);
+            default -> invalid(phase, message);
         }
 
     }
 
-    private void onHandshakeMessage(final Session session, final ProtocolMessage message) {
-        if (HANDSHAKE.equals(message.getType().getCategory())) {
+    private void onHandshakeMessage(
+            final ConnectionPhase phase,
+            final Session session,
+            final ProtocolMessage message) {
+        if (ProtocolMessage.Category.HANDSHAKE.equals(message.getType().getCategory())) {
             getHandshakeHandler().onMessage(this, session, (HandshakeRequest) message);
         } else {
-            invalid(message);
+            invalid(phase, message);
         }
     }
 
-    private void onSignalingMessage(final Session session, final ProtocolMessage message) {
+    private void onSignalingMessage(
+            final ConnectionPhase phase,
+            final Session session,
+            final ProtocolMessage message) {
         switch (message.getType().getCategory()) {
             case SIGNALING -> getSignalingHandler().onMessage(this, session, (Signal) message);
             case SIGNALING_DIRECT -> getSignalingHandler().onMessageDirect(this, session, (SignalWithRecipient) message);
-            default -> invalid(message);
+            default -> invalid(phase, message);
         }
     }
 
-    private void invalid(final ProtocolMessage message) {
+    @Override
+    public void matched(final MultiMatch multiMatch) {
+        final var result = phase.updateAndGet(existing -> existing.matched(multiMatch));
+        logger.debug("{}: Matched session {} to match {}", result.phase(), result.session().getId(), multiMatch.getId());
+    }
+
+    @Override
+    public void authenticated(final AuthRecord authRecord) {
+
+        final var result = phase.updateAndGet(existing -> existing.authenticated(authRecord));
+
+        logger.debug("{}: Authenticated session {} for {}",
+                result.phase(),
+                result.session().getId(),
+                authRecord.session().getProfile().getId()
+        );
+
+    }
+
+    private void invalid(final ConnectionPhase phase, final ProtocolMessage message) {
 
         logger.error("{}: Not ready to accept {}({}} messages in phase.",
                 phase,
@@ -100,16 +126,11 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
 
         throw new ProtocolStateException(
                 "Unexpected message type " +
-                message.getType() +
-                " in phase " +
-                phase
+                        message.getType() +
+                        " in phase " +
+                        this.phase
         );
 
-    }
-
-    @Override
-    public void auth(AuthRecord authRecord) {
-        phase.updateAndGet(existing -> existing.auth(authRecord));
     }
 
     public Pinger getPinger() {
@@ -141,36 +162,53 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
 
     private record ConnectionPhaseRecord(
             Session session,
+            MultiMatch match,
             AuthRecord auth,
             ConnectionPhase phase
     ) {
 
         public static ConnectionPhaseRecord create() {
-            return new ConnectionPhaseRecord(null, null, WAITING);
+            return new ConnectionPhaseRecord(null, null, null, WAITING);
         }
 
         public ConnectionPhaseRecord start(final Session session) {
 
             if (phase() != WAITING) {
-                throw new IllegalStateException("Cannot open session in phase " + phase());
+                throw new ProtocolStateException("Cannot open session in phase " + phase());
             }
 
-            return new ConnectionPhaseRecord(session, null, ConnectionPhase.HANDSHAKE);
+            return new ConnectionPhaseRecord(session, null, null, ConnectionPhase.HANDSHAKE);
 
         }
 
-        public ConnectionPhaseRecord auth(final AuthRecord auth) {
+        public ConnectionPhaseRecord matched(final MultiMatch match) {
 
-            if (phase() != ConnectionPhase.HANDSHAKE) {
-                throw new IllegalStateException("Cannot authenticate in phase " + phase());
+            requireNonNull(match, "Match cannot be null");
+
+            if (ConnectionPhase.HANDSHAKE.equals(phase())) {
+                throw new ProtocolStateException("Cannot match in phase " + phase());
             }
 
-            return new ConnectionPhaseRecord(session(), auth, SIGNALING);
+            final var phase = auth() != null ? SIGNALING : HANDSHAKE;
+            return new ConnectionPhaseRecord(session(), match, auth(), phase);
+
+        }
+
+        public ConnectionPhaseRecord authenticated(final AuthRecord auth) {
+
+            requireNonNull(auth, "Auth Record cannot be null");
+
+            if (ConnectionPhase.HANDSHAKE.equals(phase())) {
+                throw new ProtocolStateException("Cannot authenticate in phase " + phase());
+            }
+
+            final var phase = match() != null ? SIGNALING : HANDSHAKE;
+            return new ConnectionPhaseRecord(session(), match(), auth, phase);
 
         }
 
         public ConnectionPhaseRecord terminate() {
-            return new ConnectionPhaseRecord(session(), auth(), TERMINATED);
+            return new ConnectionPhaseRecord(session(), match(), auth(), TERMINATED);
         }
 
     }

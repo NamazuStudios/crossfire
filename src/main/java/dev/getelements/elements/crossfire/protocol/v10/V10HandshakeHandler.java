@@ -17,4 +17,12 @@ public class V10HandshakeHandler implements HandshakeHandler {
 
     }
 
+    private record HandshakeRecord(
+            Session session,
+            ProtocolMessageHandler handler) {
+
+
+
+    }
+
 }

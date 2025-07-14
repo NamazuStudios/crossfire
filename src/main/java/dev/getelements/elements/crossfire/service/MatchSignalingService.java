@@ -22,7 +22,7 @@ public interface MatchSignalingService {
     boolean pingMatch(String matchId);
 
     /**
-     * Adds a session description for the supplied match ID.
+     * Adds a session description for the supplied matched ID.
      *
      * @param matchId the matchId
      * @param profileId the profile ID.
