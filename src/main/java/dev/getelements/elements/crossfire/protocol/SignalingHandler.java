@@ -11,6 +11,14 @@ import jakarta.websocket.Session;
 public interface SignalingHandler {
 
     /**
+     * Starts the signaling handler.
+     *
+     * @param handler the protocol message handler
+     * @param session the session
+     */
+    void start(ProtocolMessageHandler handler, Session session);
+
+    /**
      * Handles the handshake message request.
      *
      * @param handler                        the handler

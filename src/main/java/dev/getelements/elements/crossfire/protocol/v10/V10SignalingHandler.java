@@ -9,6 +9,13 @@ import jakarta.websocket.Session;
 public class V10SignalingHandler implements SignalingHandler {
 
     @Override
+    public void start(
+            final ProtocolMessageHandler handler,
+            final Session session) {
+
+    }
+
+    @Override
     public void onMessage(
             final ProtocolMessageHandler handler,
             final Session session,

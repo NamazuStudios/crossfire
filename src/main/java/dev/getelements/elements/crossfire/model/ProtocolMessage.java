@@ -48,6 +48,16 @@ public interface ProtocolMessage {
         SDP_ANSWER(SIGNALING_DIRECT, SdpAnswerSignal.class),
 
         /**
+         * Represents a signal that carries a binary payload to be broadcasted to all profiles in the match.
+         */
+        BINARY_BROADCAST(SIGNALING, BinaryBroadcastSignal.class),
+
+        /**
+         * Represents a signal that carries a binary payload to be relayed to a specific profile in the match.
+         */
+        BINARY_RELAY(SIGNALING_DIRECT, BinaryRelaySignal.class),
+
+        /**
          * Represents a signal that carries a candidate for the WebRTC connection.
          */
         CANDIDATE(SIGNALING, CandidateSignal.class),

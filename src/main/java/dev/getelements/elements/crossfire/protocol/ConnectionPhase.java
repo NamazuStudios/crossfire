@@ -11,6 +11,11 @@ public enum ConnectionPhase {
     WAITING,
 
     /**
+     * The connection is ready to send and receive messages.
+     */
+    READY,
+
+    /**
      * The initial phase where the connection is being established.
      */
     HANDSHAKE,

@@ -69,27 +69,8 @@ public class MatchSignalingEndpoint {
 
     @OnError
     public void onError(final Session session, final Throwable th) {
-        logger.debug("Closing session due to error {}", session.getId(), th);
-        final var remote = session.getAsyncRemote();
-        final var error = StandardProtocolError.from(th);
-        remote.sendObject(error);
-        doClose(session, th);
-    }
-
-    private void doClose(final Session session, final Throwable th) {
-        try {
-
-            logger.debug("Closing session {}", session.getId(), th);
-
-            if (th instanceof TimeoutException) {
-                session.close(new CloseReason(GOING_AWAY, th.getMessage()));
-            } else {
-                session.close(new CloseReason(UNEXPECTED_CONDITION, th.getMessage()));
-            }
-
-        } catch (Exception ex) {
-            logger.error("Error while closing session {}", session.getId(), ex);
-        }
+        logger.debug("Encountered error in session {}", session.getId(), th);
+        handler.onError(session, th);
     }
 
 }

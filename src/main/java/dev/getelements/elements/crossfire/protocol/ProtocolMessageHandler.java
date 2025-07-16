@@ -61,6 +61,24 @@ public interface ProtocolMessageHandler {
     void onMessage(jakarta.websocket.Session session, ProtocolMessage message) throws IOException;
 
     /**
+     * Handles all protocol errors.
+     *
+     * @param session the session
+     * @param error the protocol message request
+     * @throws ProtocolStateException in the event that the connection phase is not ready or has been terminated
+     */
+    default void onError(jakarta.websocket.Session session, Throwable error) {
+        terminate(error);
+    }
+
+    /**
+     * Sends a protocol message to the session, buffering it if necessary.
+     *
+     * @param message the message
+     */
+    void send(ProtocolMessage message);
+
+    /**
      * Atomically and in a thread safe manner matches the profile to the session. This will switch the connection phase
      * to SIGNALING if this method and the call to {@link #authenticated(AuthRecord)} also succeeds.
      *
@@ -76,6 +94,19 @@ public interface ProtocolMessageHandler {
      * @throws ProtocolStateException in the event that the connection phase is not HANDSHAKE
      */
     void authenticated(AuthRecord authRecord);
+
+    /**
+     * Terminates the connection. This will switch the connection phase to TERMINATED. This method should be called when
+     * the session is closed or when the connection is terminated. Error conditions also terminate the connection
+     * automatically.
+     */
+    void terminate();
+
+    /**
+     * Terminates the connection. This will switch the connection phase to TERMINATED. This method should be called when
+     * the session is closed or when the connection is terminated. Error conditions also terminate the connection.
+     */
+    void terminate(Throwable th);
 
     /**
      * Represents an authentication record.

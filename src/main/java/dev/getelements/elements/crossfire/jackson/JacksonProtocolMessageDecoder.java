@@ -7,7 +7,7 @@ import jakarta.websocket.Decoder;
 import static dev.getelements.elements.crossfire.jackson.Jackson.getMapper;
 import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.findType;
 
-public class    JacksonProtocolMessageDecoder implements Decoder.Text<ProtocolMessage> {
+public class JacksonProtocolMessageDecoder implements Decoder.Text<ProtocolMessage> {
 
     @Override
     public ProtocolMessage decode(final String s) throws DecodeException {
