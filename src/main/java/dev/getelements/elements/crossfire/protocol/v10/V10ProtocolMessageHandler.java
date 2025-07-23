@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -59,6 +60,8 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
     private int maxBufferSize;
 
     private Pinger pinger;
+
+    private ExecutorService executorService;
 
     private HandshakeHandler handshakeHandler;
 
@@ -123,9 +126,12 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
 
             case HANDSHAKE -> {
 
-                getHandshakeHandler().onMessage(this, session, (HandshakeRequest) message);
-
                 final var result = this.state.updateAndGet(V10ConnectionStateRecord::handshake);
+
+                // Now that we entered the HANDSHAKE phase, we can process the handshake request. The above line
+                // ensures that the state is updated to HANDSHAKE before processing the message and that multiple
+                // handshake requests are not allowed in the READY phase.
+                getHandshakeHandler().onMessage(this, session, (HandshakeRequest) message);
 
                 logger.debug("{}: Started handshake {} for session {}.",
                         result,
@@ -179,7 +185,7 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
 
         if (SIGNALING.equals(result.phase())) {
 
-            // The state of the protocol chaned while buffering the message, so we take the message and process it
+            // The state of the protocol changed while buffering the message, so we take the message and process it
             // as if it was received in the SIGNALING phase.
             onMessageHandshakePhase(result, result.session(), message);
 
@@ -210,6 +216,32 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
             // All other message types in the SIGNALING phase are invalid and will throw an exception.
             default -> throw invalid(state, message);
         }
+    }
+
+    @Override
+    public void submit(final Runnable task) {
+        getExecutorService().submit(() -> {
+
+            try {
+                task.run();
+            } catch (final Throwable th) {
+
+                final var state = this.state.get();
+
+                logger.error("{}: Error executing task {} for session {}: {}",
+                        state.phase(),
+                        task.getClass().getName(),
+                        state.sessionId(),
+                        th.getMessage(),
+                        th
+                );
+
+                terminate(th);
+
+            }
+
+        });
+
     }
 
     @Override
@@ -263,7 +295,7 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
             existing = state.get();
         } while (!state.compareAndSet(existing, result = existing.matched(multiMatch)));
 
-        logger.debug("{}: Matched session {} to match {}.",
+        logger.debug("{}: Matched session {} to match {}.   ",
                 result.phase(),
                 result.sessionId(),
                 multiMatch.getId()
@@ -436,6 +468,15 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
     @Inject
     public void setPinger(Pinger pinger) {
         this.pinger = pinger;
+    }
+
+    public ExecutorService getExecutorService() {
+        return executorService;
+    }
+
+    @Inject
+    public void setExecutorService(ExecutorService executorService) {
+        this.executorService = executorService;
     }
 
     public HandshakeHandler getHandshakeHandler() {

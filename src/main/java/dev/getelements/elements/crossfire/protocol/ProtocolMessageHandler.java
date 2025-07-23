@@ -72,6 +72,14 @@ public interface ProtocolMessageHandler {
     }
 
     /**
+     * Submits a runnable to the protocol message handler's executor service.
+     * This is used to ensure that the runnable is executed in the context of the protocol message handler.
+     *
+     * @param task the runnable to submit
+     */
+    void submit(Runnable task);
+
+    /**
      * Sends a protocol message to the session, buffering it if necessary.
      *
      * @param message the message
