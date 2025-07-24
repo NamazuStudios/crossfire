@@ -10,12 +10,14 @@ import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler.AuthRe
 import dev.getelements.elements.sdk.dao.ApplicationConfigurationDao;
 import dev.getelements.elements.sdk.dao.MultiMatchDao;
 import dev.getelements.elements.sdk.dao.ProfileDao;
+import dev.getelements.elements.sdk.dao.Transaction;
 import dev.getelements.elements.sdk.model.application.MatchmakingApplicationConfiguration;
 import dev.getelements.elements.sdk.model.exception.ForbiddenException;
 import dev.getelements.elements.sdk.model.profile.Profile;
 import dev.getelements.elements.sdk.service.auth.SessionService;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
+import jakarta.inject.Provider;
 import jakarta.websocket.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +39,8 @@ public class V10HandshakeHandler implements HandshakeHandler {
 
     private SessionService sessionService;
 
+    private Provider<Transaction> transactionProvider;
+
     @Override
     public void onMessage(
             final ProtocolMessageHandler handler,
@@ -57,6 +61,7 @@ public class V10HandshakeHandler implements HandshakeHandler {
         auth(handler, request, (auth) -> {
 
             final var application = auth.profile().getApplication();
+
             final var configuration = getApplicationConfigurationDao().getApplicationConfiguration(
                     MatchmakingApplicationConfiguration.class,
                     application.getId(),
@@ -158,6 +163,15 @@ public class V10HandshakeHandler implements HandshakeHandler {
     @Inject
     public void setApplicationConfigurationDao(ApplicationConfigurationDao applicationConfigurationDao) {
         this.applicationConfigurationDao = applicationConfigurationDao;
+    }
+
+    public Provider<Transaction> getTransactionProvider() {
+        return transactionProvider;
+    }
+
+    @Inject
+    public void setTransactionProvider(Provider<Transaction> transactionProvider) {
+        this.transactionProvider = transactionProvider;
     }
 
     private record HandshakeStateRecord(

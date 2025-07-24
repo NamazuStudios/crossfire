@@ -1,5 +1,6 @@
 package dev.getelements.elements.crossfire.jackson;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
@@ -8,6 +9,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class Jackson {
 
     private static final ObjectMapper mapper = new ObjectMapper();
+
+    static {
+        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    }
 
     /**
      * Gets the sahred mapper for the Jackson encoder and decoder..

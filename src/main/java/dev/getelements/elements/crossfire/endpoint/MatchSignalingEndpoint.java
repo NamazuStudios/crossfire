@@ -1,10 +1,9 @@
 package dev.getelements.elements.crossfire.endpoint;
 
+import dev.getelements.elements.crossfire.jackson.FailDecoder;
 import dev.getelements.elements.crossfire.jackson.JacksonEncoder;
 import dev.getelements.elements.crossfire.jackson.JacksonProtocolMessageDecoder;
 import dev.getelements.elements.crossfire.model.ProtocolMessage;
-import dev.getelements.elements.crossfire.model.error.StandardProtocolError;
-import dev.getelements.elements.crossfire.model.error.TimeoutException;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler;
 import dev.getelements.elements.sdk.Element;
 import dev.getelements.elements.sdk.ElementSupplier;
@@ -16,13 +15,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
-import static jakarta.websocket.CloseReason.CloseCodes.GOING_AWAY;
-import static jakarta.websocket.CloseReason.CloseCodes.UNEXPECTED_CONDITION;
-
 @ServerEndpoint(
         value = "/match",
         encoders = JacksonEncoder.class,
-        decoders = JacksonProtocolMessageDecoder.class
+        decoders = { JacksonProtocolMessageDecoder.class, FailDecoder.class }
 )
 public class MatchSignalingEndpoint {
 

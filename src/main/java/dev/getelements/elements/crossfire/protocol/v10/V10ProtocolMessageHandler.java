@@ -2,10 +2,7 @@ package dev.getelements.elements.crossfire.protocol.v10;
 
 
 import dev.getelements.elements.crossfire.model.ProtocolMessage;
-import dev.getelements.elements.crossfire.model.error.MessageBufferOverrunException;
-import dev.getelements.elements.crossfire.model.error.ProtocolStateException;
-import dev.getelements.elements.crossfire.model.error.TimeoutException;
-import dev.getelements.elements.crossfire.model.error.UnexpectedMessageException;
+import dev.getelements.elements.crossfire.model.error.*;
 import dev.getelements.elements.crossfire.model.handshake.HandshakeRequest;
 import dev.getelements.elements.crossfire.model.signal.Signal;
 import dev.getelements.elements.crossfire.model.signal.SignalWithRecipient;
@@ -15,6 +12,8 @@ import dev.getelements.elements.sdk.model.exception.BaseException;
 import dev.getelements.elements.sdk.model.match.MultiMatch;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validator;
 import jakarta.websocket.CloseReason;
 import jakarta.websocket.PongMessage;
 import jakarta.websocket.Session;
@@ -28,7 +27,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
+import static dev.getelements.elements.crossfire.model.error.ProtocolError.Code.INVALID_MESSAGE;
 import static dev.getelements.elements.crossfire.protocol.ConnectionPhase.SIGNALING;
 import static dev.getelements.elements.crossfire.protocol.ConnectionPhase.TERMINATED;
 import static jakarta.websocket.CloseReason.CloseCodes.*;
@@ -60,6 +61,8 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
     private int maxBufferSize;
 
     private Pinger pinger;
+
+    private Validator validator;
 
     private ExecutorService executorService;
 
@@ -95,7 +98,23 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
 
     @Override
     public void onMessage(final Session session, final PongMessage message) throws IOException {
-        getPinger().onPong(session, message);
+        final var violations = getValidator().validate(message);
+
+        if (violations.isEmpty()) {
+            getPinger().onPong(session, message);
+        } else {
+            final var error = new StandardProtocolError();
+            error.setCode(INVALID_MESSAGE.toString());
+            error.setMessage("Invalid message: " + violations
+                    .stream()
+                    .map(ConstraintViolation::getMessage)
+                    .collect(Collectors.joining("\n"))
+            );
+
+            final var reason = new CloseReason(NOT_CONSISTENT, "Invalid Message.");
+            doTerminate(reason, null);
+
+        }
     }
 
     @Override
@@ -423,6 +442,10 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
                     reason.getCloseCode().getCode(),
                     reason.getReasonPhrase()
             );
+        } else if (session != null) {
+            final var error = StandardProtocolError.from(th);
+            session.getAsyncRemote().sendObject(error);
+            log(result, reason, th);
         } else {
             log(result, reason, th);
         }
@@ -468,6 +491,15 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
     @Inject
     public void setPinger(Pinger pinger) {
         this.pinger = pinger;
+    }
+
+    public Validator getValidator() {
+        return validator;
+    }
+
+    @Inject
+    public void setValidator(Validator validator) {
+        this.validator = validator;
     }
 
     public ExecutorService getExecutorService() {

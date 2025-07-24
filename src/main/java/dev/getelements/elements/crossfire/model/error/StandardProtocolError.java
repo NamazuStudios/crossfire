@@ -1,6 +1,6 @@
 package dev.getelements.elements.crossfire.model.error;
 
-import dev.getelements.elements.rt.exception.BaseException;
+import dev.getelements.elements.sdk.model.exception.BaseException;
 import jakarta.validation.constraints.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,7 +9,7 @@ import java.util.IllegalFormatException;
 
 import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.ERROR;
 import static dev.getelements.elements.crossfire.model.error.ProtocolError.Code.TIMEOUT;
-import static dev.getelements.elements.rt.ResponseCode.UNKNOWN;
+import static dev.getelements.elements.crossfire.model.error.ProtocolError.Code.UNKNOWN;
 import static java.lang.String.format;
 
 /**
@@ -65,7 +65,7 @@ public class StandardProtocolError implements ProtocolError {
         final var error = new StandardProtocolError();
 
         if (th instanceof BaseException bex) {
-            error.setCode(bex.getResponseCode().toString());
+            error.setCode(bex.getCode().toString());
         } if (th instanceof TimeoutException tex) {
             error.setCode(TIMEOUT.name());
         } else {

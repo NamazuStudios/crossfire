@@ -1,6 +1,7 @@
 @ElementDefinition(recursive = true)
 @GuiceElementModule(CrossfireModule.class)
 @ElementDependency("dev.getelements.elements.sdk.dao")
+@ElementDependency("dev.getelements.elements.sdk.service")
 package dev.getelements.elements.crossfire;
 
 import dev.getelements.elements.crossfire.guice.CrossfireModule;
