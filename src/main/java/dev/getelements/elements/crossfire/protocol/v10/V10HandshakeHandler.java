@@ -18,6 +18,7 @@ import dev.getelements.elements.sdk.service.auth.SessionService;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import jakarta.inject.Provider;
+import jakarta.validation.Validator;
 import jakarta.websocket.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +31,8 @@ public class V10HandshakeHandler implements HandshakeHandler {
 
 
     private static final Logger logger = LoggerFactory.getLogger(V10HandshakeHandler.class);
+
+    private Validator validator;
 
     private MultiMatchDao multiMatchDao;
 
@@ -62,11 +65,15 @@ public class V10HandshakeHandler implements HandshakeHandler {
 
             final var application = auth.profile().getApplication();
 
-            final var configuration = getApplicationConfigurationDao().getApplicationConfiguration(
+            final var applicationConfiguration = getApplicationConfigurationDao().getApplicationConfiguration(
                     MatchmakingApplicationConfiguration.class,
                     application.getId(),
                     request.getConfiguration()
             );
+
+            final var crossfireConfiguration = configuration.getMetadata().get("crossfire");
+
+            //TODO Add Custom matchmaking support.
 
         });
     }
@@ -127,6 +134,15 @@ public class V10HandshakeHandler implements HandshakeHandler {
 
         });
 
+    }
+
+    public Validator getValidator() {
+        return validator;
+    }
+
+    @Inject
+    public void setValidator(Validator validator) {
+        this.validator = validator;
     }
 
     public MultiMatchDao getMultiMatchDao() {
