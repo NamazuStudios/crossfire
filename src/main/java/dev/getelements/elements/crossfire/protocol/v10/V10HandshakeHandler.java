@@ -65,15 +65,14 @@ public class V10HandshakeHandler implements HandshakeHandler {
 
             final var application = auth.profile().getApplication();
 
-            final var applicationConfiguration = getApplicationConfigurationDao().getApplicationConfiguration(
+            final var configuration = getApplicationConfigurationDao().getApplicationConfiguration(
                     MatchmakingApplicationConfiguration.class,
                     application.getId(),
                     request.getConfiguration()
             );
 
-            final var crossfireConfiguration = configuration.getMetadata().get("crossfire");
-
-            //TODO Add Custom matchmaking support.
+            final var mRequest = new V10MatchRequest(handler, auth.profile(), configuration);
+            final var matchmaker = configuration.getMatchmaker();
 
         });
     }
