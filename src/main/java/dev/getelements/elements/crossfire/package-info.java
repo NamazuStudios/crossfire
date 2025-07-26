@@ -1,6 +1,10 @@
 
 @ElementService(
         value = MatchmakingAlgorithm.class,
+        implementation = @ElementServiceImplementation(FIFOMatchmakingAlgorithm.class)
+)
+@ElementService(
+        value = MatchmakingAlgorithm.class,
         export = @ElementServiceExport(name = "FIFO"),
         implementation = @ElementServiceImplementation(FIFOMatchmakingAlgorithm.class)
 )

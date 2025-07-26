@@ -1,5 +1,6 @@
 package dev.getelements.elements.crossfire.protocol.v10;
 
+import dev.getelements.elements.crossfire.api.MatchmakingAlgorithm;
 import dev.getelements.elements.crossfire.model.error.UnexpectedMessageException;
 import dev.getelements.elements.crossfire.model.handshake.FindHandshakeRequest;
 import dev.getelements.elements.crossfire.model.handshake.HandshakeRequest;
@@ -7,10 +8,7 @@ import dev.getelements.elements.crossfire.model.handshake.JoinHandshakeRequest;
 import dev.getelements.elements.crossfire.protocol.HandshakeHandler;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler.AuthRecord;
-import dev.getelements.elements.sdk.dao.ApplicationConfigurationDao;
-import dev.getelements.elements.sdk.dao.MultiMatchDao;
-import dev.getelements.elements.sdk.dao.ProfileDao;
-import dev.getelements.elements.sdk.dao.Transaction;
+import dev.getelements.elements.sdk.dao.*;
 import dev.getelements.elements.sdk.model.application.MatchmakingApplicationConfiguration;
 import dev.getelements.elements.sdk.model.exception.ForbiddenException;
 import dev.getelements.elements.sdk.model.profile.Profile;
@@ -23,12 +21,12 @@ import jakarta.websocket.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 import static dev.getelements.elements.sdk.service.Constants.UNSCOPED;
 
 public class V10HandshakeHandler implements HandshakeHandler {
-
 
     private static final Logger logger = LoggerFactory.getLogger(V10HandshakeHandler.class);
 
@@ -43,6 +41,10 @@ public class V10HandshakeHandler implements HandshakeHandler {
     private SessionService sessionService;
 
     private Provider<Transaction> transactionProvider;
+
+    private MatchmakingAlgorithm defaultMatchmakingAlgorithm;
+
+    private AtomicReference<MatchmakingAlgorithm.PendingMatch> pendingMatch = new AtomicReference<>();
 
     @Override
     public void onMessage(
@@ -71,10 +73,19 @@ public class V10HandshakeHandler implements HandshakeHandler {
                     request.getConfiguration()
             );
 
-            final var mRequest = new V10MatchRequest(handler, auth.profile(), configuration);
-            final var matchmaker = configuration.getMatchmaker();
+            final var mRequest = new V10MatchRequest(
+                    handler,
+                    auth.profile(),
+                    configuration
+            );
 
+            final var algorithm = getMatchmakingAlgorithm(configuration);
         });
+    }
+
+    private MatchmakingAlgorithm getMatchmakingAlgorithm(final MatchmakingApplicationConfiguration configuration) {
+        // TODO: Construct the matchmaking algorithm based on the configuration
+        return null;
     }
 
     private void onJoinMessage(
@@ -189,8 +200,13 @@ public class V10HandshakeHandler implements HandshakeHandler {
         this.transactionProvider = transactionProvider;
     }
 
-    private record HandshakeStateRecord(
-            Session session,
-            ProtocolMessageHandler handler) {}
+    public MatchmakingAlgorithm getDefaultMatchmakingAlgorithm() {
+        return defaultMatchmakingAlgorithm;
+    }
+
+    @Inject
+    public void setDefaultMatchmakingAlgorithm(MatchmakingAlgorithm defaultMatchmakingAlgorithm) {
+        this.defaultMatchmakingAlgorithm = defaultMatchmakingAlgorithm;
+    }
 
 }

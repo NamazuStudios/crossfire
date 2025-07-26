@@ -10,18 +10,12 @@ import dev.getelements.elements.sdk.model.profile.Profile;
 public interface MatchmakingAlgorithm {
 
     /**
-     * Starts the matchmaking algorithm.
+     * Starts the matchmaking algorithm. Note that this method is non-blocking and returns immediately and does not
+     * write to the database or perform any blocking operations.
      *
      * @param request the matchmaking request
      */
-    void start(Request request);
-
-    /**
-     * Cancels the matchmaking algorithm for the given request.
-     *
-     * @param request the matchmaking request to cancel
-     */
-    void cancel(Request request);
+    PendingMatch start(Request request);
 
     /**
      * Starts the matchmaking algorithm with the given request.
@@ -60,6 +54,24 @@ public interface MatchmakingAlgorithm {
          * Completes the matchmaking request with the given match.
          */
         void success(MultiMatch match);
+
+    }
+
+    /**
+     * Gets the name of the matchmaking algorithm.
+     *
+     */
+    interface PendingMatch {
+
+        /**
+         * Starts the matchmaking algorithm.
+         */
+        void start();
+
+        /**
+         * Cancels the matchmaking algorithm.
+         */
+        void cancel();
 
     }
 
