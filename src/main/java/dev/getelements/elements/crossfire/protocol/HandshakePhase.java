@@ -16,4 +16,14 @@ public enum HandshakePhase {
      */
     AUTHENTICATING,
 
+    /**
+     * Indicates that the matching process is in progress.
+     */
+    MATCHING,
+
+    /**
+     * Indicates that the matching process has been terminated.
+     */
+    TERMINATED
+
 }

@@ -1,6 +1,7 @@
 package dev.getelements.elements.crossfire.protocol.v10;
 
 import dev.getelements.elements.crossfire.api.MatchmakingAlgorithm;
+import dev.getelements.elements.crossfire.model.configuration.CrossfireConfiguration;
 import dev.getelements.elements.crossfire.model.error.UnexpectedMessageException;
 import dev.getelements.elements.crossfire.model.handshake.FindHandshakeRequest;
 import dev.getelements.elements.crossfire.model.handshake.HandshakeRequest;
@@ -8,7 +9,11 @@ import dev.getelements.elements.crossfire.model.handshake.JoinHandshakeRequest;
 import dev.getelements.elements.crossfire.protocol.HandshakeHandler;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler.AuthRecord;
-import dev.getelements.elements.sdk.dao.*;
+import dev.getelements.elements.sdk.ElementRegistrySupplier;
+import dev.getelements.elements.sdk.dao.ApplicationConfigurationDao;
+import dev.getelements.elements.sdk.dao.MultiMatchDao;
+import dev.getelements.elements.sdk.dao.ProfileDao;
+import dev.getelements.elements.sdk.dao.Transaction;
 import dev.getelements.elements.sdk.model.application.MatchmakingApplicationConfiguration;
 import dev.getelements.elements.sdk.model.exception.ForbiddenException;
 import dev.getelements.elements.sdk.model.profile.Profile;
@@ -21,6 +26,7 @@ import jakarta.websocket.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
@@ -67,25 +73,102 @@ public class V10HandshakeHandler implements HandshakeHandler {
 
             final var application = auth.profile().getApplication();
 
-            final var configuration = getApplicationConfigurationDao().getApplicationConfiguration(
+            final var applicationConfiguration = getApplicationConfigurationDao().getApplicationConfiguration(
                     MatchmakingApplicationConfiguration.class,
                     application.getId(),
                     request.getConfiguration()
             );
 
+            final var crossfireConfiguration = CrossfireConfiguration
+                    .from(applicationConfiguration)
+                    .filter(c -> validate(c, applicationConfiguration));
+
             final var mRequest = new V10MatchRequest(
                     handler,
                     auth.profile(),
-                    configuration
+                    applicationConfiguration
             );
 
-            final var algorithm = getMatchmakingAlgorithm(configuration);
+            final var algorithm = crossfireConfiguration
+                    .filter(c -> c.getMatchmaker() != null)
+                    .map(this::algorithmFromConfiguration)
+                    .orElseGet(this::getDefaultMatchmakingAlgorithm);
+
+            final var pending = algorithm.start(mRequest);
+
         });
     }
 
-    private MatchmakingAlgorithm getMatchmakingAlgorithm(final MatchmakingApplicationConfiguration configuration) {
-        // TODO: Construct the matchmaking algorithm based on the configuration
-        return null;
+    private boolean validate(final CrossfireConfiguration crossfireConfiguration,
+                             final MatchmakingApplicationConfiguration applicationConfiguration) {
+
+        final var violations = getValidator().validate(crossfireConfiguration);
+
+        if (violations.isEmpty()) {
+            logger.debug("Valid Crossfire configuration found for application configuration {}",
+                    applicationConfiguration.getId()
+            );
+            return true;
+        } else {
+            logger.error("Invalid Crossfire found for application {}.\nViolations:\n{}",
+                    applicationConfiguration.getId(),
+                    violations.stream()
+                            .map(v -> v.getPropertyPath() + ": " + v.getMessage())
+                            .reduce("", (a, b) -> a + "\n" + b)
+            );
+            return false;
+        }
+
+    }
+
+    private MatchmakingAlgorithm algorithmFromConfiguration(final CrossfireConfiguration configuration) {
+
+        final var matchmaker = configuration.getMatchmaker();
+
+        final var elementOptional = ElementRegistrySupplier
+                .getElementLocal(getClass())
+                .get()
+                .stream()
+                .filter(e -> e.getElementRecord().definition().name().endsWith(matchmaker.getElementName()))
+                .findFirst();
+
+        if (elementOptional.isPresent()) {
+            logger.warn("Unable to find element with name {}.", matchmaker.getElementName());
+            return getDefaultMatchmakingAlgorithm();
+        }
+
+        final var element = elementOptional.get();
+
+        final Class<? extends MatchmakingAlgorithm> type = (Class<? extends MatchmakingAlgorithm>) Optional
+                .ofNullable(configuration.getMatchmaker().getServiceType())
+                .map(t -> {
+                    try {
+                        return element.getElementRecord()
+                                .classLoader()
+                                .loadClass(t);
+                    } catch (ClassNotFoundException e) {
+                        logger.error("Unable to load class {} for matchmaker service type.", t, e);
+                        return MatchmakingAlgorithm.class;
+                    }
+                })
+                .filter(t -> {
+                    if (MatchmakingAlgorithm.class.isAssignableFrom(t)) {
+                        return true;
+                    } else {
+                        logger.error("Matchmaking algoirthm {} is not assignable from class {}. Using default.",
+                                MatchmakingAlgorithm.class
+                        );
+                        return false;
+                    }
+                })
+                .orElse(MatchmakingAlgorithm.class);
+
+        final var name = matchmaker.getServiceName();
+
+        return name == null
+                ? element.getServiceLocator().getInstance(type)
+                : element.getServiceLocator().getInstance(type, name);
+
     }
 
     private void onJoinMessage(
