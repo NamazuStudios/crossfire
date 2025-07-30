@@ -19,7 +19,12 @@ public enum HandshakePhase {
     /**
      * Indicates that the matching process is in progress.
      */
-    MATCHING,
+    MATCH_PENDING,
+
+    /**
+     * Indicates that the player has been matched successfully.
+     */
+    MATCHED,
 
     /**
      * Indicates that the matching process has been terminated.

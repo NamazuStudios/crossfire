@@ -19,6 +19,14 @@ public interface SignalingHandler {
     void start(ProtocolMessageHandler handler, Session session);
 
     /**
+     * Stops the signaling handler.
+     *
+     * @param handler the protocol message handler
+     * @param session the session
+     */
+    void stop(ProtocolMessageHandler handler, Session session);
+
+    /**
      * Handles the handshake message request.
      *
      * @param handler                        the handler

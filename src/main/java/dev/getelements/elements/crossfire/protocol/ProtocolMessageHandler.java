@@ -1,6 +1,7 @@
 package dev.getelements.elements.crossfire.protocol;
 
 import dev.getelements.elements.crossfire.model.ProtocolMessage;
+import dev.getelements.elements.crossfire.model.configuration.CrossfireConfiguration;
 import dev.getelements.elements.crossfire.model.error.ProtocolStateException;
 import dev.getelements.elements.sdk.annotation.ElementServiceExport;
 import dev.getelements.elements.sdk.model.match.MultiMatch;
@@ -90,9 +91,9 @@ public interface ProtocolMessageHandler {
      * Atomically and in a thread safe manner matches the profile to the session. This will switch the connection phase
      * to SIGNALING if this method and the call to {@link #authenticated(AuthRecord)} also succeeds.
      *
-     * @param multiMatch
+     * @param match the match
      */
-    void matched(MultiMatch multiMatch);
+    void matched(MultiMatchRecord match);
 
     /**
      * Atomically and in a thread safe manner authenticates the session. This will switch the connection phase to
@@ -127,5 +128,23 @@ public interface ProtocolMessageHandler {
             Profile profile,
             dev.getelements.elements.sdk.model.session.Session session
     ) {}
+
+    /**
+     * Represents an authentication record.
+     * Contains the profile and the session.
+     *
+     * @param match the {@link MultiMatch} that was matched
+     * @param configuration the {@link CrossfireConfiguration} used for the match
+     */
+    record MultiMatchRecord(
+            MultiMatch match,
+            CrossfireConfiguration configuration
+    ) {
+
+        public String getId() {
+            return match().getId();
+        }
+
+    }
 
 }

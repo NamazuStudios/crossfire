@@ -9,6 +9,7 @@ import dev.getelements.elements.crossfire.model.handshake.JoinHandshakeRequest;
 import dev.getelements.elements.crossfire.protocol.HandshakeHandler;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler.AuthRecord;
+import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler.MultiMatchRecord;
 import dev.getelements.elements.sdk.ElementRegistrySupplier;
 import dev.getelements.elements.sdk.dao.ApplicationConfigurationDao;
 import dev.getelements.elements.sdk.dao.MultiMatchDao;
@@ -51,6 +52,18 @@ public class V10HandshakeHandler implements HandshakeHandler {
     private MatchmakingAlgorithm defaultMatchmakingAlgorithm;
 
     private AtomicReference<MatchmakingAlgorithm.PendingMatch> pendingMatch = new AtomicReference<>();
+
+    @Override
+    public void start(final ProtocolMessageHandler handler,
+                      final Session session) {
+
+    }
+
+    @Override
+    public void stop(final ProtocolMessageHandler handler,
+                     final Session session) {
+
+    }
 
     @Override
     public void onMessage(
@@ -186,7 +199,18 @@ public class V10HandshakeHandler implements HandshakeHandler {
                 throw new ForbiddenException("Profile not found in match");
             }
 
-            handler.matched(match);
+            final var applicationConfiguration = match.getConfiguration();
+
+            final var crossfireConfiguration = CrossfireConfiguration
+                    .from(applicationConfiguration)
+                    .filter(c -> validate(c, applicationConfiguration));
+
+            final var multiMatchRecord = new MultiMatchRecord(
+                    match,
+                    crossfireConfiguration.orElse(null)
+            );
+
+            handler.matched(multiMatchRecord);
 
         });
     }

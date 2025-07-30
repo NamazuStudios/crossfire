@@ -9,7 +9,6 @@ import dev.getelements.elements.crossfire.model.signal.SignalWithRecipient;
 import dev.getelements.elements.crossfire.protocol.*;
 import dev.getelements.elements.sdk.annotation.ElementDefaultAttribute;
 import dev.getelements.elements.sdk.model.exception.BaseException;
-import dev.getelements.elements.sdk.model.match.MultiMatch;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import jakarta.validation.ConstraintViolation;
@@ -86,6 +85,7 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
     public void start(final Session session) throws IOException {
         final var result = state.updateAndGet(existing -> existing.start(session));
         pinger.start(session);
+        getHandshakeHandler().start(this, session);
         getSignalingHandler().start(this, session);
         logger.debug("{}: Connection started for session {}", result.phase(), session.getId());
     }
@@ -305,19 +305,19 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
     }
 
     @Override
-    public void matched(final MultiMatch multiMatch) {
+    public void matched(final MultiMatchRecord match) {
 
         V10ConnectionStateRecord result;
         V10ConnectionStateRecord existing;
 
         do {
             existing = state.get();
-        } while (!state.compareAndSet(existing, result = existing.matched(multiMatch)));
+        } while (!state.compareAndSet(existing, result = existing.matched(match)));
 
         logger.debug("{}: Matched session {} to match {}.   ",
                 result.phase(),
                 result.sessionId(),
-                multiMatch.getId()
+                match.getId()
         );
 
         if (SIGNALING.equals(result.phase()))
@@ -451,6 +451,8 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
         }
 
         getPinger().stop();
+        getHandshakeHandler().stop(this, session);
+        getSignalingHandler().stop(this, session);
 
         try {
             if (session != null)

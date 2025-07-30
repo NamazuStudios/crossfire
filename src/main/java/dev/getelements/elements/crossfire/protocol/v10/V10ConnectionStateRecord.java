@@ -4,6 +4,7 @@ import dev.getelements.elements.crossfire.model.ProtocolMessage;
 import dev.getelements.elements.crossfire.model.error.ProtocolStateException;
 import dev.getelements.elements.crossfire.protocol.ConnectionPhase;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler;
+import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler.MultiMatchRecord;
 import dev.getelements.elements.sdk.model.match.MultiMatch;
 import jakarta.websocket.Session;
 
@@ -16,7 +17,7 @@ import static java.util.Objects.requireNonNull;
 
 record V10ConnectionStateRecord(
         Session session,
-        MultiMatch match,
+        MultiMatchRecord match,
         ProtocolMessageHandler.AuthRecord auth,
         ConnectionPhase phase,
         List<ProtocolMessage> ib,
@@ -51,7 +52,7 @@ record V10ConnectionStateRecord(
 
     }
 
-    public V10ConnectionStateRecord matched(final MultiMatch match) {
+    public V10ConnectionStateRecord matched(final MultiMatchRecord match) {
 
         requireNonNull(match, "Match cannot be null");
 
