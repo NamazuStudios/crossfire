@@ -12,14 +12,24 @@ public enum HandshakePhase {
     WAITING,
 
     /**
+     * Indicates that the handshake is ready to begin.
+     */
+    READY,
+
+    /**
      * The phase where the client is authenticating with the server.
      */
     AUTHENTICATING,
 
     /**
+     * The phase where the client has authenticated successfully.
+     */
+    AUTHENTICATED,
+
+    /**
      * Indicates that the matching process is in progress.
      */
-    MATCH_PENDING,
+    MATCHING,
 
     /**
      * Indicates that the player has been matched successfully.

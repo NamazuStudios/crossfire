@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static dev.getelements.elements.crossfire.protocol.ConnectionPhase.*;
+import static dev.getelements.elements.crossfire.protocol.v10.V10ProtocolMessageHandler.UNKNOWN_SESSION;
 import static java.util.Collections.unmodifiableList;
 import static java.util.Objects.requireNonNull;
 
@@ -29,7 +30,7 @@ record V10ConnectionStateRecord(
     }
 
     public String sessionId() {
-        return session() != null ? session().getId() : V10ProtocolMessageHandler.UNKNOWN_SESSION;
+        return session() != null ? session().getId() : UNKNOWN_SESSION;
     }
 
     public V10ConnectionStateRecord start(final Session session) {

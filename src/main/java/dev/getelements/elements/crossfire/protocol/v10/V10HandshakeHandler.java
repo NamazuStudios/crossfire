@@ -27,10 +27,12 @@ import jakarta.websocket.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
+import static dev.getelements.elements.crossfire.protocol.HandshakePhase.TERMINATED;
 import static dev.getelements.elements.sdk.service.Constants.UNSCOPED;
 
 public class V10HandshakeHandler implements HandshakeHandler {
@@ -51,18 +53,25 @@ public class V10HandshakeHandler implements HandshakeHandler {
 
     private MatchmakingAlgorithm defaultMatchmakingAlgorithm;
 
-    private AtomicReference<MatchmakingAlgorithm.PendingMatch> pendingMatch = new AtomicReference<>();
+    private final AtomicReference<V10HandshakeStateRecord> state = new AtomicReference<>(V10HandshakeStateRecord.create());
 
     @Override
     public void start(final ProtocolMessageHandler handler,
                       final Session session) {
+
+        final var state = this.state.updateAndGet(s -> s.start(session));
+
+        if (TERMINATED.equals(state.phase())) {
+            state.cancelPending();
+        }
 
     }
 
     @Override
     public void stop(final ProtocolMessageHandler handler,
                      final Session session) {
-
+        final var state = this.state.updateAndGet(V10HandshakeStateRecord::terminate);
+        state.cancelPending();
     }
 
     @Override
@@ -98,7 +107,9 @@ public class V10HandshakeHandler implements HandshakeHandler {
 
             final var mRequest = new V10MatchRequest(
                     handler,
+                    state,
                     auth.profile(),
+                    crossfireConfiguration.orElse(null),
                     applicationConfiguration
             );
 
@@ -107,7 +118,14 @@ public class V10HandshakeHandler implements HandshakeHandler {
                     .map(this::algorithmFromConfiguration)
                     .orElseGet(this::getDefaultMatchmakingAlgorithm);
 
-            final var pending = algorithm.start(mRequest);
+            final var pending = algorithm.initiate(mRequest);
+
+            final var state = this.state.updateAndGet(s -> s.matching(pending));
+            pending.start();
+
+            if (Objects.requireNonNull(state.phase()) == TERMINATED) {
+                state.cancelPending();
+            }
 
         });
     }
@@ -210,7 +228,12 @@ public class V10HandshakeHandler implements HandshakeHandler {
                     crossfireConfiguration.orElse(null)
             );
 
-            handler.matched(multiMatchRecord);
+            final var state = this.state.updateAndGet(s -> s.matched(multiMatchRecord));
+
+            switch (state.phase()) {
+                case TERMINATED -> state.cancelPending();
+                case MATCHED -> state.matched(multiMatchRecord);
+            }
 
         });
     }
@@ -218,6 +241,15 @@ public class V10HandshakeHandler implements HandshakeHandler {
     private void auth(final ProtocolMessageHandler handler,
                       final HandshakeRequest request,
                       final Consumer<AuthRecord> onAuthenticated) {
+
+        final var state = this.state.updateAndGet(V10HandshakeStateRecord::authenticating);
+
+        if (TERMINATED == state.phase()) {
+            state.cancelPending();
+            logger.info("Handshake already terminated, cannot authenticate.");
+            return;
+        }
+
         handler.submit(() -> {
 
             final var session = getSessionService().checkAndRefreshSessionIfNecessary(request.getSessionKey());
@@ -246,8 +278,22 @@ public class V10HandshakeHandler implements HandshakeHandler {
             }
 
             final var record = new AuthRecord(profile, session);
-            handler.authenticated(record);
-            onAuthenticated.accept(record);
+            final var updated = this.state.updateAndGet(s -> s.authenticated(record));
+
+            switch (updated.phase()) {
+                case TERMINATED -> {
+                    logger.info("Handshake already terminated, cannot authenticate.");
+                    updated.cancelPending();
+                }
+                case AUTHENTICATED -> {
+                    handler.authenticated(record);
+                    onAuthenticated.accept(record);
+                }
+                default -> {
+                    logger.error("Handshake not yet completed, attempting to authenticate.");
+                    updated.cancelPending();
+                }
+            }
 
         });
 

@@ -15,7 +15,7 @@ public interface MatchmakingAlgorithm {
      *
      * @param request the matchmaking request
      */
-    PendingMatch start(Request request);
+    PendingMatch initiate(Request request);
 
     /**
      * Starts the matchmaking algorithm with the given request.
@@ -34,7 +34,7 @@ public interface MatchmakingAlgorithm {
          *
          * @return the matchmaking application configuration
          */
-        MatchmakingApplicationConfiguration getConfiguration();
+        MatchmakingApplicationConfiguration getApplicationConfiguration();
 
         /**
          * Fails the matchmaking request without a throwable.
