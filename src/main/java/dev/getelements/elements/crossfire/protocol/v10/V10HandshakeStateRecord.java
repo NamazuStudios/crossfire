@@ -70,7 +70,7 @@ record V10HandshakeStateRecord(
     public V10HandshakeStateRecord matched(final MultiMatchRecord match) {
         return switch (phase()) {
             case TERMINATED -> this;
-            case MATCHING, AUTHENTICATED -> new V10HandshakeStateRecord(MATCHING, session(), auth(), match(), null);
+            case MATCHING, AUTHENTICATED -> new V10HandshakeStateRecord(MATCHING, session(), auth(), match, null);
             default -> throw new ProtocolStateException("Cannot match phase " + phase());
         };
     }
