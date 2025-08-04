@@ -29,6 +29,14 @@ record V10ClientState(ClientPhase phase, Session session) {
         };
     }
 
+    public V10ClientState handshaking() {
+        return switch (phase()) {
+            case CONNECTED -> new V10ClientState(HANDSHAKING, session());
+            case TERMINATED -> new V10ClientState(TERMINATED, session());
+            default -> throw new ProtocolStateException("Invalid handshake phase " + phase());
+        };
+    }
+
     public void closeSession() throws IOException {
         if (session() != null)
             session().close();

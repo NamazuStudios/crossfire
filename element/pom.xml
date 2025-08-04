@@ -1,0 +1,142 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>dev.getelements.elements.crossfire</groupId>
+        <artifactId>crossfire</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <groupId>dev.getelements.elements.crossfire</groupId>
+    <artifactId>element</artifactId>
+    <name>Namazu Elements Crossfire - Element</name>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <properties>
+        <rs.api>4.0.0</rs.api>
+        <webrtc.version>0.13.0</webrtc.version>
+        <testng.version>7.11.0</testng.version>
+        <rocoto.version>6.2</rocoto.version>
+        <surefire.version>3.0.0-M9</surefire.version>
+        <maven.compiler.version>3.11.0</maven.compiler.version>
+        <servlet.api>6.1.0</servlet.api>
+        <elements.version>3.3.0-SNAPSHOT</elements.version>
+        <guice.version>7.0.0</guice.version>
+        <java.version>21</java.version>
+        <jain.version>1.2.269</jain.version>
+        <slf4j.version>1.7.32</slf4j.version>
+        <jetty.version>12.0.12</jetty.version>
+        <logback.version>1.2.3</logback.version>
+        <jakarta.inject.version>2.0.1.MR</jakarta.inject.version>
+        <element.sdk.version>2.2.0-SNAPSHOT</element.sdk.version>
+        <jakarta.websocket.version>2.1.0</jakarta.websocket.version>
+        <jakarta.servlet.version>6.0.0</jakarta.servlet.version>
+        <guice.version>7.0.0</guice.version>
+        <jackson.version>2.18.2</jackson.version>
+        <jakarta.validation.api.version>3.1.0</jakarta.validation.api.version>
+        <jetty.version>12.0.12</jetty.version>
+    </properties>
+
+    <dependencies>
+        <!-- Project Dependencies -->
+        <dependency>
+            <groupId>dev.getelements.elements</groupId>
+            <artifactId>sdk-spi</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.getelements.elements</groupId>
+            <artifactId>sdk-spi-guice</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.getelements.elements</groupId>
+            <artifactId>sdk-logback</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.google.inject</groupId>
+            <artifactId>guice</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.getelements.elements</groupId>
+            <artifactId>sdk-local-maven</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.99soft.guice</groupId>
+            <artifactId>rocoto</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>dev.getelements.elements.crossfire</groupId>
+            <artifactId>common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- Optional dependency if you want to use the client builtin to Crossfire -->
+        <dependency>
+            <groupId>dev.onvoid.webrtc</groupId>
+            <artifactId>webrtc-java</artifactId>
+        </dependency>
+
+        <!-- Provided Dependencies -->
+        <dependency>
+            <groupId>dev.getelements.elements</groupId>
+            <artifactId>sdk-local</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.validation</groupId>
+            <artifactId>jakarta.validation-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.websocket</groupId>
+            <artifactId>jakarta.websocket-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testng</groupId>
+            <artifactId>testng</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>dev.getelements.elements</groupId>
+            <artifactId>mongo-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Adds just the dependencies for the Element -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.6.0</version>
+                <executions>
+                    <execution>
+                        <id>copy-element-deps</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>copy-dependencies</goal>
+                        </goals>
+                        <configuration>
+                            <excludeScope>provided</excludeScope>
+                            <excludeGroupIds>ch.qos.logback</excludeGroupIds>
+                            <excludeArtifactIds>sdk-local,sdk-local-maven,sdk-logback</excludeArtifactIds>
+                            <outputDirectory>../target/element-libs</outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+        </plugins>
+    </build>
+
+</project>
