@@ -98,11 +98,28 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
 
     @Override
     public void onMessage(final Session session, final PongMessage message) throws IOException {
+        getPinger().onPong(session, message);
+    }
+
+    @Override
+    public void onMessage(final Session session, final ProtocolMessage message) throws IOException {
         final var violations = getValidator().validate(message);
 
+
         if (violations.isEmpty()) {
-            getPinger().onPong(session, message);
+
+            final var state = this.state.get();
+            logger.debug("{}: Session {} received protocol message {}", state, session.getId(), message.getType());
+
+            switch (state.phase()) {
+                case READY -> onMessageReadyPhase(state, session, message);
+                case HANDSHAKE -> onMessageHandshakePhase(state, session, message);
+                case SIGNALING -> onSignalingMessage(state, session, message);
+                default -> invalid(state, message);
+            }
+
         } else {
+
             final var error = new StandardProtocolError();
             error.setCode(INVALID_MESSAGE.toString());
             error.setMessage("Invalid message: " + violations
@@ -114,20 +131,6 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
             final var reason = new CloseReason(NOT_CONSISTENT, "Invalid Message.");
             doTerminate(reason, null);
 
-        }
-    }
-
-    @Override
-    public void onMessage(final Session session, final ProtocolMessage message) throws IOException {
-
-        final var state = this.state.get();
-        logger.debug("{}: Session {} received protocol message {}", state, session.getId(), message.getType());
-
-        switch (state.phase()) {
-            case READY -> onMessageReadyPhase(state, session, message);
-            case HANDSHAKE -> onMessageHandshakePhase(state, session, message);
-            case SIGNALING -> onSignalingMessage(state, session, message);
-            default -> invalid(state, message);
         }
 
     }

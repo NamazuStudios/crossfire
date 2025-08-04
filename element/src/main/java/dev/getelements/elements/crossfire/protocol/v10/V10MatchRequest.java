@@ -2,7 +2,7 @@ package dev.getelements.elements.crossfire.protocol.v10;
 
 import dev.getelements.elements.crossfire.api.MatchmakingAlgorithm;
 import dev.getelements.elements.crossfire.model.configuration.CrossfireConfiguration;
-import dev.getelements.elements.crossfire.model.handshake.ConnectedResponse;
+import dev.getelements.elements.crossfire.model.handshake.MatchedResponse;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler.MultiMatchRecord;
 import dev.getelements.elements.sdk.model.application.MatchmakingApplicationConfiguration;
@@ -62,7 +62,7 @@ class V10MatchRequest implements MatchmakingAlgorithm.Request {
         switch (state.phase()) {
             case TERMINATED -> state.cancelPending();
             case MATCHED -> {
-                final var response = new ConnectedResponse();
+                final var response = new MatchedResponse();
                 response.setMatchId(multiMatchRecord.getId());
                 protocolMessageHandler.send(response);
                 protocolMessageHandler.matched(multiMatchRecord);
