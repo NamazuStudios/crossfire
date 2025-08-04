@@ -4,6 +4,8 @@ import dev.getelements.elements.crossfire.client.Client;
 import dev.getelements.elements.crossfire.jackson.JacksonEncoder;
 import dev.getelements.elements.crossfire.jackson.JacksonProtocolMessageDecoder;
 import dev.getelements.elements.crossfire.model.ProtocolMessage;
+import dev.getelements.elements.crossfire.model.error.ProtocolStateException;
+import dev.getelements.elements.crossfire.model.error.UnexpectedMessageException;
 import dev.getelements.elements.crossfire.model.handshake.HandshakeRequest;
 import jakarta.websocket.*;
 import org.slf4j.Logger;
@@ -42,7 +44,13 @@ public class V10Client implements Client {
 
     @OnMessage
     public void onMessage(final ProtocolMessage message) {
+
         logger.debug("Received message {}", message);
+
+        if (message.getType() == null) {
+            throw new UnexpectedMessageException("Message has no type: " + message);
+        }
+
     }
 
     @OnClose

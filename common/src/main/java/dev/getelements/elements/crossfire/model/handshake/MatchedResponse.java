@@ -2,19 +2,19 @@ package dev.getelements.elements.crossfire.model.handshake;
 
 import jakarta.validation.constraints.NotNull;
 
-import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.CONNECTED;
+import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.MATCHED;
 
 /**
  * Indicates that the client has successfully connected to a matched.
  */
-public class ConnectedResponse implements HandshakeResponse {
+public class MatchedResponse implements HandshakeResponse {
 
     @NotNull
     private String matchId;
 
     @Override
     public Type getType() {
-        return CONNECTED;
+        return MATCHED;
     }
 
     /**

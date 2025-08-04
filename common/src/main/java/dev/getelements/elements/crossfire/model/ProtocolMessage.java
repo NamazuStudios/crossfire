@@ -1,7 +1,7 @@
 package dev.getelements.elements.crossfire.model;
 
 import dev.getelements.elements.crossfire.model.error.StandardProtocolError;
-import dev.getelements.elements.crossfire.model.handshake.ConnectedResponse;
+import dev.getelements.elements.crossfire.model.handshake.MatchedResponse;
 import dev.getelements.elements.crossfire.model.handshake.FindHandshakeRequest;
 import dev.getelements.elements.crossfire.model.handshake.JoinHandshakeRequest;
 import dev.getelements.elements.crossfire.model.signal.*;
@@ -35,7 +35,7 @@ public interface ProtocolMessage {
         /**
          * Indicates that the client has successfully connected to a match.
          */
-        CONNECTED(HANDSHAKE, ConnectedResponse.class),
+        MATCHED(HANDSHAKE, MatchedResponse.class),
 
         /**
          * Represents a signal that carries an SDP offer.
