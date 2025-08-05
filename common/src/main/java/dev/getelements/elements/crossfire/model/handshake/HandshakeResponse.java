@@ -14,4 +14,9 @@ public interface HandshakeResponse extends ProtocolMessage {
      */
     Type getType();
 
+    /**
+     * Gets the match ID of the connected match.
+     * @return the match id
+     */
+    String getMatchId();
 }

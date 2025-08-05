@@ -95,7 +95,8 @@ record V10ConnectionStateRecord(
         return new V10ConnectionStateRecord(session(), match(), auth(), phase(), ib(), unmodifiableList(ob));
     }
 
-    private List<ProtocolMessage> append(final List<ProtocolMessage> base, final ProtocolMessage message) {
+    private List<ProtocolMessage> append(final List<ProtocolMessage> base,
+                                         final ProtocolMessage message) {
         if (base == null) {
             return List.of(message);
         } else {

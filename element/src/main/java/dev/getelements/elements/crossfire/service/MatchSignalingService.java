@@ -1,5 +1,7 @@
 package dev.getelements.elements.crossfire.service;
 
+import dev.getelements.elements.crossfire.model.signal.Signal;
+import dev.getelements.elements.crossfire.model.signal.SignalWithRecipient;
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.annotation.ElementPublic;
 import dev.getelements.elements.sdk.annotation.ElementServiceExport;

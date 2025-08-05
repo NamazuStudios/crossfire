@@ -4,9 +4,13 @@ import dev.getelements.elements.crossfire.model.signal.Signal;
 import dev.getelements.elements.crossfire.model.signal.SignalWithRecipient;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler;
 import dev.getelements.elements.crossfire.protocol.SignalingHandler;
+import dev.getelements.elements.crossfire.service.MatchSignalingService;
+import jakarta.inject.Inject;
 import jakarta.websocket.Session;
 
 public class V10SignalingHandler implements SignalingHandler {
+
+    private MatchSignalingService matchSignalingService;
 
     @Override
     public void start(
@@ -36,6 +40,15 @@ public class V10SignalingHandler implements SignalingHandler {
             final Session session,
             final SignalWithRecipient signal) {
 
+    }
+
+    public MatchSignalingService getMatchSignalingService() {
+        return matchSignalingService;
+    }
+
+    @Inject
+    public void setMatchSignalingService(final MatchSignalingService matchSignalingService) {
+        this.matchSignalingService = matchSignalingService;
     }
 
 }
