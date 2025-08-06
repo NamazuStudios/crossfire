@@ -141,7 +141,7 @@
                             <excludeScope>provided</excludeScope>
                             <excludeGroupIds>ch.qos.logback</excludeGroupIds>
                             <excludeArtifactIds>sdk-local,sdk-local-maven,sdk-logback</excludeArtifactIds>
-                            <outputDirectory>../target/element-libs</outputDirectory>
+                            <outputDirectory>${project.build.directory}/element-libs</outputDirectory>
                         </configuration>
                     </execution>
                 </executions>

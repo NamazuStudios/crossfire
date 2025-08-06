@@ -23,8 +23,9 @@ public class TestMatchmaking {
     }
 
     @Test
-    public void testHandshake() {
+    public void testHandshake() throws InterruptedException {
         logger.info("TestMatchmaking handshake");
+        Thread.sleep(100000);
     }
 
 }
