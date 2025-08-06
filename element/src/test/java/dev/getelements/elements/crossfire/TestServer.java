@@ -5,13 +5,15 @@ import dev.getelements.elements.dao.mongo.test.MongoTestInstance;
 import dev.getelements.elements.sdk.dao.ApplicationDao;
 import dev.getelements.elements.sdk.local.ElementsLocal;
 import dev.getelements.elements.sdk.local.ElementsLocalBuilder;
-import dev.getelements.elements.sdk.local.maven.Maven;
 import dev.getelements.elements.sdk.model.application.Application;
 import dev.getelements.elements.sdk.util.ShutdownHooks;
 
+import java.util.stream.Stream;
+
 import static dev.getelements.elements.dao.mongo.provider.MongoClientProvider.MONGO_CLIENT_URI;
-import static dev.getelements.elements.sdk.local.maven.MavenElementsLocalBuilder.MAVEN_PHASE_PROPERTY;
+import static dev.getelements.elements.sdk.local.maven.MavenElementsLocalBuilder.ELEMENT_CLASSPATH_PROPERTY;
 import static java.lang.String.format;
+import static java.util.stream.Collectors.joining;
 
 public class TestServer {
 
@@ -40,10 +42,19 @@ public class TestServer {
         mongoTestInstance = new DockerMongoTestInstance(TEST_MONGO_PORT);
         mongoTestInstance.start();
 
-        // We should really make sure that the SDK runs this upon request
-        Maven.mvn("-DskipTests", "install");
-
         final var properties = System.getProperties();
+        final var pathSeparator = System.getProperty("path.separator");
+
+        // TODO We should allow the classpath to be configured via the ElementsLocalBuilder
+        // instead of having to ninja it in here.
+
+        properties.put(ELEMENT_CLASSPATH_PROPERTY, Stream.of(
+                "element/target/classes",
+                "element/target/element-libs/*",
+                "common/target/classes:client/target/classes")
+                .collect(joining(pathSeparator))
+        );
+
         properties.put(MONGO_CLIENT_URI, format("mongodb://127.0.0.1:%d", TEST_MONGO_PORT));
 
         elementsLocal = ElementsLocalBuilder.getDefault()

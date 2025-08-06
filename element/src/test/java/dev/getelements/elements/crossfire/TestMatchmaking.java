@@ -10,6 +10,8 @@ public class TestMatchmaking {
 
     private static final Logger logger = LoggerFactory.getLogger(TestMatchmaking.class);
 
+    private final TestServer server = TestServer.getInstance();
+
     @BeforeClass
     public void setupApplication() {
         logger.info("Starting TestMatchmaking");
