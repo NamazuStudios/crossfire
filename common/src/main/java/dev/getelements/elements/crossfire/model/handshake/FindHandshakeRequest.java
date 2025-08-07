@@ -14,7 +14,7 @@ public class FindHandshakeRequest implements HandshakeRequest {
 
     @NotNull
     @Pattern(regexp = "\\Q" + VERSION_1_0 + "\\E", message = "Version must be " + VERSION_1_0)
-    private String version;
+    private String version = VERSION_1_0;
 
     private String profileId;
 

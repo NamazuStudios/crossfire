@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -31,6 +32,32 @@ public class CrossfireConfiguration {
 
     public void setMatchmaker(ElementServiceReference matchmaker) {
         this.matchmaker = matchmaker;
+    }
+
+    /**
+     * Updates the supplied matchmaking application configuration with the Crossfire configuration.
+     *
+     * @param matchmakingApplicationConfiguration the matchmaking application configuration to update
+     * @return the metadata value present in the matchmaking application configuration before updates
+     */
+    public Object save(final MatchmakingApplicationConfiguration matchmakingApplicationConfiguration) {
+
+        var metadata = matchmakingApplicationConfiguration.getMetadata();
+
+        if (metadata == null) {
+            metadata = new HashMap<>();
+        } else {
+            metadata = new HashMap<>(metadata);
+        }
+
+        final var crossfire = Jackson
+                .getMapper()
+                .convertValue(this, Map.class);
+
+        matchmakingApplicationConfiguration.setMetadata(metadata);
+
+        return metadata.put(METADATA_KEY, crossfire);
+
     }
 
     public static Optional<CrossfireConfiguration> from(final MatchmakingApplicationConfiguration appConfig) {

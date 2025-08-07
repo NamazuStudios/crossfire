@@ -13,7 +13,7 @@ import jakarta.validation.Validator;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class CrossfireModule extends PrivateModule {
+public class  CrossfireModule extends PrivateModule {
 
     @Override
     protected void configure() {

@@ -103,8 +103,8 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
 
     @Override
     public void onMessage(final Session session, final ProtocolMessage message) throws IOException {
-        final var violations = getValidator().validate(message);
 
+        final var violations = getValidator().validate(message);
 
         if (violations.isEmpty()) {
 
@@ -150,16 +150,42 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
 
                 final var result = this.state.updateAndGet(V10ConnectionStateRecord::handshake);
 
-                // Now that we entered the HANDSHAKE phase, we can process the handshake request. The above line
-                // ensures that the state is updated to HANDSHAKE before processing the message and that multiple
-                // handshake requests are not allowed in the READY phase.
-                getHandshakeHandler().onMessage(this, session, (HandshakeRequest) message);
+                switch (result.phase()) {
+                    case HANDSHAKE -> {
 
-                logger.debug("{}: Started handshake {} for session {}.",
-                        result,
-                        message.getType(),
-                        session.getId()
-                );
+                        // The state was updated to HANDSHAKE, so we can now process the handshake request.
+                        getHandshakeHandler().onMessage(
+                                this,
+                                session,
+                                (HandshakeRequest) message
+                        );
+
+                        // Now that we entered the HANDSHAKE phase, we can process the handshake request. The above line
+                        // ensures that the state is updated to HANDSHAKE before processing the message and that multiple
+                        // handshake requests are not allowed in the READY phase.
+
+                        logger.debug("{}: Started handshake {} for session {}.",
+                                result,
+                                message.getType(),
+                                session.getId()
+                        );
+
+
+                    }
+
+                    // We got the termination request while in the READY phase. We just ignore the message and do not
+                    // allow the protocol to continue. Just log and drop the message.
+
+                    case TERMINATED -> {
+                        logger.debug("{}: Session {} already terminated, ignoring handshake request.",
+                                result.phase(),
+                                session.getId()
+                        );
+                    }
+
+                    default -> invalid(state, message);
+
+                }
 
             }
 

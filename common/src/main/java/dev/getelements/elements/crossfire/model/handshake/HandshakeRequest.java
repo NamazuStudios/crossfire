@@ -11,7 +11,7 @@ public interface HandshakeRequest extends ProtocolMessage {
     /**
      * THe version 1.0 of the Crossfire protocol.
      */
-    String VERSION_1_0 = "1.0";
+    String VERSION_1_0 = "1_0";
 
     /**
      * Gets the version of the protocol requested.

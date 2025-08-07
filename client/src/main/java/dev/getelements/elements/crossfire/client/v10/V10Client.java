@@ -1,6 +1,7 @@
 package dev.getelements.elements.crossfire.client.v10;
 
 import dev.getelements.elements.crossfire.client.Client;
+import dev.getelements.elements.crossfire.client.ClientPhase;
 import dev.getelements.elements.crossfire.jackson.JacksonEncoder;
 import dev.getelements.elements.crossfire.jackson.JacksonProtocolMessageDecoder;
 import dev.getelements.elements.crossfire.model.ProtocolMessage;
@@ -39,6 +40,11 @@ public class V10Client implements Client {
     private final Publisher<HandshakeResponse> onHandshake = new ConcurrentDequePublisher<>();
 
     private final AtomicReference<V10ClientState> state = new AtomicReference<>(create());
+
+    @Override
+    public ClientPhase getPhase() {
+        return state.get().phase();
+    }
 
     @OnOpen
     public void onOpen(final Session session) throws IOException {
