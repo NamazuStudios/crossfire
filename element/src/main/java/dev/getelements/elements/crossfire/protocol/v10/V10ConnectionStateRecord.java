@@ -5,7 +5,6 @@ import dev.getelements.elements.crossfire.model.error.ProtocolStateException;
 import dev.getelements.elements.crossfire.protocol.ConnectionPhase;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler.MultiMatchRecord;
-import dev.getelements.elements.sdk.model.match.MultiMatch;
 import jakarta.websocket.Session;
 
 import java.util.ArrayList;
@@ -35,37 +34,38 @@ record V10ConnectionStateRecord(
 
     public V10ConnectionStateRecord start(final Session session) {
 
-        if (phase() != WAITING) {
-            throw new ProtocolStateException("Cannot open session in phase " + phase());
-        }
+        requireNonNull(session, "Session cannot be null");
 
-        return new V10ConnectionStateRecord(session, null, null, READY, ib(), ob());
+        return switch (phase()) {
+            case WAITING -> new V10ConnectionStateRecord(session, match(), auth(), READY, ib(), ob());
+            case TERMINATED -> this;
+            default -> throw new ProtocolStateException("Cannot start session in phase " + phase());
+        };
 
     }
 
     public V10ConnectionStateRecord handshake() {
-
-        if (phase() != READY) {
-            throw new ProtocolStateException("Cannot start handshake in phase " + phase());
-        }
-
-        return new V10ConnectionStateRecord(session(), match(), auth(), HANDSHAKE, ib(), ob());
-
+        return switch (phase()) {
+            case READY -> new V10ConnectionStateRecord(session(), match(), auth(), HANDSHAKE, ib(), ob());
+            case TERMINATED -> this;
+            default -> throw new ProtocolStateException("Cannot start handshaking in " + phase());
+        };
     }
 
     public V10ConnectionStateRecord matched(final MultiMatchRecord match) {
 
         requireNonNull(match, "Match cannot be null");
 
-        if (HANDSHAKE.equals(phase())) {
-            throw new ProtocolStateException("Cannot match in phase " + phase());
-        }
-
-        final var phase = auth() != null ? SIGNALING : HANDSHAKE;
-        final var ob = SIGNALING.equals(phase) ? List.<ProtocolMessage>of() : ob();
-        final var ib = SIGNALING.equals(phase) ? List.<ProtocolMessage>of() : ib();
-
-        return new V10ConnectionStateRecord(session(), match, auth(), phase, ib, ob);
+        return switch (phase()) {
+            case TERMINATED -> this;
+            case HANDSHAKE -> {
+                final var phase = auth() != null ? SIGNALING : HANDSHAKE;
+                final var ob = SIGNALING.equals(phase) ? List.<ProtocolMessage>of() : ob();
+                final var ib = SIGNALING.equals(phase) ? List.<ProtocolMessage>of() : ib();
+                yield new V10ConnectionStateRecord(session(), match, auth(), phase, ib, ob);
+            }
+            default -> throw new ProtocolStateException("Cannot match in " + phase());
+        };
 
     }
 
@@ -73,15 +73,16 @@ record V10ConnectionStateRecord(
 
         requireNonNull(auth, "Auth Record cannot be null");
 
-        if (HANDSHAKE.equals(phase())) {
-            throw new ProtocolStateException("Cannot authenticate in phase " + phase());
-        }
-
-        final var phase = match() != null ? SIGNALING : HANDSHAKE;
-        final var ob = SIGNALING.equals(phase) ? List.<ProtocolMessage>of() : ob();
-        final var ib = SIGNALING.equals(phase) ? List.<ProtocolMessage>of() : ib();
-
-        return new V10ConnectionStateRecord(session(), match(), auth, phase, ib, ob);
+        return switch (phase()) {
+            case TERMINATED -> this;
+            case HANDSHAKE -> {
+                final var phase = match() != null ? SIGNALING : HANDSHAKE;
+                final var ob = SIGNALING.equals(phase) ? List.<ProtocolMessage>of() : ob();
+                final var ib = SIGNALING.equals(phase) ? List.<ProtocolMessage>of() : ib();
+                yield new V10ConnectionStateRecord(session(), match(), auth, phase, ib, ob);
+            }
+            default -> throw new ProtocolStateException("Cannot authenticate in " + phase());
+        };
 
     }
 
@@ -95,8 +96,7 @@ record V10ConnectionStateRecord(
         return new V10ConnectionStateRecord(session(), match(), auth(), phase(), ib(), unmodifiableList(ob));
     }
 
-    private List<ProtocolMessage> append(final List<ProtocolMessage> base,
-                                         final ProtocolMessage message) {
+    private static List<ProtocolMessage> append(final List<ProtocolMessage> base, final ProtocolMessage message) {
         if (base == null) {
             return List.of(message);
         } else {
@@ -107,7 +107,10 @@ record V10ConnectionStateRecord(
     }
 
     public V10ConnectionStateRecord terminate() {
-        return new V10ConnectionStateRecord(session(), match(), auth(), TERMINATED, ib(), ob());
+        return switch (phase()) {
+            case TERMINATED -> this;
+            default -> new V10ConnectionStateRecord(session(), match(), auth(), TERMINATED, ib(), ob());
+        };
     }
 
 }
