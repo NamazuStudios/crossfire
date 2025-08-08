@@ -19,20 +19,16 @@ class V10MatchRequest implements MatchmakingAlgorithm.Request {
 
     private final Profile profile;
 
-    private final CrossfireConfiguration crossfireConfiguration;
-
     private final MatchmakingApplicationConfiguration applicationConfiguration;
 
     public V10MatchRequest(
             final ProtocolMessageHandler protocolMessageHandler,
             final AtomicReference<V10HandshakeStateRecord> state,
             final Profile profile,
-            final CrossfireConfiguration crossfireConfiguration,
             final MatchmakingApplicationConfiguration applicationConfiguration) {
         this.state = state;
         this.profile = profile;
         this.protocolMessageHandler = protocolMessageHandler;
-        this.crossfireConfiguration = crossfireConfiguration;
         this.applicationConfiguration = applicationConfiguration;
     }
 
@@ -56,7 +52,7 @@ class V10MatchRequest implements MatchmakingAlgorithm.Request {
     @Override
     public void success(final MultiMatch multiMatch) {
 
-        final var multiMatchRecord = new MultiMatchRecord(multiMatch, crossfireConfiguration);
+        final var multiMatchRecord = new MultiMatchRecord(multiMatch, applicationConfiguration);
         final var state = this.state.updateAndGet(s -> s.matched(multiMatchRecord));
 
         switch (state.phase()) {

@@ -2,6 +2,7 @@ package dev.getelements.elements.crossfire.protocol.v10;
 
 import dev.getelements.elements.crossfire.api.MatchmakingAlgorithm;
 import dev.getelements.elements.crossfire.model.configuration.CrossfireConfiguration;
+import dev.getelements.elements.crossfire.model.error.ProtocolStateException;
 import dev.getelements.elements.crossfire.model.error.UnexpectedMessageException;
 import dev.getelements.elements.crossfire.model.handshake.FindHandshakeRequest;
 import dev.getelements.elements.crossfire.model.handshake.HandshakeRequest;
@@ -15,6 +16,7 @@ import dev.getelements.elements.sdk.dao.ApplicationConfigurationDao;
 import dev.getelements.elements.sdk.dao.MultiMatchDao;
 import dev.getelements.elements.sdk.dao.ProfileDao;
 import dev.getelements.elements.sdk.dao.Transaction;
+import dev.getelements.elements.sdk.model.application.ElementServiceReference;
 import dev.getelements.elements.sdk.model.application.MatchmakingApplicationConfiguration;
 import dev.getelements.elements.sdk.model.exception.ForbiddenException;
 import dev.getelements.elements.sdk.model.profile.Profile;
@@ -101,20 +103,15 @@ public class V10HandshakeHandler implements HandshakeHandler {
                     request.getConfiguration()
             );
 
-            final var crossfireConfiguration = CrossfireConfiguration
-                    .from(applicationConfiguration)
-                    .filter(c -> validate(c, applicationConfiguration));
-
             final var mRequest = new V10MatchRequest(
                     handler,
                     state,
                     auth.profile(),
-                    crossfireConfiguration.orElse(null),
                     applicationConfiguration
             );
 
-            final var algorithm = crossfireConfiguration
-                    .filter(c -> c.getMatchmaker() != null)
+            final var algorithm = Optional
+                    .ofNullable(applicationConfiguration.getMatchmaker())
                     .map(this::algorithmFromConfiguration)
                     .orElseGet(this::getDefaultMatchmakingAlgorithm);
 
@@ -152,9 +149,7 @@ public class V10HandshakeHandler implements HandshakeHandler {
 
     }
 
-    private MatchmakingAlgorithm algorithmFromConfiguration(final CrossfireConfiguration configuration) {
-
-        final var matchmaker = configuration.getMatchmaker();
+    private MatchmakingAlgorithm algorithmFromConfiguration(final ElementServiceReference matchmaker) {
 
         final var elementOptional = ElementRegistrySupplier
                 .getElementLocal(getClass())
@@ -171,7 +166,7 @@ public class V10HandshakeHandler implements HandshakeHandler {
         final var element = elementOptional.get();
 
         final Class<? extends MatchmakingAlgorithm> type = (Class<? extends MatchmakingAlgorithm>) Optional
-                .ofNullable(configuration.getMatchmaker().getServiceType())
+                .ofNullable(matchmaker.getServiceType())
                 .map(t -> {
                     try {
                         return element.getElementRecord()
@@ -225,7 +220,7 @@ public class V10HandshakeHandler implements HandshakeHandler {
 
             final var multiMatchRecord = new MultiMatchRecord(
                     match,
-                    crossfireConfiguration.orElse(null)
+                    applicationConfiguration
             );
 
             final var state = this.state.updateAndGet(s -> s.matched(multiMatchRecord));
@@ -244,58 +239,67 @@ public class V10HandshakeHandler implements HandshakeHandler {
 
         final var state = this.state.updateAndGet(V10HandshakeStateRecord::authenticating);
 
-        if (TERMINATED == state.phase()) {
-            state.cancelPending();
-            logger.info("Handshake already terminated, cannot authenticate.");
-            return;
+        switch (state.phase()) {
+            case TERMINATED -> {
+                logger.info("Handshake already terminated, cannot authenticate.");
+                state.cancelPending();
+            }
+            case AUTHENTICATING -> handler.submit(() -> doAuthenticate(handler, request, onAuthenticated));
+            default -> {
+                logger.error("Unexpected handshake state: {}. Cannot authenticate.", state.phase());
+                state.cancelPending();
+                throw new ProtocolStateException("Invalid handshake state: " + state);
+            }
+        }
+    }
+
+    private void doAuthenticate(final ProtocolMessageHandler handler,
+                                final HandshakeRequest request,
+                                final Consumer<AuthRecord> onAuthenticated) {
+
+        final var session = getSessionService().checkAndRefreshSessionIfNecessary(request.getSessionKey());
+
+        Profile profile = session.getProfile();
+
+        if (profile == null) {
+            logger.debug("No profile found for session. Attempting to find profile by session ID.");
         }
 
-        handler.submit(() -> {
+        if (request.getProfileId() != null) {
+            logger.debug("Using profile ID from request: {}", request.getProfileId());
+            profile = getProfileDao().getActiveProfile(request.getProfileId());
+        } else {
+            logger.debug("No profile ID in request, using session profile (if available).");
+        }
 
-            final var session = getSessionService().checkAndRefreshSessionIfNecessary(request.getSessionKey());
+        if (profile == null) {
+            logger.debug("Unable to find profile for session and request.");
+            throw new ForbiddenException();
+        }
 
-            Profile profile = session.getProfile();
+        if (!session.getUser().getId().equals(profile.getUser().getId())) {
+            logger.debug("User does not have access to session. Attempting to find profile by session ID.");
+            throw new ForbiddenException();
+        }
 
-            if (profile == null) {
-                logger.debug("No profile found for session. Attempting to find profile by session ID.");
+        final var record = new AuthRecord(profile, session);
+        final var updated = this.state.updateAndGet(s -> s.authenticated(record));
+
+        switch (updated.phase()) {
+            case TERMINATED -> {
+                logger.info("Handshake already terminated, cannot authenticate.");
+                updated.cancelPending();
             }
-
-            if (request.getProfileId() != null) {
-                logger.debug("Using profile ID from request: {}", request.getProfileId());
-                profile = getProfileDao().getActiveProfile(request.getProfileId());
-            } else {
-                logger.debug("No profile ID in request, using session profile (if available).");
+            case AUTHENTICATED -> {
+                handler.authenticated(record);
+                handler.submit(() -> onAuthenticated.accept(record));
             }
-
-            if (profile == null) {
-                logger.debug("Unable to find profile for session and request.");
-                throw new ForbiddenException();
+            default -> {
+                logger.error("Handshake not yet completed, attempting to authenticate.");
+                updated.cancelPending();
+                throw new ProtocolStateException("Invalid handshake state: " + updated.phase());
             }
-
-            if (!session.getUser().getId().equals(profile.getUser().getId())) {
-                logger.debug("User does not have access to session. Attempting to find profile by session ID.");
-                throw new ForbiddenException();
-            }
-
-            final var record = new AuthRecord(profile, session);
-            final var updated = this.state.updateAndGet(s -> s.authenticated(record));
-
-            switch (updated.phase()) {
-                case TERMINATED -> {
-                    logger.info("Handshake already terminated, cannot authenticate.");
-                    updated.cancelPending();
-                }
-                case AUTHENTICATED -> {
-                    handler.authenticated(record);
-                    onAuthenticated.accept(record);
-                }
-                default -> {
-                    logger.error("Handshake not yet completed, attempting to authenticate.");
-                    updated.cancelPending();
-                }
-            }
-
-        });
+        }
 
     }
 

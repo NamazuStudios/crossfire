@@ -4,6 +4,7 @@ import dev.getelements.elements.crossfire.model.ProtocolMessage;
 import dev.getelements.elements.crossfire.model.configuration.CrossfireConfiguration;
 import dev.getelements.elements.crossfire.model.error.ProtocolStateException;
 import dev.getelements.elements.sdk.annotation.ElementServiceExport;
+import dev.getelements.elements.sdk.model.application.MatchmakingApplicationConfiguration;
 import dev.getelements.elements.sdk.model.match.MultiMatch;
 import dev.getelements.elements.sdk.model.profile.Profile;
 import jakarta.websocket.PongMessage;
@@ -138,7 +139,7 @@ public interface ProtocolMessageHandler {
      */
     record MultiMatchRecord(
             MultiMatch match,
-            CrossfireConfiguration configuration
+            MatchmakingApplicationConfiguration configuration
     ) {
 
         public String getId() {

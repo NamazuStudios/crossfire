@@ -115,7 +115,7 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
                 case READY -> onMessageReadyPhase(state, session, message);
                 case HANDSHAKE -> onMessageHandshakePhase(state, session, message);
                 case SIGNALING -> onSignalingMessage(state, session, message);
-                default -> invalid(state, message);
+                default -> throw invalid(state, message);
             }
 
         } else {
@@ -176,14 +176,12 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
                     // We got the termination request while in the READY phase. We just ignore the message and do not
                     // allow the protocol to continue. Just log and drop the message.
 
-                    case TERMINATED -> {
-                        logger.debug("{}: Session {} already terminated, ignoring handshake request.",
-                                result.phase(),
-                                session.getId()
-                        );
-                    }
+                    case TERMINATED -> logger.debug("{}: Session {} already terminated, ignoring handshake request.",
+                            result.phase(),
+                            session.getId()
+                    );
 
-                    default -> invalid(state, message);
+                    default -> throw invalid(state, message);
 
                 }
 
