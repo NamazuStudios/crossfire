@@ -13,7 +13,7 @@ import java.io.IOException;
 public interface Pinger {
 
     /**
-     * Starts the pinger for the given session. This method will initiate a periodic ping to the remote endpoint
+     * Starts the pinger for the given session. This method will find a periodic ping to the remote endpoint
      * @param session the session to start the pinger for
      */
     void start(Session session);

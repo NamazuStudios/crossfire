@@ -107,6 +107,7 @@ public class V10HandshakeHandler implements HandshakeHandler {
                     handler,
                     state,
                     auth.profile(),
+                    request,
                     applicationConfiguration
             );
 
@@ -115,7 +116,7 @@ public class V10HandshakeHandler implements HandshakeHandler {
                     .map(this::algorithmFromConfiguration)
                     .orElseGet(this::getDefaultMatchmakingAlgorithm);
 
-            final var pending = algorithm.initiate(mRequest);
+            final var pending = algorithm.find(mRequest);
 
             final var state = this.state.updateAndGet(s -> s.matching(pending));
             pending.start();

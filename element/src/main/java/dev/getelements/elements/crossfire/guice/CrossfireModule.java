@@ -1,6 +1,8 @@
 package dev.getelements.elements.crossfire.guice;
 
 import com.google.inject.PrivateModule;
+import dev.getelements.elements.crossfire.api.MatchmakingAlgorithm;
+import dev.getelements.elements.crossfire.matchmaker.FIFOMatchmakingAlgorithm;
 import dev.getelements.elements.crossfire.protocol.*;
 import dev.getelements.elements.crossfire.protocol.v10.V10HandshakeHandler;
 import dev.getelements.elements.crossfire.protocol.v10.V10ProtocolMessageHandler;
@@ -13,6 +15,9 @@ import jakarta.validation.Validator;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static com.google.inject.name.Names.named;
+import static dev.getelements.elements.crossfire.matchmaker.FIFOMatchmakingAlgorithm.NAME;
+
 public class  CrossfireModule extends PrivateModule {
 
     @Override
@@ -20,6 +25,8 @@ public class  CrossfireModule extends PrivateModule {
 
         expose(MatchSignalingService.class);
         expose(ProtocolMessageHandler.class);
+        expose(MatchmakingAlgorithm.class);
+        expose(MatchmakingAlgorithm.class).annotatedWith(named(NAME));
 
         bind(Pinger.class)
                 .to(StandardPinger.class);
@@ -40,6 +47,13 @@ public class  CrossfireModule extends PrivateModule {
         bind(ExecutorService.class)
                 .toProvider(Executors::newCachedThreadPool)
                 .asEagerSingleton();
+
+        bind(MatchmakingAlgorithm.class)
+                .to(FIFOMatchmakingAlgorithm.class);
+
+        bind(MatchmakingAlgorithm.class)
+                .annotatedWith(named(NAME))
+                .to(FIFOMatchmakingAlgorithm.class);
 
         bind(Validator.class)
                 .toProvider(() -> {

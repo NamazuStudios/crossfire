@@ -46,7 +46,7 @@ public class TestBasicMatchmaking {
 
     private final TestServer server = TestServer.getInstance();
 
-    private List<TestContext> testContextList;
+    private List<TestContext> testContextList = List.of();
 
     private WebSocketContainer webSocketContainer;
 
@@ -54,10 +54,16 @@ public class TestBasicMatchmaking {
 
     @DataProvider
     public Object[][] allContexts() {
+
+        if (testContextList.isEmpty()) {
+            Assert.fail("Test contexts are not initialized. Ensure setupContexts() succeeds called before running tests.");
+        }
+
         return testContextList
                 .stream()
                 .map(c -> new Object[]{c})
                 .toArray(Object[][]::new);
+
     }
 
     @BeforeClass
@@ -84,7 +90,7 @@ public class TestBasicMatchmaking {
                     }
 
                 })
-                .collect(Collectors.toUnmodifiableList());
+                .toList();
     }
 
     @BeforeClass

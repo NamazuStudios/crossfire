@@ -10,6 +10,7 @@ import dev.getelements.elements.sdk.model.profile.Profile;
 import jakarta.websocket.PongMessage;
 
 import java.io.IOException;
+import java.util.concurrent.Future;
 
 /**
  * Handles all protocol messages.
@@ -79,7 +80,7 @@ public interface ProtocolMessageHandler {
      *
      * @param task the runnable to submit
      */
-    void submit(Runnable task);
+    Future<?> submit(Runnable task);
 
     /**
      * Sends a protocol message to the session, buffering it if necessary.

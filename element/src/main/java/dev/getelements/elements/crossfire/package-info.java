@@ -1,13 +1,3 @@
-
-@ElementService(
-        value = MatchmakingAlgorithm.class,
-        implementation = @ElementServiceImplementation(FIFOMatchmakingAlgorithm.class)
-)
-@ElementService(
-        value = MatchmakingAlgorithm.class,
-        export = @ElementServiceExport(name = "FIFO"),
-        implementation = @ElementServiceImplementation(FIFOMatchmakingAlgorithm.class)
-)
 @ElementDefinition(recursive = true)
 @GuiceElementModule(CrossfireModule.class)
 @ElementDependency("dev.getelements.elements.sdk.dao")

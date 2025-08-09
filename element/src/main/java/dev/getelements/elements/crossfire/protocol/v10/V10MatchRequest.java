@@ -1,7 +1,7 @@
 package dev.getelements.elements.crossfire.protocol.v10;
 
-import dev.getelements.elements.crossfire.api.MatchmakingAlgorithm;
-import dev.getelements.elements.crossfire.model.configuration.CrossfireConfiguration;
+import dev.getelements.elements.crossfire.api.MatchmakingRequest;
+import dev.getelements.elements.crossfire.model.handshake.HandshakeRequest;
 import dev.getelements.elements.crossfire.model.handshake.MatchedResponse;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler.MultiMatchRecord;
@@ -11,7 +11,7 @@ import dev.getelements.elements.sdk.model.profile.Profile;
 
 import java.util.concurrent.atomic.AtomicReference;
 
-class V10MatchRequest implements MatchmakingAlgorithm.Request {
+class V10MatchRequest<MessageT extends HandshakeRequest> implements MatchmakingRequest<MessageT> {
 
     private final ProtocolMessageHandler protocolMessageHandler;
 
@@ -19,15 +19,19 @@ class V10MatchRequest implements MatchmakingAlgorithm.Request {
 
     private final Profile profile;
 
+    private final MessageT handshakeRequest;
+
     private final MatchmakingApplicationConfiguration applicationConfiguration;
 
     public V10MatchRequest(
             final ProtocolMessageHandler protocolMessageHandler,
             final AtomicReference<V10HandshakeStateRecord> state,
             final Profile profile,
+            final MessageT handshakeRequest,
             final MatchmakingApplicationConfiguration applicationConfiguration) {
         this.state = state;
         this.profile = profile;
+        this.handshakeRequest = handshakeRequest;
         this.protocolMessageHandler = protocolMessageHandler;
         this.applicationConfiguration = applicationConfiguration;
     }
@@ -38,15 +42,25 @@ class V10MatchRequest implements MatchmakingAlgorithm.Request {
     }
 
     @Override
+    public MessageT getHandshakeRequest() {
+        return handshakeRequest;
+    }
+
+    @Override
     public MatchmakingApplicationConfiguration getApplicationConfiguration() {
         return applicationConfiguration;
+    }
+
+    @Override
+    public ProtocolMessageHandler getProtocolMessageHandler() {
+        return protocolMessageHandler;
     }
 
     @Override
     public void failure(final Throwable th) {
         final var state = this.state.updateAndGet(V10HandshakeStateRecord::terminate);
         state.cancelPending();
-        protocolMessageHandler.terminate(th);
+        getProtocolMessageHandler().terminate(th);
     }
 
     @Override
@@ -57,12 +71,7 @@ class V10MatchRequest implements MatchmakingAlgorithm.Request {
 
         switch (state.phase()) {
             case TERMINATED -> state.cancelPending();
-            case MATCHED -> {
-                final var response = new MatchedResponse();
-                response.setMatchId(multiMatchRecord.getId());
-                protocolMessageHandler.send(response);
-                protocolMessageHandler.matched(multiMatchRecord);
-            }
+            case MATCHED -> getProtocolMessageHandler().matched(multiMatchRecord);
         }
 
     }

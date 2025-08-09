@@ -1,5 +1,6 @@
 package dev.getelements.elements.crossfire;
 
+import dev.getelements.elements.crossfire.client.v10.V10Client;
 import dev.getelements.elements.dao.mongo.test.DockerMongoTestInstance;
 import dev.getelements.elements.dao.mongo.test.MongoTestInstance;
 import dev.getelements.elements.sdk.dao.ApplicationDao;
@@ -14,6 +15,8 @@ import dev.getelements.elements.sdk.model.session.Session;
 import dev.getelements.elements.sdk.model.session.SessionCreation;
 import dev.getelements.elements.sdk.model.user.User;
 import dev.getelements.elements.sdk.util.ShutdownHooks;
+import jakarta.websocket.ContainerProvider;
+import jakarta.websocket.WebSocketContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,6 +38,8 @@ public class TestServer {
     private static final Logger logger = LoggerFactory.getLogger(TestServer.class);
 
     private static final int TEST_MONGO_PORT = 45005;
+
+    private static final int STARTUP_TIMEOUT_SECONDS = 180;
 
     private static final AtomicLong counter = new AtomicLong();
 
@@ -84,7 +89,33 @@ public class TestServer {
         elementsLocal.start();
         shutdownHooks.add(elementsLocal::close);
         shutdownHooks.add(mongoTestInstance::stop);
-        logger.info("Test Server Started. Application: {}", application.getName());
+
+        final var container = ContainerProvider.getWebSocketContainer();
+
+        logger.info("Starting Server ...");
+
+        for (int i = 0; i < STARTUP_TIMEOUT_SECONDS; i++) {
+
+            try (var session = container.connectToServer(V10Client.class, getTestTestServerWsUrl())) {
+                logger.info("Test Server WebSocket connection established.");
+                break;
+            } catch (Exception e) {
+
+                logger.warn("Failed to connect to Test Server WebSocket {}, retrying in 1 second...", e.getMessage());
+
+                try {
+                    TimeUnit.SECONDS.sleep(1);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException("Interrupted while waiting for Test Server WebSocket connection", ie);
+                }
+
+            }
+
+            logger.info("Test Server Started. Application: {}", application.getName());
+
+        }
+
     }
 
     private Application buildApplication() {

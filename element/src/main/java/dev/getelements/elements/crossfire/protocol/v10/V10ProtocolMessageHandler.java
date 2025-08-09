@@ -4,6 +4,7 @@ package dev.getelements.elements.crossfire.protocol.v10;
 import dev.getelements.elements.crossfire.model.ProtocolMessage;
 import dev.getelements.elements.crossfire.model.error.*;
 import dev.getelements.elements.crossfire.model.handshake.HandshakeRequest;
+import dev.getelements.elements.crossfire.model.handshake.MatchedResponse;
 import dev.getelements.elements.crossfire.model.signal.Signal;
 import dev.getelements.elements.crossfire.model.signal.SignalWithRecipient;
 import dev.getelements.elements.crossfire.protocol.*;
@@ -23,6 +24,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -265,8 +267,8 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
     }
 
     @Override
-    public void submit(final Runnable task) {
-        getExecutorService().submit(() -> {
+    public Future<?> submit(final Runnable task) {
+        return getExecutorService().submit(() -> {
 
             try {
                 task.run();
@@ -332,23 +334,27 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
     }
 
     @Override
-    public void matched(final MultiMatchRecord match) {
+    public void matched(final MultiMatchRecord multiMatchRecord) {
 
         V10ConnectionStateRecord result;
         V10ConnectionStateRecord existing;
 
         do {
             existing = state.get();
-        } while (!state.compareAndSet(existing, result = existing.matched(match)));
+        } while (!state.compareAndSet(existing, result = existing.matched(multiMatchRecord)));
 
         logger.debug("{}: Matched session {} to match {}.   ",
                 result.phase(),
                 result.sessionId(),
-                match.getId()
+                multiMatchRecord.getId()
         );
 
-        if (SIGNALING.equals(result.phase()))
+        if (SIGNALING.equals(result.phase())) {
+            final var response = new MatchedResponse();
+            response.setMatchId(result.match().getId());
+            result.session().getAsyncRemote().sendObject(response);
             processBacklog(result, existing.ib(), existing.ob());
+        }
 
     }
 
@@ -368,8 +374,12 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
                 authRecord.session().getProfile().getId()
         );
 
-        if (SIGNALING.equals(result.phase()))
+        if (SIGNALING.equals(result.phase())) {
+            final var response = new MatchedResponse();
+            response.setMatchId(result.match().getId());
+            result.session().getAsyncRemote().sendObject(response);
             processBacklog(result, existing.ib(), existing.ob());
+        }
 
     }
 

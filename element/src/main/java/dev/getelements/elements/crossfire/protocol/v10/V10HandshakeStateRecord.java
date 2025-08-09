@@ -1,6 +1,6 @@
 package dev.getelements.elements.crossfire.protocol.v10;
 
-import dev.getelements.elements.crossfire.api.MatchmakingAlgorithm.PendingMatch;
+import dev.getelements.elements.crossfire.api.Match;
 import dev.getelements.elements.crossfire.model.error.ProtocolStateException;
 import dev.getelements.elements.crossfire.protocol.HandshakePhase;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler.AuthRecord;
@@ -16,7 +16,7 @@ record V10HandshakeStateRecord(
         Session session,
         AuthRecord auth,
         MultiMatchRecord match,
-        PendingMatch pending) {
+        Match pending) {
 
     public static V10HandshakeStateRecord create() {
         return new V10HandshakeStateRecord(WAITING, null, null, null, null);
@@ -55,7 +55,7 @@ record V10HandshakeStateRecord(
 
     }
 
-    public V10HandshakeStateRecord matching(final PendingMatch pending) {
+    public V10HandshakeStateRecord matching(final Match pending) {
 
         requireNonNull(pending, "Pending match must not be null.");
 
