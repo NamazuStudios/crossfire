@@ -1,5 +1,6 @@
 package dev.getelements.elements.crossfire.protocol.v10;
 
+import dev.getelements.elements.crossfire.api.Match;
 import dev.getelements.elements.crossfire.api.MatchmakingRequest;
 import dev.getelements.elements.crossfire.model.handshake.HandshakeRequest;
 import dev.getelements.elements.crossfire.model.handshake.MatchedResponse;
@@ -64,14 +65,15 @@ class V10MatchRequest<MessageT extends HandshakeRequest> implements MatchmakingR
     }
 
     @Override
-    public void success(final MultiMatch multiMatch) {
+    public void success(final Match<MessageT> match) {
 
-        final var multiMatchRecord = new MultiMatchRecord(multiMatch, applicationConfiguration);
+        final var multiMatchRecord = new MultiMatchRecord(match, applicationConfiguration);
         final var state = this.state.updateAndGet(s -> s.matched(multiMatchRecord));
 
         switch (state.phase()) {
             case TERMINATED -> state.cancelPending();
             case MATCHED -> getProtocolMessageHandler().matched(multiMatchRecord);
+            default -> throw new IllegalStateException("Unexpected phase " + state.phase());
         }
 
     }

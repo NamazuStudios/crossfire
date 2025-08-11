@@ -36,6 +36,15 @@ public abstract class StandardCancelableMatch<RequestT extends HandshakeRequest>
             try (final var transaction = getTransactionProvider().get()) {
                 final var dao = transaction.getDao(MultiMatchDao.class);
                 dao.removeProfile(state.result().getId(), getRequest().getProfile());
+
+                final var profiles = dao.getProfiles(state.result().getId());
+
+                if (profiles.isEmpty()) {
+                    logger.info("Removing match: {} as it has no profiles left", state.result().getId());
+                    dao.deleteMultiMatch(state.result().getId());
+                } else {
+                    logger.info("Match {} still has profiles, not removing", state.result().getId());
+                }
             }
 
         } else {
@@ -46,7 +55,7 @@ public abstract class StandardCancelableMatch<RequestT extends HandshakeRequest>
 
     @Override
     protected void onResult(final CancelableMatchStateRecord<RequestT> state, final MultiMatch result) {
-        getRequest().success(result);
+        getRequest().success(this);
     }
 
     public Provider<Transaction> getTransactionProvider() {

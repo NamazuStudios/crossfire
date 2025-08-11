@@ -1,5 +1,6 @@
 package dev.getelements.elements.crossfire.protocol;
 
+import dev.getelements.elements.crossfire.api.Match;
 import dev.getelements.elements.crossfire.model.ProtocolMessage;
 import dev.getelements.elements.crossfire.model.configuration.CrossfireConfiguration;
 import dev.getelements.elements.crossfire.model.error.ProtocolStateException;
@@ -139,12 +140,12 @@ public interface ProtocolMessageHandler {
      * @param configuration the {@link CrossfireConfiguration} used for the match
      */
     record MultiMatchRecord(
-            MultiMatch match,
+            Match<?> match,
             MatchmakingApplicationConfiguration configuration
     ) {
 
         public String getId() {
-            return match().getId();
+            return match().getResult().getId();
         }
 
     }

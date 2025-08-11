@@ -6,6 +6,7 @@ import dev.getelements.elements.sdk.model.match.MultiMatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static dev.getelements.elements.crossfire.api.CancelableMatchStateRecord.create;
@@ -77,7 +78,7 @@ public abstract class AbstractMatch<RequestT extends HandshakeRequest> implement
             }
 
             case TERMINATED -> logger.debug("Terminating matchmaking algorithm for request: {}", request);
-            default -> throw new ProtocolStateException("Unknown phase: " + state.phase());
+            default -> throw new ProtocolStateException("Invalid phase: " + state.phase());
 
         }
 
@@ -86,8 +87,8 @@ public abstract class AbstractMatch<RequestT extends HandshakeRequest> implement
     }
 
     @Override
-    public MultiMatch getResult() {
-        return state.get().result();
+    public Optional<MultiMatch> findResult() {
+        return Optional.of(state.get().result());
     }
 
     @Override

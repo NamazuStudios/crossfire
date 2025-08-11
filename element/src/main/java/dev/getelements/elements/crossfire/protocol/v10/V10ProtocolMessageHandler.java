@@ -390,6 +390,7 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
         logger.debug("{}: Processing backlog for session {}", state.phase(), state.sessionId());
 
         inbound.forEach(message -> onSignalingMessage(state, state.session(), message));
+
         logger.debug("{}: Processed inbound backlog for session {}. Count: {}",
                 state.phase(),
                 state.sessionId(),

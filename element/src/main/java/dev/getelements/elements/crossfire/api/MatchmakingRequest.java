@@ -56,6 +56,6 @@ public interface MatchmakingRequest<MessageT extends HandshakeRequest> {
     /**
      * Completes the matchmaking request with the given match.
      */
-    void success(MultiMatch match);
+    void success(Match<MessageT> match);
 
 }

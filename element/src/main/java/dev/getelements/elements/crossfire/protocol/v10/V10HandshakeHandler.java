@@ -91,7 +91,7 @@ public class V10HandshakeHandler implements HandshakeHandler {
 
     private void onFindMessage(
             final ProtocolMessageHandler handler,
-            final Session wsSession,
+            final Session session,
             final FindHandshakeRequest request) {
         auth(handler, request, (auth) -> {
 
@@ -117,37 +117,49 @@ public class V10HandshakeHandler implements HandshakeHandler {
                     .orElseGet(this::getDefaultMatchmakingAlgorithm);
 
             final var pending = algorithm.find(mRequest);
-
             final var state = this.state.updateAndGet(s -> s.matching(pending));
-            pending.start();
 
-            if (Objects.requireNonNull(state.phase()) == TERMINATED) {
-                state.cancelPending();
+            switch (state.phase()) {
+                case MATCHING -> state.start(session);
+                case TERMINATED -> state.cancelPending();
+                default -> throw new ProtocolStateException("Got unexpected handshake state: " + state.phase());
             }
 
         });
     }
 
-    private boolean validate(final CrossfireConfiguration crossfireConfiguration,
-                             final MatchmakingApplicationConfiguration applicationConfiguration) {
+    private void onJoinMessage(
+            final ProtocolMessageHandler handler,
+            final Session session,
+            final JoinHandshakeRequest request) {
+        auth(handler, request, (auth) -> {
 
-        final var violations = getValidator().validate(crossfireConfiguration);
+            final var match = getMultiMatchDao().getMultiMatch(request.getMatchId());
+            final var applicationConfiguration = match.getConfiguration();
 
-        if (violations.isEmpty()) {
-            logger.debug("Valid Crossfire configuration found for application configuration {}",
-                    applicationConfiguration.getId()
+            final var matchRequest = new V10MatchRequest(
+                    handler,
+                    state,
+                    auth.profile(),
+                    request,
+                    applicationConfiguration
             );
-            return true;
-        } else {
-            logger.error("Invalid Crossfire found for application {}.\nViolations:\n{}",
-                    applicationConfiguration.getId(),
-                    violations.stream()
-                            .map(v -> v.getPropertyPath() + ": " + v.getMessage())
-                            .reduce("", (a, b) -> a + "\n" + b)
-            );
-            return false;
-        }
 
+            final var algorithm = Optional
+                    .ofNullable(applicationConfiguration.getMatchmaker())
+                    .map(this::algorithmFromConfiguration)
+                    .orElseGet(this::getDefaultMatchmakingAlgorithm);
+
+            final var pending = algorithm.find(matchRequest);
+            final var state = this.state.updateAndGet(s -> s.matching(pending));
+
+            switch (state.phase()) {
+                case MATCHING -> state.start(session);
+                case TERMINATED -> state.cancelPending();
+                default -> throw new ProtocolStateException("Got unexpected handshake state: " + state.phase());
+            }
+
+        });
     }
 
     private MatchmakingAlgorithm algorithmFromConfiguration(final ElementServiceReference matchmaker) {
@@ -196,42 +208,6 @@ public class V10HandshakeHandler implements HandshakeHandler {
                 ? element.getServiceLocator().getInstance(type)
                 : element.getServiceLocator().getInstance(type, name);
 
-    }
-
-    private void onJoinMessage(
-            final ProtocolMessageHandler handler,
-            final Session session,
-            final JoinHandshakeRequest request) {
-        auth(handler, request, (auth) -> {
-
-            final var match = getMultiMatchDao().getMultiMatch(request.getMatchId());
-            final var profiles = getMultiMatchDao().getProfiles(match.getId());
-            final var found = profiles.stream().anyMatch(p -> p.getId().equals(auth.profile().getId()));
-
-            if (!found) {
-                logger.debug("Profile {} not found in match {}", auth.profile().getId(), match.getId());
-                throw new ForbiddenException("Profile not found in match");
-            }
-
-            final var applicationConfiguration = match.getConfiguration();
-
-            final var crossfireConfiguration = CrossfireConfiguration
-                    .from(applicationConfiguration)
-                    .filter(c -> validate(c, applicationConfiguration));
-
-            final var multiMatchRecord = new MultiMatchRecord(
-                    match,
-                    applicationConfiguration
-            );
-
-            final var state = this.state.updateAndGet(s -> s.matched(multiMatchRecord));
-
-            switch (state.phase()) {
-                case TERMINATED -> state.cancelPending();
-                case MATCHED -> state.matched(multiMatchRecord);
-            }
-
-        });
     }
 
     private void auth(final ProtocolMessageHandler handler,

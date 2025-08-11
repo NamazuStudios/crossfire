@@ -3,6 +3,9 @@ package dev.getelements.elements.crossfire.api;
 import dev.getelements.elements.crossfire.model.handshake.HandshakeRequest;
 import dev.getelements.elements.sdk.model.match.MultiMatch;
 
+import java.util.NoSuchElementException;
+import java.util.Optional;
+
 /**
  * Gets the name of the matchmaking algorithm.
  */
@@ -21,11 +24,22 @@ public interface Match<RequestT extends HandshakeRequest> {
     void cancel();
 
     /**
-     * Gets the {@link MultiMatch}
+     * Gets the {@link MultiMatch}, throwing NoSuchElementException if the match is not yet complete or otherwise missing.
      *
      * @return the match
+     * @throws NoSuchElementException if the match is not yet complete or otherwise missing
      */
-    MultiMatch getResult();
+    default MultiMatch getResult() {
+        return findResult().orElseThrow(NoSuchElementException::new);
+    }
+
+    /**
+     * Finds the {@link MultiMatch}, if it exists, without throwing an exception and returning an empty optional if the
+     * match is not yet complete or otherwise missing.
+     *
+     * @return an {@link Optional} containing the match if it exists, or empty if not
+     */
+    Optional<MultiMatch> findResult();
 
     /**
      * Gets the request used to make this match.

@@ -3,7 +3,6 @@ package dev.getelements.elements.crossfire;
 import dev.getelements.elements.crossfire.client.Client;
 import dev.getelements.elements.crossfire.client.v10.V10Client;
 import dev.getelements.elements.crossfire.model.handshake.FindHandshakeRequest;
-import dev.getelements.elements.crossfire.model.handshake.HandshakeResponse;
 import dev.getelements.elements.sdk.dao.ApplicationConfigurationDao;
 import dev.getelements.elements.sdk.model.application.MatchmakingApplicationConfiguration;
 import dev.getelements.elements.sdk.model.profile.Profile;
@@ -12,7 +11,6 @@ import dev.getelements.elements.sdk.model.user.User;
 import jakarta.websocket.ContainerProvider;
 import jakarta.websocket.DeploymentException;
 import jakarta.websocket.WebSocketContainer;
-import org.eclipse.jetty.util.BlockingArrayQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -22,11 +20,7 @@ import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Exchanger;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.MATCHED;
