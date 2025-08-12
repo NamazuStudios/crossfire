@@ -1,13 +1,11 @@
 package dev.getelements.elements.crossfire.protocol.v10;
 
-import dev.getelements.elements.crossfire.api.Match;
+import dev.getelements.elements.crossfire.api.MatchHandle;
 import dev.getelements.elements.crossfire.api.MatchmakingRequest;
 import dev.getelements.elements.crossfire.model.handshake.HandshakeRequest;
-import dev.getelements.elements.crossfire.model.handshake.MatchedResponse;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler.MultiMatchRecord;
 import dev.getelements.elements.sdk.model.application.MatchmakingApplicationConfiguration;
-import dev.getelements.elements.sdk.model.match.MultiMatch;
 import dev.getelements.elements.sdk.model.profile.Profile;
 
 import java.util.concurrent.atomic.AtomicReference;
@@ -60,19 +58,19 @@ class V10MatchRequest<MessageT extends HandshakeRequest> implements MatchmakingR
     @Override
     public void failure(final Throwable th) {
         final var state = this.state.updateAndGet(V10HandshakeStateRecord::terminate);
-        state.cancelPending();
+        state.leave();
         getProtocolMessageHandler().terminate(th);
     }
 
     @Override
-    public void success(final Match<MessageT> match) {
+    public void success(final MatchHandle<MessageT> matchHandle) {
 
-        final var multiMatchRecord = new MultiMatchRecord(match, applicationConfiguration);
+        final var multiMatchRecord = new MultiMatchRecord(matchHandle, applicationConfiguration);
         final var state = this.state.updateAndGet(s -> s.matched(multiMatchRecord));
 
         switch (state.phase()) {
-            case TERMINATED -> state.cancelPending();
-            case MATCHED -> getProtocolMessageHandler().matched(multiMatchRecord);
+            case TERMINATED -> state.leave();
+            case MATCHING -> getProtocolMessageHandler().matched(multiMatchRecord);
             default -> throw new IllegalStateException("Unexpected phase " + state.phase());
         }
 

@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -336,24 +337,24 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
     @Override
     public void matched(final MultiMatchRecord multiMatchRecord) {
 
-        V10ConnectionStateRecord result;
+        V10ConnectionStateRecord update;
         V10ConnectionStateRecord existing;
 
         do {
             existing = state.get();
-        } while (!state.compareAndSet(existing, result = existing.matched(multiMatchRecord)));
+        } while (!state.compareAndSet(existing, update = existing.matched(multiMatchRecord)));
 
         logger.debug("{}: Matched session {} to match {}.   ",
-                result.phase(),
-                result.sessionId(),
+                update.phase(),
+                update.sessionId(),
                 multiMatchRecord.getId()
         );
 
-        if (SIGNALING.equals(result.phase())) {
+        if (SIGNALING.equals(update.phase())) {
             final var response = new MatchedResponse();
-            response.setMatchId(result.match().getId());
-            result.session().getAsyncRemote().sendObject(response);
-            processBacklog(result, existing.ib(), existing.ob());
+            response.setMatchId(update.match().getId());
+            update.session().getAsyncRemote().sendObject(response);
+            processBacklog(existing);
         }
 
     }
@@ -361,34 +362,34 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
     @Override
     public void authenticated(final AuthRecord authRecord) {
 
-        V10ConnectionStateRecord result;
+        V10ConnectionStateRecord update;
         V10ConnectionStateRecord existing;
 
         do {
             existing = state.get();
-        } while (!state.compareAndSet(existing, result = existing.authenticated(authRecord)));
+        } while (!state.compareAndSet(existing, update = existing.authenticated(authRecord)));
 
         logger.debug("{}: Authenticated session {} for {}",
-                result.phase(),
-                result.sessionId(),
+                update.phase(),
+                update.sessionId(),
                 authRecord.session().getProfile().getId()
         );
 
-        if (SIGNALING.equals(result.phase())) {
+        if (SIGNALING.equals(update.phase())) {
             final var response = new MatchedResponse();
-            response.setMatchId(result.match().getId());
-            result.session().getAsyncRemote().sendObject(response);
-            processBacklog(result, existing.ib(), existing.ob());
+            response.setMatchId(update.match().getId());
+            update.session().getAsyncRemote().sendObject(response);
+            processBacklog(existing);
         }
 
     }
 
-    private void processBacklog(final V10ConnectionStateRecord state,
-                                final Collection<ProtocolMessage> inbound,
-                                final Collection<ProtocolMessage> outbound) {
+    private void processBacklog(final V10ConnectionStateRecord state) {
+
+        final var inbound = state.ib() == null ? List.<ProtocolMessage>of() : state.ib();
+        final var outbound = state.ob() == null ? List.<ProtocolMessage>of() : state.ob();
 
         logger.debug("{}: Processing backlog for session {}", state.phase(), state.sessionId());
-
         inbound.forEach(message -> onSignalingMessage(state, state.session(), message));
 
         logger.debug("{}: Processed inbound backlog for session {}. Count: {}",

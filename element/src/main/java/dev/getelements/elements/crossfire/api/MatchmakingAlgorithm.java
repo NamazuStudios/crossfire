@@ -21,7 +21,7 @@ public interface MatchmakingAlgorithm {
      *
      * @param request the matchmaking request
      */
-    Match<FindHandshakeRequest> find(MatchmakingRequest<FindHandshakeRequest> request);
+    MatchHandle<FindHandshakeRequest> find(MatchmakingRequest<FindHandshakeRequest> request);
 
     /**
      * Starts the matchmaking algorithm. Note that this method is non-blocking and returns immediately and does not
@@ -29,6 +29,6 @@ public interface MatchmakingAlgorithm {
      *
      * @param request the matchmaking request
      */
-    Match<JoinHandshakeRequest> join(MatchmakingRequest<JoinHandshakeRequest> request);
+    MatchHandle<JoinHandshakeRequest> join(MatchmakingRequest<JoinHandshakeRequest> request);
 
 }

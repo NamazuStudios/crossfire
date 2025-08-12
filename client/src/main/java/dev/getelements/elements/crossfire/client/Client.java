@@ -6,6 +6,8 @@ import dev.getelements.elements.crossfire.model.handshake.HandshakeRequest;
 import dev.getelements.elements.crossfire.model.handshake.HandshakeResponse;
 import dev.getelements.elements.sdk.Subscription;
 
+import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -20,6 +22,23 @@ public interface Client extends AutoCloseable {
      * @return the phase
      */
     ClientPhase getPhase();
+
+    /**
+     * Returns the current {@link HandshakeResponse} if available. If the response is not available, it throws a
+     * {@link NoSuchElementException}. Will always be available in the {@link ClientPhase#SIGNALING} phase or later.
+     *
+     * @return the current handshake response
+     */
+    default HandshakeResponse getHandshakeResponse() {
+        return findHandshakeResponse().orElseThrow(NoSuchElementException::new);
+    }
+
+    /**
+     * Finds the current {@link HandshakeResponse} if available.
+     *
+     * @return an {@link Optional} containing the handshake response if it exists, otherwise empty
+     */
+    Optional<HandshakeResponse> findHandshakeResponse();
 
     /**
      * Sends a new {@link HandshakeRequest} to the server to initiate the handshake process.
@@ -72,13 +91,11 @@ public interface Client extends AutoCloseable {
         });
 
         try {
-
             if (latch.await(time, timeUnit)) {
+                return reference.get();
+            } else {
                 throw new TimeoutException("Timed out waiting on server to respond.");
             }
-
-            return reference.get();
-
         } catch (TimeoutException ex) {
             close();
             throw ex;

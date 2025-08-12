@@ -19,7 +19,7 @@ record V10ClientState(ClientPhase phase,
 
     public V10ClientState connected(final Session session) {
         return switch (phase()) {
-            case TERMINATED -> new V10ClientState(READY, session, handshake());
+            case TERMINATED -> this;
             case READY -> new V10ClientState(CONNECTED, session, handshake());
             default -> throw new ProtocolStateException("Invalid connection phase " + phase());
         };
@@ -34,16 +34,16 @@ record V10ClientState(ClientPhase phase,
 
     public V10ClientState handshaking() {
         return switch (phase()) {
+            case TERMINATED -> this;
             case CONNECTED -> new V10ClientState(HANDSHAKING, session(), handshake());
-            case TERMINATED -> new V10ClientState(TERMINATED, session(), handshake());
             default -> throw new ProtocolStateException("Invalid handshake phase " + phase());
         };
     }
 
-    public V10ClientState matched(final HandshakeResponse message) {
+    public V10ClientState matched(final HandshakeResponse handshake) {
         return switch (phase()) {
-            case CONNECTED -> new V10ClientState(HANDSHAKING, session(), handshake());
-            case TERMINATED -> new V10ClientState(TERMINATED, session(), handshake());
+            case TERMINATED -> this;
+            case HANDSHAKING -> new V10ClientState(SIGNALING, session(), handshake);
             default -> throw new ProtocolStateException("Invalid handshake phase " + phase());
         };
     }

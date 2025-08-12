@@ -18,6 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 
@@ -46,6 +47,11 @@ public class V10Client implements Client {
         return state.get().phase();
     }
 
+    @Override
+    public Optional<HandshakeResponse> findHandshakeResponse() {
+        return Optional.ofNullable(state.get().handshake());
+    }
+
     @OnOpen
     public void onOpen(final Session session) throws IOException {
 
@@ -62,9 +68,8 @@ public class V10Client implements Client {
 
         logger.debug("Received message {}", message);
 
-        if (message.getType() == null) {
+        if (message.getType() == null)
             throw new UnexpectedMessageException("Message has no type: " + message);
-        }
 
         final var state = this.state.get();
 
@@ -152,9 +157,8 @@ public class V10Client implements Client {
 
         final var state = this.state.updateAndGet(V10ClientState::handshaking);
 
-        if (HANDSHAKING.equals(state.phase())) {
+        if (HANDSHAKING.equals(state.phase()))
             state.session().getAsyncRemote().sendObject(request);
-        }
 
     }
 

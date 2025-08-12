@@ -1,6 +1,6 @@
 package dev.getelements.elements.crossfire.protocol.v10;
 
-import dev.getelements.elements.crossfire.api.Match;
+import dev.getelements.elements.crossfire.api.MatchHandle;
 import dev.getelements.elements.crossfire.model.error.ProtocolStateException;
 import dev.getelements.elements.crossfire.protocol.HandshakePhase;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler.AuthRecord;
@@ -8,7 +8,6 @@ import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler.MultiM
 import jakarta.websocket.Session;
 
 import static dev.getelements.elements.crossfire.protocol.HandshakePhase.*;
-import static dev.getelements.elements.crossfire.protocol.v10.V10ProtocolMessageHandler.UNKNOWN_SESSION;
 import static java.util.Objects.requireNonNull;
 
 record V10HandshakeStateRecord(
@@ -16,7 +15,7 @@ record V10HandshakeStateRecord(
         Session session,
         AuthRecord auth,
         MultiMatchRecord match,
-        Match pending) {
+        MatchHandle pending) {
 
     public static V10HandshakeStateRecord create() {
         return new V10HandshakeStateRecord(WAITING, null, null, null, null);
@@ -55,7 +54,7 @@ record V10HandshakeStateRecord(
 
     }
 
-    public V10HandshakeStateRecord matching(final Match pending) {
+    public V10HandshakeStateRecord matching(final MatchHandle<?> pending) {
 
         requireNonNull(pending, "Pending match must not be null.");
 
@@ -70,7 +69,7 @@ record V10HandshakeStateRecord(
     public V10HandshakeStateRecord matched(final MultiMatchRecord match) {
         return switch (phase()) {
             case TERMINATED -> this;
-            case MATCHING, AUTHENTICATED -> new V10HandshakeStateRecord(MATCHING, session(), auth(), match, null);
+            case MATCHING -> new V10HandshakeStateRecord(MATCHING, session(), auth(), match, null);
             default -> throw new ProtocolStateException("Cannot match phase " + phase());
         };
     }
@@ -79,13 +78,9 @@ record V10HandshakeStateRecord(
         return new V10HandshakeStateRecord(TERMINATED, session(), auth(), match(), pending());
     }
 
-    public String sessionId() {
-        return session() != null ? session().getId() : UNKNOWN_SESSION;
-    }
-
-    public void cancelPending() {
+    public void leave() {
         if (pending() != null) {
-            pending().cancel();
+            pending().leave();
         }
     }
 

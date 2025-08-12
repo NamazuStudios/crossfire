@@ -11,9 +11,9 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static dev.getelements.elements.crossfire.api.CancelableMatchStateRecord.create;
 
-public abstract class AbstractMatch<RequestT extends HandshakeRequest> implements Match<RequestT> {
+public abstract class AbstractMatchHandle<RequestT extends HandshakeRequest> implements MatchHandle<RequestT> {
 
-    private static final Logger logger = LoggerFactory.getLogger(AbstractMatch.class);
+    private static final Logger logger = LoggerFactory.getLogger(AbstractMatchHandle.class);
 
     private final MatchmakingAlgorithm algorithm;
 
@@ -21,7 +21,7 @@ public abstract class AbstractMatch<RequestT extends HandshakeRequest> implement
 
     private final AtomicReference<CancelableMatchStateRecord<RequestT>> state = new AtomicReference<>(create());
 
-    protected AbstractMatch(final MatchmakingAlgorithm algorithm, final MatchmakingRequest<RequestT> request) {
+    protected AbstractMatchHandle(final MatchmakingAlgorithm algorithm, final MatchmakingRequest<RequestT> request) {
         this.request = request;
         this.algorithm = algorithm;
     }
@@ -47,7 +47,7 @@ public abstract class AbstractMatch<RequestT extends HandshakeRequest> implement
     }
 
     @Override
-    public void cancel() {
+    public void leave() {
 
         final var state = this.state.updateAndGet(CancelableMatchStateRecord::terminate);
 
@@ -72,7 +72,7 @@ public abstract class AbstractMatch<RequestT extends HandshakeRequest> implement
 
         switch (state.phase()) {
 
-            case MATCHED -> {
+            case MATCHING -> {
                 logger.info("Matched for request: {}", request);
                 onResult(state, result);
             }

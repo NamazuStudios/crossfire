@@ -1,6 +1,6 @@
 package dev.getelements.elements.crossfire.protocol;
 
-import dev.getelements.elements.crossfire.api.Match;
+import dev.getelements.elements.crossfire.api.MatchHandle;
 import dev.getelements.elements.crossfire.model.ProtocolMessage;
 import dev.getelements.elements.crossfire.model.configuration.CrossfireConfiguration;
 import dev.getelements.elements.crossfire.model.error.ProtocolStateException;
@@ -136,16 +136,16 @@ public interface ProtocolMessageHandler {
      * Represents an authentication record.
      * Contains the profile and the session.
      *
-     * @param match the {@link MultiMatch} that was matched
+     * @param matchHandle the {@link MultiMatch} that was matched
      * @param configuration the {@link CrossfireConfiguration} used for the match
      */
     record MultiMatchRecord(
-            Match<?> match,
+            MatchHandle<?> matchHandle,
             MatchmakingApplicationConfiguration configuration
     ) {
 
         public String getId() {
-            return match().getResult().getId();
+            return matchHandle().getResult().getId();
         }
 
     }

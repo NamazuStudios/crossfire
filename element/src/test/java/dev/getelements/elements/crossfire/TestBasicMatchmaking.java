@@ -23,6 +23,8 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
+import static dev.getelements.elements.crossfire.client.ClientPhase.CONNECTED;
+import static dev.getelements.elements.crossfire.client.ClientPhase.SIGNALING;
 import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.MATCHED;
 import static dev.getelements.elements.crossfire.model.handshake.HandshakeRequest.VERSION_1_0;
 import static dev.getelements.elements.sdk.model.user.User.Level.USER;
@@ -67,7 +69,7 @@ public class TestBasicMatchmaking {
 
     @BeforeClass(dependsOnMethods = "setupContainer")
     public void setupContexts() {
-        testContextList = IntStream.range(0, 1)
+        testContextList = IntStream.range(0, TEST_PLAYER_COUNT)
                 .mapToObj(i -> {
 
                     final var client = new V10Client();
@@ -101,12 +103,14 @@ public class TestBasicMatchmaking {
                 .getDao(ApplicationConfigurationDao.class)
                 .createApplicationConfiguration(application.getId(), configuration);
 
-        logger.info("Configuration created");
+        logger.info("Configuration created.");
 
     }
 
     @Test(dataProvider = "allContexts")
     public void testFindHandshake(final TestContext context) throws InterruptedException {
+
+        assertEquals(context.client().getPhase(), CONNECTED);
 
         final var request = new FindHandshakeRequest();
         request.setVersion(VERSION_1_0);
@@ -119,6 +123,17 @@ public class TestBasicMatchmaking {
         assertEquals(response.getType(), MATCHED);
         assertNotNull(response.getMatchId());
 
+        assertEquals(context.client().getPhase(), SIGNALING);
+        assertEquals(context.client().getHandshakeResponse().getMatchId(), response.getMatchId());
+        assertEquals(context.client().findHandshakeResponse().get().getMatchId(), response.getMatchId());
+
+        logger.info("Found match: {}", response.getMatchId());
+
+    }
+
+    @Test(dependsOnMethods = "testFindHandshake")
+    public void testTestAllJoinedSameMatch() {
+
     }
 
     public record TestContext(
@@ -129,4 +144,3 @@ public class TestBasicMatchmaking {
     ) {}
 
 }
-

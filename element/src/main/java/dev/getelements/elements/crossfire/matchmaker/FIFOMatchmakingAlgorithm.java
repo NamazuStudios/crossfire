@@ -1,6 +1,6 @@
 package dev.getelements.elements.crossfire.matchmaker;
 
-import dev.getelements.elements.crossfire.StandardJoinMatch;
+import dev.getelements.elements.crossfire.StandardJoinMatchHandle;
 import dev.getelements.elements.crossfire.api.*;
 import dev.getelements.elements.crossfire.model.handshake.FindHandshakeRequest;
 import dev.getelements.elements.crossfire.model.handshake.JoinHandshakeRequest;
@@ -21,6 +21,7 @@ import java.util.Objects;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
+import static dev.getelements.elements.sdk.model.match.MultiMatchStatus.FULL;
 import static dev.getelements.elements.sdk.model.match.MultiMatchStatus.OPEN;
 
 @Slf4j
@@ -40,8 +41,8 @@ public class FIFOMatchmakingAlgorithm implements MatchmakingAlgorithm {
     }
 
     @Override
-    public Match<FindHandshakeRequest> find(final MatchmakingRequest<FindHandshakeRequest> request) {
-        return new StandardCancelableMatch<>(this, request, getTransactionProvider()) {
+    public MatchHandle<FindHandshakeRequest> find(final MatchmakingRequest<FindHandshakeRequest> request) {
+        return new StandardCancelableMatchHandle<>(this, request, getTransactionProvider()) {
 
             @Override
             protected void onMatching(final CancelableMatchStateRecord<FindHandshakeRequest> state) {
@@ -49,7 +50,7 @@ public class FIFOMatchmakingAlgorithm implements MatchmakingAlgorithm {
             }
 
             private void find() {
-                try (final var transaction = transactionProvider.get()) {
+                 try (final var transaction = transactionProvider.get()) {
 
                     final var dao = transaction.getDao(MultiMatchDao.class);
 
@@ -68,7 +69,8 @@ public class FIFOMatchmakingAlgorithm implements MatchmakingAlgorithm {
                                     .equals(request.getApplicationConfiguration().getId())
                             )
                             // Filter out matches that are not in the correct state
-                            .filter(m -> !OPEN.equals(m.getStatus()));
+                            .filter(m -> !OPEN.equals(m.getStatus()))
+                            .filter(m -> dao.getProfiles(m.getId()).size() < m.getConfiguration().getMaxProfiles());
 
                     final var existing = base.get()
                             // All profiles in the match must match the requested profile
@@ -95,15 +97,26 @@ public class FIFOMatchmakingAlgorithm implements MatchmakingAlgorithm {
 
                     result(result);
 
+                    final var profiles = dao.getProfiles(result.getId());
+
+                     // TODO Add a flag to indicate that the match should start automatically when full or if it
+                     // should start manually through another action or API.
+
+                     if (profiles.size() >= result.getConfiguration().getMaxProfiles()) {
+                        result.setStatus(FULL);
+                        dao.updateMultiMatch(result);
+                    }
+
                 }
+
             }
 
         };
     }
 
     @Override
-    public Match<JoinHandshakeRequest> join(final MatchmakingRequest<JoinHandshakeRequest> request) {
-        return new StandardJoinMatch(this, request, getTransactionProvider());
+    public MatchHandle<JoinHandshakeRequest> join(final MatchmakingRequest<JoinHandshakeRequest> request) {
+        return new StandardJoinMatchHandle(this, request, getTransactionProvider());
     }
 
     public Provider<Transaction> getTransactionProvider() {

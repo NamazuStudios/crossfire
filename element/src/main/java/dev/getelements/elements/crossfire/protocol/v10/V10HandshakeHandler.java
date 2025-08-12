@@ -1,7 +1,7 @@
 package dev.getelements.elements.crossfire.protocol.v10;
 
+import dev.getelements.elements.crossfire.api.MatchHandle;
 import dev.getelements.elements.crossfire.api.MatchmakingAlgorithm;
-import dev.getelements.elements.crossfire.model.configuration.CrossfireConfiguration;
 import dev.getelements.elements.crossfire.model.error.ProtocolStateException;
 import dev.getelements.elements.crossfire.model.error.UnexpectedMessageException;
 import dev.getelements.elements.crossfire.model.handshake.FindHandshakeRequest;
@@ -10,7 +10,6 @@ import dev.getelements.elements.crossfire.model.handshake.JoinHandshakeRequest;
 import dev.getelements.elements.crossfire.protocol.HandshakeHandler;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler.AuthRecord;
-import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler.MultiMatchRecord;
 import dev.getelements.elements.sdk.ElementRegistrySupplier;
 import dev.getelements.elements.sdk.dao.ApplicationConfigurationDao;
 import dev.getelements.elements.sdk.dao.MultiMatchDao;
@@ -29,7 +28,6 @@ import jakarta.websocket.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -64,7 +62,7 @@ public class V10HandshakeHandler implements HandshakeHandler {
         final var state = this.state.updateAndGet(s -> s.start(session));
 
         if (TERMINATED.equals(state.phase())) {
-            state.cancelPending();
+            state.leave();
         }
 
     }
@@ -73,7 +71,7 @@ public class V10HandshakeHandler implements HandshakeHandler {
     public void stop(final ProtocolMessageHandler handler,
                      final Session session) {
         final var state = this.state.updateAndGet(V10HandshakeStateRecord::terminate);
-        state.cancelPending();
+        state.leave();
     }
 
     @Override
@@ -82,7 +80,7 @@ public class V10HandshakeHandler implements HandshakeHandler {
             final Session session,
             final HandshakeRequest request) {
         final var type = request.getType();
-        switch (request.getType()) {
+        switch (type) {
             case FIND -> onFindMessage(handler, session, (FindHandshakeRequest) request);
             case JOIN -> onJoinMessage(handler, session, (JoinHandshakeRequest) request);
             default -> throw new UnexpectedMessageException("Unsupported handshake request type: " + request.getType());
@@ -103,41 +101,7 @@ public class V10HandshakeHandler implements HandshakeHandler {
                     request.getConfiguration()
             );
 
-            final var mRequest = new V10MatchRequest(
-                    handler,
-                    state,
-                    auth.profile(),
-                    request,
-                    applicationConfiguration
-            );
-
-            final var algorithm = Optional
-                    .ofNullable(applicationConfiguration.getMatchmaker())
-                    .map(this::algorithmFromConfiguration)
-                    .orElseGet(this::getDefaultMatchmakingAlgorithm);
-
-            final var pending = algorithm.find(mRequest);
-            final var state = this.state.updateAndGet(s -> s.matching(pending));
-
-            switch (state.phase()) {
-                case MATCHING -> state.start(session);
-                case TERMINATED -> state.cancelPending();
-                default -> throw new ProtocolStateException("Got unexpected handshake state: " + state.phase());
-            }
-
-        });
-    }
-
-    private void onJoinMessage(
-            final ProtocolMessageHandler handler,
-            final Session session,
-            final JoinHandshakeRequest request) {
-        auth(handler, request, (auth) -> {
-
-            final var match = getMultiMatchDao().getMultiMatch(request.getMatchId());
-            final var applicationConfiguration = match.getConfiguration();
-
-            final var matchRequest = new V10MatchRequest(
+            final var matchRequest = new V10MatchRequest<>(
                     handler,
                     state,
                     auth.profile(),
@@ -151,13 +115,35 @@ public class V10HandshakeHandler implements HandshakeHandler {
                     .orElseGet(this::getDefaultMatchmakingAlgorithm);
 
             final var pending = algorithm.find(matchRequest);
-            final var state = this.state.updateAndGet(s -> s.matching(pending));
+            doStartMatching(pending);
 
-            switch (state.phase()) {
-                case MATCHING -> state.start(session);
-                case TERMINATED -> state.cancelPending();
-                default -> throw new ProtocolStateException("Got unexpected handshake state: " + state.phase());
-            }
+        });
+    }
+
+    private void onJoinMessage(
+            final ProtocolMessageHandler handler,
+            final Session session,
+            final JoinHandshakeRequest request) {
+        auth(handler, request, (auth) -> {
+
+            final var match = getMultiMatchDao().getMultiMatch(request.getMatchId());
+            final var applicationConfiguration = match.getConfiguration();
+
+            final var matchRequest = new V10MatchRequest<>(
+                    handler,
+                    state,
+                    auth.profile(),
+                    request,
+                    applicationConfiguration
+            );
+
+            final var algorithm = Optional
+                    .ofNullable(applicationConfiguration.getMatchmaker())
+                    .map(this::algorithmFromConfiguration)
+                    .orElseGet(this::getDefaultMatchmakingAlgorithm);
+
+            final var pending = algorithm.join(matchRequest);
+            doStartMatching(pending);
 
         });
     }
@@ -210,6 +196,18 @@ public class V10HandshakeHandler implements HandshakeHandler {
 
     }
 
+    private void doStartMatching(final MatchHandle<?> matchHandle) {
+
+        final var state = this.state.updateAndGet(s -> s.matching(matchHandle));
+
+        switch (state.phase()) {
+            case MATCHING -> matchHandle.start();
+            case TERMINATED -> state.leave();
+            default -> throw new ProtocolStateException("Unexpected handshake state: " + state.phase());
+        }
+
+    }
+
     private void auth(final ProtocolMessageHandler handler,
                       final HandshakeRequest request,
                       final Consumer<AuthRecord> onAuthenticated) {
@@ -219,15 +217,15 @@ public class V10HandshakeHandler implements HandshakeHandler {
         switch (state.phase()) {
             case TERMINATED -> {
                 logger.info("Handshake already terminated, cannot authenticate.");
-                state.cancelPending();
+                state.leave();
             }
             case AUTHENTICATING -> handler.submit(() -> doAuthenticate(handler, request, onAuthenticated));
             default -> {
                 logger.error("Unexpected handshake state: {}. Cannot authenticate.", state.phase());
-                state.cancelPending();
+                state.leave();
                 throw new ProtocolStateException("Invalid handshake state: " + state);
             }
-        }
+        };
     }
 
     private void doAuthenticate(final ProtocolMessageHandler handler,
@@ -265,7 +263,7 @@ public class V10HandshakeHandler implements HandshakeHandler {
         switch (updated.phase()) {
             case TERMINATED -> {
                 logger.info("Handshake already terminated, cannot authenticate.");
-                updated.cancelPending();
+                updated.leave();
             }
             case AUTHENTICATED -> {
                 handler.authenticated(record);
@@ -273,7 +271,7 @@ public class V10HandshakeHandler implements HandshakeHandler {
             }
             default -> {
                 logger.error("Handshake not yet completed, attempting to authenticate.");
-                updated.cancelPending();
+                updated.leave();
                 throw new ProtocolStateException("Invalid handshake state: " + updated.phase());
             }
         }

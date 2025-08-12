@@ -7,9 +7,11 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 
 /**
- * Gets the name of the matchmaking algorithm.
+ * Represents a handle for a matchmaking process, allowing you to start, leave, and retrieve the result of the match.
+ * Consider this the live connection to the match which must be closed out when the connection fails or the match is no
+ * longer needed.
  */
-public interface Match<RequestT extends HandshakeRequest> {
+public interface MatchHandle<RequestT extends HandshakeRequest> {
 
     /**
      * Starts the matchmaking algorithm. Note that this method is non-blocking and returns immediately and does not
@@ -21,7 +23,7 @@ public interface Match<RequestT extends HandshakeRequest> {
     /**
      * Cancels the matchmaking algorithm removing the player from the matchmaking queue.
      */
-    void cancel();
+    void leave();
 
     /**
      * Gets the {@link MultiMatch}, throwing NoSuchElementException if the match is not yet complete or otherwise missing.

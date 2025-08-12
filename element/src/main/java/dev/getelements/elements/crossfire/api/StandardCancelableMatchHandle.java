@@ -8,13 +8,13 @@ import jakarta.inject.Provider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class StandardCancelableMatch<RequestT extends HandshakeRequest> extends AbstractMatch<RequestT> {
+public abstract class StandardCancelableMatchHandle<RequestT extends HandshakeRequest> extends AbstractMatchHandle<RequestT> {
 
-    private static final Logger logger = LoggerFactory.getLogger(StandardCancelableMatch.class);
+    private static final Logger logger = LoggerFactory.getLogger(StandardCancelableMatchHandle.class);
 
     private final Provider<Transaction> transactionProvider;
 
-    public StandardCancelableMatch(
+    public StandardCancelableMatchHandle(
             final MatchmakingAlgorithm algorithm,
             final MatchmakingRequest<RequestT> request,
             final Provider<Transaction> transactionProvider) {
@@ -34,6 +34,7 @@ public abstract class StandardCancelableMatch<RequestT extends HandshakeRequest>
             logger.info("Terminating match: {}", state.result().getId());
 
             try (final var transaction = getTransactionProvider().get()) {
+
                 final var dao = transaction.getDao(MultiMatchDao.class);
                 dao.removeProfile(state.result().getId(), getRequest().getProfile());
 
@@ -45,6 +46,7 @@ public abstract class StandardCancelableMatch<RequestT extends HandshakeRequest>
                 } else {
                     logger.info("Match {} still has profiles, not removing", state.result().getId());
                 }
+
             }
 
         } else {

@@ -3,7 +3,6 @@ package dev.getelements.elements.crossfire.api;
 import dev.getelements.elements.crossfire.model.handshake.HandshakeRequest;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler;
 import dev.getelements.elements.sdk.model.application.MatchmakingApplicationConfiguration;
-import dev.getelements.elements.sdk.model.match.MultiMatch;
 import dev.getelements.elements.sdk.model.profile.Profile;
 
 /**
@@ -56,6 +55,6 @@ public interface MatchmakingRequest<MessageT extends HandshakeRequest> {
     /**
      * Completes the matchmaking request with the given match.
      */
-    void success(Match<MessageT> match);
+    void success(MatchHandle<MessageT> matchHandle);
 
 }

@@ -3,16 +3,16 @@ package dev.getelements.elements.crossfire;
 import dev.getelements.elements.crossfire.api.CancelableMatchStateRecord;
 import dev.getelements.elements.crossfire.api.MatchmakingAlgorithm;
 import dev.getelements.elements.crossfire.api.MatchmakingRequest;
-import dev.getelements.elements.crossfire.api.StandardCancelableMatch;
+import dev.getelements.elements.crossfire.api.StandardCancelableMatchHandle;
 import dev.getelements.elements.crossfire.model.handshake.JoinHandshakeRequest;
 import dev.getelements.elements.sdk.dao.MultiMatchDao;
 import dev.getelements.elements.sdk.dao.Transaction;
 import dev.getelements.elements.sdk.model.exception.MultiMatchNotFoundException;
 import jakarta.inject.Provider;
 
-public class StandardJoinMatch extends StandardCancelableMatch<JoinHandshakeRequest> {
+public class StandardJoinMatchHandle extends StandardCancelableMatchHandle<JoinHandshakeRequest> {
 
-    public StandardJoinMatch(
+    public StandardJoinMatchHandle(
             final MatchmakingAlgorithm algorithm,
             final MatchmakingRequest<JoinHandshakeRequest> request,
             final Provider<Transaction> transactionProvider) {
