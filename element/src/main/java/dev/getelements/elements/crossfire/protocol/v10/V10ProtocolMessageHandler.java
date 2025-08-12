@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
@@ -75,13 +76,18 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
     private final AtomicReference<V10ConnectionStateRecord> state = new AtomicReference<>(V10ConnectionStateRecord.create());
 
     @Override
-    public AuthRecord getAuthRecord() {
-        return state.get().auth();
+    public ConnectionPhase getPhase() {
+        return state.get().phase();
     }
 
     @Override
-    public ConnectionPhase getPhase() {
-        return state.get().phase();
+    public Optional<AuthRecord> findAuthRecord() {
+        return Optional.ofNullable(state.get().auth());
+    }
+
+    @Override
+    public Optional<MultiMatchRecord> findMatchRecord() {
+        return Optional.ofNullable(state.get().match());
     }
 
     @Override
@@ -89,7 +95,6 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
         final var result = state.updateAndGet(existing -> existing.start(session));
         pinger.start(session);
         getHandshakeHandler().start(this, session);
-        getSignalingHandler().start(this, session);
         logger.debug("{}: Connection started for session {}", result.phase(), session.getId());
     }
 
@@ -355,6 +360,7 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
             response.setMatchId(update.match().getId());
             update.session().getAsyncRemote().sendObject(response);
             processBacklog(existing);
+            getSignalingHandler().start(this, update.session());
         }
 
     }
@@ -380,6 +386,7 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
             response.setMatchId(update.match().getId());
             update.session().getAsyncRemote().sendObject(response);
             processBacklog(existing);
+            getSignalingHandler().start(this, update.session());
         }
 
     }

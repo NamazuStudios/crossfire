@@ -11,6 +11,8 @@ import dev.getelements.elements.sdk.model.profile.Profile;
 import jakarta.websocket.PongMessage;
 
 import java.io.IOException;
+import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.concurrent.Future;
 
 /**
@@ -20,16 +22,45 @@ import java.util.concurrent.Future;
 public interface ProtocolMessageHandler {
 
     /**
-     * Gets the current authentication record.
-     *
-     * @return the authentication record
-     */
-    AuthRecord getAuthRecord();
-
-    /**
      * The current connection phase.
      */
     ConnectionPhase getPhase();
+
+    /**
+     * Gets the current {@link AuthRecord}, throwing an exception if it is not present. Will always be present
+     * in the {@link ConnectionPhase#SIGNALING} phase or later.
+     *
+     * @return the authentication record
+     */
+    default AuthRecord getAuthRecord() {
+        return findAuthRecord().orElseThrow(NoSuchElementException::new);
+    }
+
+    /**
+     * Gets the current {@link MultiMatchRecord}, throwing an exception if it is not present. Will always be present
+     * in the {@link ConnectionPhase#SIGNALING} phase or later.
+     *
+     * @return the multi-match record
+     */
+    default MultiMatchRecord getMultiMatchRecord() {
+        return findMatchRecord().orElseThrow(NoSuchElementException::new);
+    }
+
+    /**
+     * Finds the current {@link AuthRecord}, if it is present. Will always be present in the
+     * {@link ConnectionPhase#SIGNALING} phase or later.
+     *
+     * @return an {@link Optional} containing the authentication record if present, otherwise empty
+     */
+    Optional<AuthRecord> findAuthRecord();
+
+    /**
+     * Finds the current {@link MultiMatchRecord}, if it is present. Will always be present in the
+     * {@link ConnectionPhase#SIGNALING} phase or later.
+     *
+     * @return an {@link Optional} containing the authentication record if present, otherwise empty
+     */
+    Optional<MultiMatchRecord> findMatchRecord();
 
     /**
      * Starts the protocol message handler.

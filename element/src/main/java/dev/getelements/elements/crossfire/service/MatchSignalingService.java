@@ -1,5 +1,6 @@
 package dev.getelements.elements.crossfire.service;
 
+import dev.getelements.elements.crossfire.model.ProtocolMessage;
 import dev.getelements.elements.crossfire.model.signal.Signal;
 import dev.getelements.elements.crossfire.model.signal.SignalWithRecipient;
 import dev.getelements.elements.sdk.Subscription;
@@ -47,6 +48,21 @@ public interface MatchSignalingService {
             String matchId,
             String profileId,
             Consumer<String> sdpMessageConsumer,
-            Consumer<Throwable> sdpErrorConsumer);
+            Consumer<Throwable> sdpErrorConsumer
+    );
+
+    /**
+     * Subscribes to updates with the supplied connection id, match id, profile id, and consumers. Upon subscription,
+     * all currently pending matches will dispatch to the message consumer.
+     *
+     * @param matchId the Match ID
+     * @param profileId the profile ID.
+     * @param messageConsumer the message consumer
+     */
+    Subscription subscribeToMessages(
+            String matchId,
+            String profileId,
+            Consumer<ProtocolMessage> messageConsumer
+    );
 
 }

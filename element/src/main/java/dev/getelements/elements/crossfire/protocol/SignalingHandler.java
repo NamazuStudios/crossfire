@@ -2,6 +2,7 @@ package dev.getelements.elements.crossfire.protocol;
 
 import dev.getelements.elements.crossfire.model.signal.Signal;
 import dev.getelements.elements.crossfire.model.signal.SignalWithRecipient;
+import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler.AuthRecord;
 import jakarta.websocket.Session;
 
 /**
