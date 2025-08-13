@@ -1,13 +1,14 @@
 package dev.getelements.elements.crossfire.service;
 
 import dev.getelements.elements.crossfire.model.ProtocolMessage;
-import dev.getelements.elements.crossfire.model.signal.Signal;
+import dev.getelements.elements.crossfire.model.signal.BroadcastSignal;
 import dev.getelements.elements.crossfire.model.signal.SignalWithRecipient;
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.annotation.ElementPublic;
 import dev.getelements.elements.sdk.annotation.ElementServiceExport;
+import zmq.socket.pubsub.Sub;
 
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 
 /**
  * Handles the interchange of SDP Messages.
@@ -17,52 +18,36 @@ import java.util.function.Consumer;
 public interface MatchSignalingService {
 
     /**
-     * Handles a ping response
+     * Broadcasts the supplied signal to everyone in the match.
      *
-     * @param matchId
-     * @return
+     * @param matchId the match ID
+     * @param signal the signal
      */
-    boolean pingMatch(String matchId);
+    void send(String matchId, BroadcastSignal signal);
 
     /**
-     * Adds a session description for the supplied matched ID.
+     * Sends the signal to the match.
      *
-     * @param matchId the matchId
-     * @param profileId the profile ID.
-     * @param sdpMessage thd SDP formated message
+     * @param matchId the match ID
+     * @param signal the signal
      */
-    void addSessionDescription(String matchId,
-                               String profileId,
-                               String sdpMessage);
+    void send(String matchId, SignalWithRecipient signal);
 
     /**
-     * Subscribes to updates with the supplied connection id, match id, profile id, and consumers. Upon subscription,
-     * all currently pending matches will dispatch to the message consumer.
+     * Subscribes to updates with the supplied connection id, match id, profile id, and consumers. If this is the first
+     * subscription, then it will immediately receive all backlogged messages. Only one {@link Subscription} may exist
+     * at a time. Existing subscriptions
      *
      * @param matchId the Match ID
      * @param profileId the profile ID.
-     * @param sdpMessageConsumer the message consumer
-     * @param sdpErrorConsumer   called when there is an error, thus terminating the connection
+     * @param onMessage the message consumer
+     * @param onError the message error
      */
-    Subscription subscribeToUpdates(
+    Subscription subscribe(
             String matchId,
             String profileId,
-            Consumer<String> sdpMessageConsumer,
-            Consumer<Throwable> sdpErrorConsumer
-    );
-
-    /**
-     * Subscribes to updates with the supplied connection id, match id, profile id, and consumers. Upon subscription,
-     * all currently pending matches will dispatch to the message consumer.
-     *
-     * @param matchId the Match ID
-     * @param profileId the profile ID.
-     * @param messageConsumer the message consumer
-     */
-    Subscription subscribeToMessages(
-            String matchId,
-            String profileId,
-            Consumer<ProtocolMessage> messageConsumer
+            BiConsumer<Subscription, ProtocolMessage> onMessage,
+            BiConsumer<Subscription, Throwable > onError
     );
 
 }

@@ -40,7 +40,7 @@ public interface ProtocolMessage {
         /**
          * Represents a signal that carries an SDP offer.
          */
-        SDP_OFFER(SIGNALING, SdpOfferSignal.class),
+        SDP_OFFER(SIGNALING, SdpOfferBroadcastSignal.class),
 
         /**
          * Represents a signal that carries an SDP answer.
@@ -50,7 +50,7 @@ public interface ProtocolMessage {
         /**
          * Represents a signal that carries a binary payload to be broadcasted to all profiles in the match.
          */
-        BINARY_BROADCAST(SIGNALING, BinaryBroadcastSignal.class),
+        BINARY_BROADCAST(SIGNALING, BinaryBroadcastBroadcastSignal.class),
 
         /**
          * Represents a signal that carries a binary payload to be relayed to a specific profile in the match.
@@ -60,17 +60,17 @@ public interface ProtocolMessage {
         /**
          * Represents a signal that carries a candidate for the WebRTC connection.
          */
-        CANDIDATE(SIGNALING, CandidateSignal.class),
+        CANDIDATE(SIGNALING, CandidateBroadcastSignal.class),
 
         /**
          * Represents a signal indicating that a profile disconnected from the session.
          */
-        DISCONNECT(SIGNALING, DisconnectSignal.class),
+        DISCONNECT(SIGNALING, DisconnectBroadcastSignal.class),
 
         /**
          * Specifies the designated HOST profile
          */
-        HOST(SIGNALING, HostSignal.class),
+        HOST(SIGNALING, HostBroadcastSignal.class),
 
         /**
          * Represents a signal that carries a message to be sent to the host.

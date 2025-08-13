@@ -5,7 +5,7 @@ import dev.getelements.elements.crossfire.model.ProtocolMessage;
 import dev.getelements.elements.crossfire.model.error.*;
 import dev.getelements.elements.crossfire.model.handshake.HandshakeRequest;
 import dev.getelements.elements.crossfire.model.handshake.MatchedResponse;
-import dev.getelements.elements.crossfire.model.signal.Signal;
+import dev.getelements.elements.crossfire.model.signal.BroadcastSignal;
 import dev.getelements.elements.crossfire.model.signal.SignalWithRecipient;
 import dev.getelements.elements.crossfire.protocol.*;
 import dev.getelements.elements.sdk.annotation.ElementDefaultAttribute;
@@ -21,7 +21,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -265,7 +264,7 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
             final ProtocolMessage message) {
         switch (message.getType().getCategory()) {
             // Messages in the signaling category will be processed by the signaling handler based on their type.
-            case SIGNALING -> getSignalingHandler().onMessage(this, session, (Signal) message);
+            case SIGNALING -> getSignalingHandler().onMessage(this, session, (BroadcastSignal) message);
             case SIGNALING_DIRECT -> getSignalingHandler().onMessageDirect(this, session, (SignalWithRecipient) message);
             // All other message types in the SIGNALING phase are invalid and will throw an exception.
             default -> throw invalid(state, message);

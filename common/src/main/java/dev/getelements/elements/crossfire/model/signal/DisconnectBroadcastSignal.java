@@ -4,7 +4,7 @@ import jakarta.validation.constraints.NotNull;
 
 import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.DISCONNECT;
 
-public class DisconnectSignal implements Signal {
+public class DisconnectBroadcastSignal implements BroadcastSignal {
 
     @NotNull
     private String profileId;

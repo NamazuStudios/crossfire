@@ -1,8 +1,7 @@
 package dev.getelements.elements.crossfire.protocol;
 
-import dev.getelements.elements.crossfire.model.signal.Signal;
+import dev.getelements.elements.crossfire.model.signal.BroadcastSignal;
 import dev.getelements.elements.crossfire.model.signal.SignalWithRecipient;
-import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler.AuthRecord;
 import jakarta.websocket.Session;
 
 /**
@@ -32,9 +31,9 @@ public interface SignalingHandler {
      *
      * @param handler                        the handler
      * @param session                        the session
-     * @param signal                         the signal
+     * @param broadcastSignal                         the signal
      */
-    void onMessage(ProtocolMessageHandler handler, Session session, Signal signal);
+    void onMessage(ProtocolMessageHandler handler, Session session, BroadcastSignal broadcastSignal);
 
     /**
      * Handles the handshake message request.

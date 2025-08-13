@@ -5,7 +5,7 @@ import dev.getelements.elements.crossfire.model.ProtocolMessage;
 /**
  * Represents a signal in the Crossfire signaling system.
  */
-public interface Signal extends ProtocolMessage {
+public interface BroadcastSignal extends ProtocolMessage {
 
     /**
      * The profile id of the subject of the signal. This is typically the originator of the signal.

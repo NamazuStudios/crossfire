@@ -2,19 +2,19 @@ package dev.getelements.elements.crossfire.model.signal;
 
 import jakarta.validation.constraints.NotNull;
 
-import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.SDP_OFFER;
+import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.BINARY_BROADCAST;
 
-public class SdpOfferSignal implements Signal {
+public class BinaryBroadcastBroadcastSignal implements BroadcastSignal {
 
     @NotNull
     private String profileId;
 
     @NotNull
-    private String peerSdp;
+    private byte[] payload;
 
     @Override
     public Type getType() {
-        return SDP_OFFER;
+        return BINARY_BROADCAST;
     }
 
     @Override
@@ -26,12 +26,12 @@ public class SdpOfferSignal implements Signal {
         this.profileId = profileId;
     }
 
-    public String getPeerSdp() {
-        return peerSdp;
+    public byte[] getPayload() {
+        return payload;
     }
 
-    public void setPeerSdp(String peerSdp) {
-        this.peerSdp = peerSdp;
+    public void setPayload(byte[] payload) {
+        this.payload = payload;
     }
 
 }

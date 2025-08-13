@@ -1,26 +1,25 @@
 package dev.getelements.elements.crossfire.service;
 
-import dev.getelements.elements.crossfire.model.error.TimeoutException;
+import dev.getelements.elements.crossfire.model.ProtocolMessage;
+import dev.getelements.elements.crossfire.model.error.DuplicateConnectionException;
+import dev.getelements.elements.crossfire.model.error.MatchDeletedException;
+import dev.getelements.elements.crossfire.model.signal.BroadcastSignal;
+import dev.getelements.elements.crossfire.model.signal.SignalWithRecipient;
 import dev.getelements.elements.sdk.Subscription;
+import dev.getelements.elements.sdk.annotation.ElementEventConsumer;
 import dev.getelements.elements.sdk.dao.MultiMatchDao;
-import dev.getelements.elements.sdk.util.ConcurrentLockedPublisher;
-import dev.getelements.elements.sdk.util.Publisher;
+import dev.getelements.elements.sdk.model.exception.ForbiddenException;
+import dev.getelements.elements.sdk.model.match.MultiMatch;
 import jakarta.inject.Inject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Consumer;
+import java.util.Deque;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 
-import static java.util.concurrent.TimeUnit.SECONDS;
+import static dev.getelements.elements.sdk.dao.MultiMatchDao.MULTI_MATCH_DELETED;
 
 public class MemoryMatchSignalingService implements MatchSignalingService {
 
@@ -29,152 +28,45 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
     // TODO Remove and replace with a proper ping/pong response
     private final long QUEUE_TIMEOUT_SECONDS = 180;
 
-    private final Map<String, MessageRelayQueue> queues = new ConcurrentHashMap<>();
-
-    private final ScheduledExecutorService timeoutScheduler = Executors.newSingleThreadScheduledExecutor();
+    private final ConcurrentMap<String, MailboxesForMatch> matches = new ConcurrentHashMap<>();
 
     private MultiMatchDao mongoMultiMatchDao;
 
     @Override
-    public boolean pingMatch(final String matchId) {
-
-        final var queue = queues.get(matchId);
-
-        if (queue == null) {
-            logger.warn("No Such match {}", matchId);
-            return false;
-        }
-
-        final var lock = queue.getLock();
-        lock.lock();
-
-        try {
-            queue.resetTimeout();
-            return true;
-        } finally {
-            lock.unlock();
-        }
+    public void send(final String matchId, final BroadcastSignal signal) {
+        final var match = getMongoMultiMatchDao().getMultiMatch(matchId);
+        matches.computeIfAbsent(match.getId(), mid -> MailboxesForMatch.create())
+                .getMailbox(signal.getProfileId());
 
     }
 
     @Override
-    public void addSessionDescription(
-            final String matchId,
-            final String profileId,
-            final String sdpMessage) {
-
-        final var queue = queues.computeIfAbsent(matchId, k -> new MessageRelayQueue());
-        final var lock = queue.getLock();
-        lock.lock();
-
-        try {
-            queue.publish(profileId, sdpMessage);
-        } finally {
-            lock.unlock();
-        }
+    public void send(final String matchId, final SignalWithRecipient signal) {
+        final var match = getMongoMultiMatchDao().getMultiMatch(matchId);
 
     }
 
     @Override
-    public Subscription subscribeToUpdates(
+    public Subscription subscribe(
             final String matchId,
             final String profileId,
-            final Consumer<String> sdpMessageConsumer,
-            final Consumer<Throwable> sdpErrorConsumer) {
+            final BiConsumer<Subscription, ProtocolMessage> onMessage,
+            final BiConsumer<Subscription, Throwable> onError) {
 
-        final var queue = queues.computeIfAbsent(matchId, k -> new MessageRelayQueue());
-        final var lock = queue.getLock();
-        lock.lock();
+        final var match = getMongoMultiMatchDao().getMultiMatch(matchId);
+        final var profiles = getMongoMultiMatchDao().getProfiles(match.getId());
 
-        try {
-            return queue.subscribe(profileId, sdpMessageConsumer, sdpErrorConsumer);
-        } finally {
-            lock.unlock();
+        final var exists = profiles
+                .stream()
+                .anyMatch(p -> p.getId().equals(profileId));
+
+        if (!exists) {
+            throw new ForbiddenException("Profile " + profileId + " is not part of match " + matchId);
         }
 
-    }
-
-    private class MessageRelayQueue {
-
-        private ScheduledFuture<?> timeoutFuture = timeoutScheduler.schedule(
-                this::timeout,
-                QUEUE_TIMEOUT_SECONDS,
-                SECONDS
-        );
-
-        private final Lock lock = new ReentrantLock();
-
-        private final List<SdpMessage> backlog = new ArrayList<>();
-
-        private final Publisher<SdpMessage> messagePublisher = new ConcurrentLockedPublisher<>(lock);
-
-        private final Publisher<Throwable> exceptionPublisher = new ConcurrentLockedPublisher<>(lock);
-
-        public Lock getLock() {
-            return lock;
-        }
-
-        public void publish(final String profileId,
-                            final String sdpMessage) {
-            final var message = new SdpMessage(profileId, sdpMessage);
-            resetTimeout();
-            backlog.addLast(message);
-            messagePublisher.publish(message);
-        }
-
-        public Subscription subscribe(final String profileId,
-                                      final Consumer<String> sdpMessageConsumer,
-                                      final Consumer<Throwable> sdpErrorConsumer) {
-
-            resetTimeout();
-
-            backlog.stream()
-                    .filter(msg -> !msg.originator().equals(profileId))
-                    .map(SdpMessage::payload)
-                    .forEach(sdpMessageConsumer);
-
-            final var subscription =  Subscription.begin()
-                    .chain(() -> backlog.removeIf(msg -> msg.originator().equals(profileId)))
-                    .chain(exceptionPublisher.subscribe(sdpErrorConsumer))
-                    .chain(messagePublisher.subscribe(m -> {
-                        if (!m.originator().equals(profileId)) {
-                            sdpMessageConsumer.accept(m.payload());
-                        }
-                    }));
-
-            return () -> {
-                try {
-                    lock.lock();
-                    subscription.unsubscribe();
-                } finally {
-                    lock.unlock();
-                }
-            };
-
-        }
-
-        private void timeout() {
-
-            lock.lock();
-
-            try {
-                exceptionPublisher.publish(new TimeoutException("Queued timed out."));
-            } finally {
-                exceptionPublisher.clear();
-                messagePublisher.clear();
-                lock.unlock();
-            }
-
-        }
-
-        private void resetTimeout() {
-            timeoutFuture.cancel(false);
-            timeoutFuture = timeoutScheduler.schedule(
-                    this::timeout,
-                    QUEUE_TIMEOUT_SECONDS,
-                    SECONDS
-            );
-        }
+        return matches.computeIfAbsent(match.getId(), mid -> MailboxesForMatch.create())
+                .getMailbox(profileId)
+                .subscribe(onMessage, onError);
 
     }
 
@@ -187,6 +79,88 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
         this.mongoMultiMatchDao = mongoMultiMatchDao;
     }
 
-    private record SdpMessage(Object originator, String payload) {}
+    @ElementEventConsumer(MULTI_MATCH_DELETED)
+    public void onMatchDeleted(final MultiMatch multiMatch) {
+
+        final var existing = matches.remove(multiMatch.getId());
+        if (existing == null) {
+            logger.debug("No match mailboxes for match {}", multiMatch.getId());
+        } else {
+            final var ex = new MatchDeletedException();
+            existing.onError(ex);
+        }
+
+    }
+
+    private record SubscriptionRecord(BiConsumer<Subscription, ProtocolMessage> onMessage,
+                                      BiConsumer<Subscription, Throwable> onError,
+                                      Subscription subscription) {
+
+        public void onError(final Throwable th) {
+            try {
+                onError().accept(subscription(), th);
+            } catch (Exception ex) {
+                logger.error("Error while processing error", ex);
+            }
+        }
+
+        public void onMessage(final ProtocolMessage message) {
+            try {
+                onMessage().accept(subscription(), message);
+            } catch (Exception ex) {
+                onError().accept(subscription(), ex);
+            }
+        }
+
+    }
+
+    private record Mailbox(Deque<ProtocolMessage> backlog, AtomicReference<SubscriptionRecord> subscription) {
+
+        public static Mailbox create() {
+            return new Mailbox(new ConcurrentLinkedDeque<>(), new AtomicReference<>());
+        }
+
+
+
+        public Subscription subscribe(
+                final BiConsumer<Subscription, ProtocolMessage> onMessage,
+                final BiConsumer<Subscription, Throwable> onError) {
+
+            final var update = new SubscriptionRecord(onMessage, onError, () -> subscription().set(null));
+            final var existing = subscription().getAndSet(update);
+
+            if (existing == null) {
+                backlog().forEach(update::onMessage);
+            } else {
+                final var ex = new DuplicateConnectionException();
+                existing.onError(ex);
+            }
+
+            return update.subscription();
+
+        }
+
+        public void onError(final Throwable th) {
+           final var s = subscription().get();
+           if (s != null)
+               s.onError(th);
+        }
+    }
+
+    private record MailboxesForMatch(ConcurrentMap<String, Mailbox> mailboxes) {
+
+        public static MailboxesForMatch create() {
+            return new MailboxesForMatch(new ConcurrentHashMap<>());
+        }
+
+        public Mailbox getMailbox(final String profileId) {
+            return mailboxes().computeIfAbsent(profileId, pid -> Mailbox.create());
+        }
+
+        public void onError(final Throwable th) {
+            mailboxes().values().forEach(m -> m.onError(th));
+        }
+
+    }
 
 }

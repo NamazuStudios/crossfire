@@ -4,7 +4,7 @@ import jakarta.validation.constraints.NotNull;
 
 import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.CANDIDATE;
 
-public class CandidateSignal implements Signal {
+public class CandidateBroadcastSignal implements BroadcastSignal {
 
     @NotNull
     private String profileId;
