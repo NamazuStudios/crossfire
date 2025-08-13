@@ -3,6 +3,7 @@ package dev.getelements.elements.crossfire.model.signal;
 import jakarta.validation.constraints.NotNull;
 
 import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.SDP_OFFER;
+import static dev.getelements.elements.crossfire.model.signal.SignalLifecycle.SESSION;
 
 public class SdpOfferBroadcastSignal implements BroadcastSignal {
 
@@ -15,6 +16,11 @@ public class SdpOfferBroadcastSignal implements BroadcastSignal {
     @Override
     public Type getType() {
         return SDP_OFFER;
+    }
+
+    @Override
+    public SignalLifecycle getLifecycle() {
+        return SESSION;
     }
 
     @Override

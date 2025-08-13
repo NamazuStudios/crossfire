@@ -21,6 +21,11 @@ public class CandidateBroadcastSignal implements BroadcastSignal {
     }
 
     @Override
+    public SignalLifecycle getLifecycle() {
+        return SignalLifecycle.SESSION;
+    }
+
+    @Override
     public String getProfileId() {
         return profileId;
     }

@@ -14,4 +14,11 @@ public interface BroadcastSignal extends ProtocolMessage {
      */
     String getProfileId();
 
+    /**
+     * Gets the lifecycle of the signal.
+     *
+     * @return the lifecycle of the signal
+     */
+    SignalLifecycle getLifecycle();
+
 }

@@ -2,11 +2,10 @@ package dev.getelements.elements.crossfire.service;
 
 import dev.getelements.elements.crossfire.model.ProtocolMessage;
 import dev.getelements.elements.crossfire.model.signal.BroadcastSignal;
-import dev.getelements.elements.crossfire.model.signal.SignalWithRecipient;
+import dev.getelements.elements.crossfire.model.signal.DirectSignal;
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.annotation.ElementPublic;
 import dev.getelements.elements.sdk.annotation.ElementServiceExport;
-import zmq.socket.pubsub.Sub;
 
 import java.util.function.BiConsumer;
 
@@ -31,7 +30,7 @@ public interface MatchSignalingService {
      * @param matchId the match ID
      * @param signal the signal
      */
-    void send(String matchId, SignalWithRecipient signal);
+    void send(String matchId, DirectSignal signal);
 
     /**
      * Subscribes to updates with the supplied connection id, match id, profile id, and consumers. If this is the first

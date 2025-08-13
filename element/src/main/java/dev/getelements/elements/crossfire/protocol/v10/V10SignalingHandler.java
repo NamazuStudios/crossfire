@@ -1,7 +1,7 @@
 package dev.getelements.elements.crossfire.protocol.v10;
 
 import dev.getelements.elements.crossfire.model.signal.BroadcastSignal;
-import dev.getelements.elements.crossfire.model.signal.SignalWithRecipient;
+import dev.getelements.elements.crossfire.model.signal.DirectSignal;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler;
 import dev.getelements.elements.crossfire.protocol.SignalingHandler;
 import dev.getelements.elements.crossfire.service.MatchSignalingService;
@@ -38,7 +38,7 @@ public class V10SignalingHandler implements SignalingHandler {
     public void onMessageDirect(
             final ProtocolMessageHandler handler,
             final Session session,
-            final SignalWithRecipient signal) {
+            final DirectSignal signal) {
 
     }
 

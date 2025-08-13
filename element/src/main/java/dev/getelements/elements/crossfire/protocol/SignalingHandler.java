@@ -1,7 +1,7 @@
 package dev.getelements.elements.crossfire.protocol;
 
 import dev.getelements.elements.crossfire.model.signal.BroadcastSignal;
-import dev.getelements.elements.crossfire.model.signal.SignalWithRecipient;
+import dev.getelements.elements.crossfire.model.signal.DirectSignal;
 import jakarta.websocket.Session;
 
 /**
@@ -42,6 +42,6 @@ public interface SignalingHandler {
      * @param session                        the session
      * @param signal                         the signal
      */
-    void onMessageDirect(ProtocolMessageHandler handler, Session session, SignalWithRecipient signal);
+    void onMessageDirect(ProtocolMessageHandler handler, Session session, DirectSignal signal);
 
 }

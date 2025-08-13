@@ -99,13 +99,13 @@ public class FIFOMatchmakingAlgorithm implements MatchmakingAlgorithm {
 
                     final var profiles = dao.getProfiles(result.getId());
 
-                     // TODO Add a flag to indicate that the match should start automatically when full or if it
-                     // should start manually through another action or API.
+                     // TODO Add a flag to indicate that the match should start automatically when full or if it should
+                     //  start manually through another action or API.
 
                      if (profiles.size() >= result.getConfiguration().getMaxProfiles()) {
                         result.setStatus(FULL);
                         dao.updateMultiMatch(result);
-                    }
+                     }
 
                 }
 

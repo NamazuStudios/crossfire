@@ -2,7 +2,10 @@ package dev.getelements.elements.crossfire.model.signal;
 
 import jakarta.validation.constraints.NotNull;
 
-public class BinaryRelaySignal implements SignalWithRecipient {
+import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.SDP_ANSWER;
+import static dev.getelements.elements.crossfire.model.signal.SignalLifecycle.SESSION;
+
+public class SdpAnswerDirectSignal implements DirectSignal {
 
     @NotNull
     private String profileId;
@@ -11,11 +14,24 @@ public class BinaryRelaySignal implements SignalWithRecipient {
     private String recipientProfileId;
 
     @NotNull
-    private byte[] payload;
+    private String peerSdp;
 
     @Override
     public Type getType() {
-        return Type.BINARY_RELAY;
+        return SDP_ANSWER;
+    }
+
+    @Override
+    public SignalLifecycle getLifecycle() {
+        return SESSION;
+    }
+
+    public String getPeerSdp() {
+        return peerSdp;
+    }
+
+    public void setPeerSdp(String peerSdp) {
+        this.peerSdp = peerSdp;
     }
 
     @Override
@@ -34,14 +50,6 @@ public class BinaryRelaySignal implements SignalWithRecipient {
 
     public void setRecipientProfileId(String recipientProfileId) {
         this.recipientProfileId = recipientProfileId;
-    }
-
-    public byte[] getPayload() {
-        return payload;
-    }
-
-    public void setPayload(byte[] payload) {
-        this.payload = payload;
     }
 
 }

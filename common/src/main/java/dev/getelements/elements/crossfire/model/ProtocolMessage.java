@@ -45,17 +45,17 @@ public interface ProtocolMessage {
         /**
          * Represents a signal that carries an SDP answer.
          */
-        SDP_ANSWER(SIGNALING_DIRECT, SdpAnswerSignal.class),
+        SDP_ANSWER(SIGNALING_DIRECT, SdpAnswerDirectSignal.class),
 
         /**
          * Represents a signal that carries a binary payload to be broadcasted to all profiles in the match.
          */
-        BINARY_BROADCAST(SIGNALING, BinaryBroadcastBroadcastSignal.class),
+        BINARY_BROADCAST(SIGNALING, BinaryBroadcastSignal.class),
 
         /**
          * Represents a signal that carries a binary payload to be relayed to a specific profile in the match.
          */
-        BINARY_RELAY(SIGNALING_DIRECT, BinaryRelaySignal.class),
+        BINARY_RELAY(SIGNALING_DIRECT, BinaryRelayDirectSignal.class),
 
         /**
          * Represents a signal that carries a candidate for the WebRTC connection.
