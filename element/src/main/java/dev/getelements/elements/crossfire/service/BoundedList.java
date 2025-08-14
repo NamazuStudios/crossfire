@@ -11,13 +11,6 @@ public final class BoundedList<E> implements List<E> {
     private final Supplier<? extends RuntimeException> exceptionSupplier;
     private final IntSupplier sizeSupplier; // size of the logical root
 
-    // Builder entry point
-    private BoundedList(int maxSize,
-                        List<E> delegate,
-                        Supplier<? extends RuntimeException> exceptionSupplier) {
-        this(maxSize, delegate, exceptionSupplier, delegate::size); // root uses its own size
-    }
-
     // Entry point for sublists or custom size checks
     private BoundedList(int maxSize,
                         List<E> delegate,
@@ -27,7 +20,7 @@ public final class BoundedList<E> implements List<E> {
         this.maxSize = maxSize;
         this.delegate = Objects.requireNonNull(delegate, "delegate list cannot be null");
         this.exceptionSupplier = Objects.requireNonNull(exceptionSupplier, "exceptionSupplier cannot be null");
-        this.sizeSupplier = Objects.requireNonNull(sizeSupplier, "sizeSupplier cannot be null");
+        this.sizeSupplier = sizeSupplier == null ? this::size : sizeSupplier;
         if (delegate.size() > maxSize) {
             throw new IllegalArgumentException(
                     "Backing list size " + delegate.size() + " exceeds maxSize " + maxSize
@@ -93,6 +86,8 @@ public final class BoundedList<E> implements List<E> {
 
         private int maxSize = Integer.MAX_VALUE;
 
+        private IntSupplier sizeSupplier;
+
         private Supplier<List<E>> listSupplier = ArrayList::new;
 
         private Supplier<? extends RuntimeException> exceptionSupplier = () -> new IllegalStateException("Exceeded max size: " + maxSize);
@@ -100,6 +95,11 @@ public final class BoundedList<E> implements List<E> {
         public Builder<E> maxSize(final int maxSize) {
             if (maxSize < 0) throw new IllegalArgumentException("maxSize must be >= 0");
             this.maxSize = maxSize;
+            return this;
+        }
+
+        public Builder<E> sizeSupplier(final IntSupplier listSupplier) {
+            this.sizeSupplier = Objects.requireNonNull(listSupplier, "sizeSupplier cannot be null");
             return this;
         }
 
@@ -115,7 +115,7 @@ public final class BoundedList<E> implements List<E> {
 
         public BoundedList<E> build() {
             final var list = Objects.requireNonNull(listSupplier.get(), "listSupplier returned null");
-            return new BoundedList<>(maxSize, list, exceptionSupplier);
+            return new BoundedList<>(maxSize, list, exceptionSupplier, sizeSupplier);
         }
 
     }

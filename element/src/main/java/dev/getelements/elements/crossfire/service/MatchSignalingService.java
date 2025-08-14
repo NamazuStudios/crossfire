@@ -17,20 +17,20 @@ import java.util.function.BiConsumer;
 public interface MatchSignalingService {
 
     /**
-     * Broadcasts the supplied signal to everyone in the match.
-     *
-     * @param matchId the match ID
-     * @param signal the signal
-     */
-    void send(String matchId, BroadcastSignal signal);
-
-    /**
      * Sends the signal to the match.
      *
      * @param matchId the match ID
      * @param signal the signal
      */
     void send(String matchId, DirectSignal signal);
+
+    /**
+     * Broadcasts the supplied signal to everyone in the match.
+     *
+     * @param matchId the match ID
+     * @param signal the signal
+     */
+    void send(String matchId, BroadcastSignal signal);
 
     /**
      * Subscribes to updates with the supplied connection id, match id, profile id, and consumers. If this is the first
