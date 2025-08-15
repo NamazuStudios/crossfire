@@ -10,6 +10,7 @@ import dev.getelements.elements.sdk.annotation.ElementEventConsumer;
 import dev.getelements.elements.sdk.dao.MultiMatchDao;
 import dev.getelements.elements.sdk.model.exception.ForbiddenException;
 import dev.getelements.elements.sdk.model.match.MultiMatch;
+import dev.getelements.elements.sdk.model.profile.Profile;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import org.slf4j.Logger;
@@ -17,7 +18,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 import static dev.getelements.elements.sdk.dao.MultiMatchDao.MULTI_MATCH_DELETED;
 
@@ -28,7 +29,7 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
     @ElementDefaultAttribute("256")
     public static final String MAX_BACKLOG_SIZE = "elements.crossfire.match.signaling.max.backlog.size";
 
-    private final ConcurrentMap<String, MatchRecord> matches = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, MemoryMatchState> matches = new ConcurrentHashMap<>();
 
     private int maxBacklogSize;
 
@@ -48,8 +49,8 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
             throw new ForbiddenException("Profile with id " + signal.getProfileId() + " does not exist");
         }
 
-        matches.computeIfAbsent(match.getId(), mid -> MatchRecord.create(getMaxBacklogSize()))
-               .send(profiles, signal);
+        matches.computeIfAbsent(match.getId(), mid -> new MemoryMatchState(getMaxBacklogSize()))
+               .send(profiles.stream().map(Profile::getId), signal);
 
     }
 
@@ -73,17 +74,17 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
             throw new ForbiddenException("Recipient profile with id " + signal.getRecipientProfileId() + " does not exist");
         }
 
-        matches.computeIfAbsent(match.getId(), mid -> MatchRecord.create(getMaxBacklogSize()))
-                .send(signal);
+        matches.computeIfAbsent(match.getId(), mid -> new MemoryMatchState(getMaxBacklogSize()))
+               .send(signal);
 
     }
 
     @Override
-    public Subscription subscribe(
+    public Subscription join(
             final String matchId,
             final String profileId,
-            final BiConsumer<Subscription, ProtocolMessage> onMessage,
-            final BiConsumer<Subscription, Throwable> onError) {
+            final Consumer<ProtocolMessage> onMessage,
+            final Consumer<Throwable> onError) {
 
         final var match = getMongoMultiMatchDao().getMultiMatch(matchId);
         final var profiles = getMongoMultiMatchDao().getProfiles(match.getId());
@@ -96,8 +97,9 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
             throw new ForbiddenException("Profile " + profileId + " is not part of match " + matchId);
         }
 
-        return matches.computeIfAbsent(match.getId(), mid -> MatchRecord.create(getMaxBacklogSize()))
-                .subscribe(onMessage, onError);
+        return matches
+                .computeIfAbsent(match.getId(), mid -> new MemoryMatchState(getMaxBacklogSize()))
+                .join(profileId, onMessage, onError);
 
     }
 
@@ -128,7 +130,7 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
             logger.debug("No match mailboxes for match {}", multiMatch.getId());
         } else {
             final var ex = new MatchDeletedException();
-            existing.onError(ex);
+            existing.error(ex);
         }
 
     }

@@ -8,6 +8,7 @@ import dev.getelements.elements.sdk.annotation.ElementPublic;
 import dev.getelements.elements.sdk.annotation.ElementServiceExport;
 
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
  * Handles the interchange of SDP Messages.
@@ -42,11 +43,11 @@ public interface MatchSignalingService {
      * @param onMessage the message consumer
      * @param onError the message error
      */
-    Subscription subscribe(
+    Subscription join(
             String matchId,
             String profileId,
-            BiConsumer<Subscription, ProtocolMessage> onMessage,
-            BiConsumer<Subscription, Throwable > onError
+            Consumer<ProtocolMessage> onMessage,
+            Consumer<Throwable> onError
     );
 
 }

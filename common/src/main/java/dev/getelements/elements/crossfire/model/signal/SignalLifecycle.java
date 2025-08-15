@@ -15,13 +15,13 @@ public enum SignalLifecycle {
     ONCE,
 
     /**
-     * The message lives for the lifetime of the session which is the originator of the message. Once the connection
-     * is closed, the message is no longer valid and therefore removed from signaling.
+     * The message lives for the lifetime of the session or when the player holding that session leaves the match.
      */
     SESSION,
 
     /**
-     * The message is sent
+     * The message remains in the mailbox for the entire match and will remain until the match is over, or the player
+     * who sent the message leaves the match.
      */
     MATCH
 
