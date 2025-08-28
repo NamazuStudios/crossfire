@@ -359,7 +359,7 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
             response.setMatchId(update.match().getId());
             update.session().getAsyncRemote().sendObject(response);
             processBacklog(existing);
-            getSignalingHandler().start(this, update.session());
+            getSignalingHandler().start(this, update.session(), update.match(), update.auth());
         }
 
     }
@@ -385,7 +385,12 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
             response.setMatchId(update.match().getId());
             update.session().getAsyncRemote().sendObject(response);
             processBacklog(existing);
-            getSignalingHandler().start(this, update.session());
+            getSignalingHandler().start(
+                    this,
+                    update.session(),
+                    update.match(),
+                    update.auth()
+            );
         }
 
     }

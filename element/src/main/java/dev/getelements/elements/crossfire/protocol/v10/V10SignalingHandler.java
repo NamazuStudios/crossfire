@@ -1,5 +1,6 @@
 package dev.getelements.elements.crossfire.protocol.v10;
 
+import dev.getelements.elements.crossfire.model.error.ProtocolStateException;
 import dev.getelements.elements.crossfire.model.signal.BroadcastSignal;
 import dev.getelements.elements.crossfire.model.signal.DirectSignal;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler;
@@ -7,15 +8,53 @@ import dev.getelements.elements.crossfire.protocol.SignalingHandler;
 import dev.getelements.elements.crossfire.service.MatchSignalingService;
 import jakarta.inject.Inject;
 import jakarta.websocket.Session;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.atomic.AtomicReference;
+
+import static dev.getelements.elements.crossfire.protocol.v10.V10SignalingState.create;
 
 public class V10SignalingHandler implements SignalingHandler {
 
+    private static final Logger logger = LoggerFactory.getLogger(V10SignalingHandler.class);
+
     private MatchSignalingService matchSignalingService;
+
+    private final AtomicReference<V10SignalingState> state = new AtomicReference<>(create());
 
     @Override
     public void start(
             final ProtocolMessageHandler handler,
-            final Session session) {
+            final Session session,
+            final ProtocolMessageHandler.MultiMatchRecord match,
+            final ProtocolMessageHandler.AuthRecord auth) {
+
+        final var matchId = match.getId();
+        final var profileId = auth.profile().getId();
+
+        final var subscription = getMatchSignalingService().join(
+                matchId,
+                profileId,
+                m -> session.getAsyncRemote().sendObject(m),
+                e -> logger.error("Error in signaling for match {} and profile {}", matchId, profileId, e)
+        );
+
+        try {
+
+            final var updated = state.updateAndGet(s -> s.start(subscription, match, auth));
+            logger.debug("Started signaling for match {} and profile {}", matchId, profileId);
+
+            switch (updated.phase()) {
+                case TERMINATED -> subscription.unsubscribe();
+                default -> logger.debug("Successfully started signaling for match {} and profile {}", matchId, profileId);
+            }
+
+        } catch (Exception ex) {
+            subscription.unsubscribe();
+            logger.error("Caught error while starting signaling for match {} and profile {}", matchId, profileId, ex);
+            throw ex;
+        }
 
     }
 
@@ -23,14 +62,24 @@ public class V10SignalingHandler implements SignalingHandler {
     public void stop(
             final ProtocolMessageHandler handler,
             final Session session) {
-
+        final var updated = state.updateAndGet(V10SignalingState::terminate);
+        updated.subscription().unsubscribe();
+        logger.debug("Stopped signaling.");
     }
 
     @Override
     public void onMessage(
             final ProtocolMessageHandler handler,
             final Session session,
-            final BroadcastSignal broadcastSignal) {
+            final BroadcastSignal signal) {
+
+        final var state = this.state.get();
+
+        switch (state.phase()) {
+            case SIGNALING -> getMatchSignalingService().send(state.match().getId(), signal);
+            case TERMINATED -> logger.debug("Dropping message. Signaling terminated.");
+            default -> throw new ProtocolStateException("Unexpected state: " + state.phase());
+        }
 
     }
 
@@ -39,6 +88,14 @@ public class V10SignalingHandler implements SignalingHandler {
             final ProtocolMessageHandler handler,
             final Session session,
             final DirectSignal signal) {
+
+        final var state = this.state.get();
+
+        switch (state.phase()) {
+            case SIGNALING -> getMatchSignalingService().send(state.match().getId(), signal);
+            case TERMINATED -> logger.debug("Dropping message. Signaling terminated.");
+            default -> throw new ProtocolStateException("Unexpected state: " + state.phase());
+        }
 
     }
 

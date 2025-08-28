@@ -15,8 +15,10 @@ public interface SignalingHandler {
      *
      * @param handler the protocol message handler
      * @param session the session
+     * @param match
+     * @param auth
      */
-    void start(ProtocolMessageHandler handler, Session session);
+    void start(ProtocolMessageHandler handler, Session session, ProtocolMessageHandler.MultiMatchRecord match, ProtocolMessageHandler.AuthRecord auth);
 
     /**
      * Stops the signaling handler.
