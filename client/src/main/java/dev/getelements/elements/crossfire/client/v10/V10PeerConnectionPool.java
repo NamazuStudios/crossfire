@@ -2,6 +2,9 @@ package dev.getelements.elements.crossfire.client.v10;
 
 import dev.getelements.elements.crossfire.client.Client;
 import dev.getelements.elements.crossfire.client.PeerConnectionPool;
+import dev.getelements.elements.crossfire.model.handshake.HandshakeResponse;
+import dev.getelements.elements.crossfire.model.signal.Signal;
+import dev.getelements.elements.sdk.Subscription;
 import dev.onvoid.webrtc.RTCPeerConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,16 +28,31 @@ public class V10PeerConnectionPool implements PeerConnectionPool {
 
     private final Client client;
 
+    private final Subscription subscription;
+
     private final ConcurrentMap<String, RTCPeerConnection> connections = new ConcurrentHashMap<>();
 
     public V10PeerConnectionPool(final Client client) {
         this.client = client;
+        this.subscription = Subscription.begin()
+                .chain(this.client.onSignal(this::onSignal))
+                .chain(this.client.onHandshake(this::onHandshake));
     }
 
     @Override
     public void enqueue(final String profileId,
                         final ByteBuffer buffer,
                         final Consumer<ByteBuffer> onSent) {
+
+    }
+
+    private void onSignal(final Subscription subscription,
+                          final Signal signal) {
+
+    }
+
+    private void onHandshake(final Subscription subscription,
+                             final HandshakeResponse handshakeResponse) {
 
     }
 
