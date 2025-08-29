@@ -4,6 +4,9 @@ import dev.getelements.elements.crossfire.model.error.ProtocolError;
 import dev.getelements.elements.crossfire.model.error.TimeoutException;
 import dev.getelements.elements.crossfire.model.handshake.HandshakeRequest;
 import dev.getelements.elements.crossfire.model.handshake.HandshakeResponse;
+import dev.getelements.elements.crossfire.model.signal.BroadcastSignal;
+import dev.getelements.elements.crossfire.model.signal.DirectSignal;
+import dev.getelements.elements.crossfire.model.signal.Signal;
 import dev.getelements.elements.sdk.Subscription;
 
 import java.util.NoSuchElementException;
@@ -22,6 +25,20 @@ public interface Client extends AutoCloseable {
      * @return the phase
      */
     ClientPhase getPhase();
+
+    /**
+     * Gets the peer connection pool.
+     *
+     * @return the peer connection pool.
+     */
+    PeerConnectionPool getPeerConnectionPool();
+
+    /**
+     * Sends the given signal to the server.
+     *
+     * @param signal the signal
+     */
+    void signal(Signal signal);
 
     /**
      * Returns the current {@link HandshakeResponse} if available. If the response is not available, it throws a
@@ -106,16 +123,23 @@ public interface Client extends AutoCloseable {
     /**
      * Subscribes to the error events.
      *
-     * @return the current phase
+     * @return a subscription to the error event
      */
     Subscription onError(BiConsumer<Subscription, ProtocolError> listener);
 
     /**
      * Subscribes to the handshake response events.
      *
-     * @return the current phase
+     * @return a subscription to the handshake event
      */
     Subscription onHandshake(BiConsumer<Subscription, HandshakeResponse> listener);
+
+    /**
+     * Subscribes to the signal events.
+     *
+     * @return a subscription to the signaling event
+     */
+    Subscription onSignal(BiConsumer<Subscription, Signal> listener);
 
     /**
      * Closes the client connection and releases any resources associated with it.

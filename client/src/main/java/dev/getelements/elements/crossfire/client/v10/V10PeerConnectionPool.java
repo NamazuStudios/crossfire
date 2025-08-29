@@ -1,6 +1,8 @@
 package dev.getelements.elements.crossfire.client.v10;
 
+import dev.getelements.elements.crossfire.client.Client;
 import dev.getelements.elements.crossfire.client.PeerConnectionPool;
+import dev.onvoid.webrtc.RTCPeerConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,7 +23,13 @@ public class V10PeerConnectionPool implements PeerConnectionPool {
             ? V10PeerConnectionPool::log
             : V10PeerConnectionPool::noop;
 
-    private final ConcurrentMap<String, V10PeerConnection> connections = new ConcurrentHashMap<>();
+    private final Client client;
+
+    private final ConcurrentMap<String, RTCPeerConnection> connections = new ConcurrentHashMap<>();
+
+    public V10PeerConnectionPool(final Client client) {
+        this.client = client;
+    }
 
     @Override
     public void enqueue(final String profileId,

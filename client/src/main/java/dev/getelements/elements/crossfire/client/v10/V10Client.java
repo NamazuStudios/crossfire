@@ -2,6 +2,7 @@ package dev.getelements.elements.crossfire.client.v10;
 
 import dev.getelements.elements.crossfire.client.Client;
 import dev.getelements.elements.crossfire.client.ClientPhase;
+import dev.getelements.elements.crossfire.client.PeerConnectionPool;
 import dev.getelements.elements.crossfire.jackson.JacksonEncoder;
 import dev.getelements.elements.crossfire.jackson.JacksonProtocolMessageDecoder;
 import dev.getelements.elements.crossfire.model.ProtocolMessage;
@@ -10,6 +11,7 @@ import dev.getelements.elements.crossfire.model.error.ProtocolStateException;
 import dev.getelements.elements.crossfire.model.error.UnexpectedMessageException;
 import dev.getelements.elements.crossfire.model.handshake.HandshakeRequest;
 import dev.getelements.elements.crossfire.model.handshake.HandshakeResponse;
+import dev.getelements.elements.crossfire.model.signal.Signal;
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.util.ConcurrentDequePublisher;
 import dev.getelements.elements.sdk.util.Publisher;
@@ -38,6 +40,10 @@ public class V10Client implements Client {
 
     private final Publisher<ProtocolError> onError = new ConcurrentDequePublisher<>();
 
+    private final Publisher<Signal> onSignal = new ConcurrentDequePublisher<>();
+
+    private final V10PeerConnectionPool peerConnectionPool = new V10PeerConnectionPool(this);
+
     private final Publisher<HandshakeResponse> onHandshake = new ConcurrentDequePublisher<>();
 
     private final AtomicReference<V10ClientState> state = new AtomicReference<>(create());
@@ -50,6 +56,23 @@ public class V10Client implements Client {
     @Override
     public Optional<HandshakeResponse> findHandshakeResponse() {
         return Optional.ofNullable(state.get().handshake());
+    }
+
+    @Override
+    public PeerConnectionPool getPeerConnectionPool() {
+        return peerConnectionPool;
+    }
+
+    @Override
+    public void signal(final Signal signal) {
+
+        final var state = this.state.get();
+
+        switch (state.phase()) {
+            case SIGNALING -> state.session().getAsyncRemote().sendObject(signal);
+            default -> throw new IllegalStateException("Unexpected state: " + state.phase());
+        }
+
     }
 
     @OnOpen
@@ -85,13 +108,13 @@ public class V10Client implements Client {
     private void onMessageSignalingPhase(final V10ClientState state, final ProtocolMessage message) throws IOException {
         switch (message.getType().getCategory()) {
             case ERROR -> onErrorMessage((ProtocolError) message);
-            case SIGNALING -> onSignalingMessage((HandshakeResponse) message);
+            case SIGNALING -> onSignalingMessage((Signal) message);
             default -> throw new UnexpectedMessageException("Unexpected message in phase " + state.phase());
         }
     }
 
-    private void onSignalingMessage(final HandshakeResponse message) {
-
+    private void onSignalingMessage(final Signal message) {
+        onSignal.publish(message);
     }
 
     private void onMessageHandshakingPhase(final V10ClientState state, final ProtocolMessage message) throws IOException {
@@ -165,6 +188,11 @@ public class V10Client implements Client {
     @Override
     public Subscription onError(final BiConsumer<Subscription, ProtocolError> listener) {
         return onError.subscribe(listener);
+    }
+
+    @Override
+    public Subscription onSignal(final BiConsumer<Subscription, Signal> listener) {
+        return onSignal.subscribe(listener);
     }
 
     @Override
