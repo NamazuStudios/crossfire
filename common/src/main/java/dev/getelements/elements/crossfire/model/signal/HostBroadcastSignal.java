@@ -9,6 +9,9 @@ public class HostBroadcastSignal implements BroadcastSignal {
     @NotNull
     private String profileId;
 
+    @NotNull
+    private SignalLifecycle lifecycle;
+
     @Override
     public Type getType() {
         return HOST;
@@ -21,6 +24,15 @@ public class HostBroadcastSignal implements BroadcastSignal {
 
     public void setProfileId(String profileId) {
         this.profileId = profileId;
+    }
+
+    @Override
+    public SignalLifecycle getLifecycle() {
+        return lifecycle;
+    }
+
+    public void setLifecycle(SignalLifecycle lifecycle) {
+        this.lifecycle = lifecycle;
     }
 
 }

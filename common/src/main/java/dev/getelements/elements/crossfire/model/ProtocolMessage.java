@@ -40,7 +40,7 @@ public interface ProtocolMessage {
         /**
          * Represents a signal that carries an SDP offer.
          */
-        SDP_OFFER(SIGNALING, SdpOfferBroadcastSignal.class),
+        SDP_OFFER(SIGNALING, SdpOfferDirectSignal.class),
 
         /**
          * Represents a signal that carries an SDP answer.

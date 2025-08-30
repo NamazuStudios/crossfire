@@ -5,10 +5,13 @@ import jakarta.validation.constraints.NotNull;
 import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.SDP_OFFER;
 import static dev.getelements.elements.crossfire.model.signal.SignalLifecycle.SESSION;
 
-public class SdpOfferBroadcastSignal implements BroadcastSignal {
+public class SdpOfferDirectSignal implements DirectSignal {
 
     @NotNull
     private String profileId;
+
+    @NotNull
+    private String recipientProfileId;
 
     @NotNull
     private String peerSdp;
@@ -30,6 +33,15 @@ public class SdpOfferBroadcastSignal implements BroadcastSignal {
 
     public void setProfileId(String profileId) {
         this.profileId = profileId;
+    }
+
+    @Override
+    public String getRecipientProfileId() {
+        return recipientProfileId;
+    }
+
+    public void setRecipientProfileId(String recipientProfileId) {
+        this.recipientProfileId = recipientProfileId;
     }
 
     public String getPeerSdp() {

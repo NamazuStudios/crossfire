@@ -8,13 +8,6 @@ import dev.getelements.elements.crossfire.model.ProtocolMessage;
 public interface HandshakeResponse extends ProtocolMessage {
 
     /**
-     * Gets the type of the response.
-     *
-     * @return the type
-     */
-    Type getType();
-
-    /**
      * Gets the match ID of the connected match.
      * @return the match id
      */

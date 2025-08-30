@@ -5,6 +5,7 @@ import dev.getelements.elements.crossfire.model.error.DuplicateConnectionExcepti
 import dev.getelements.elements.crossfire.model.error.MessageBufferOverrunException;
 import dev.getelements.elements.crossfire.model.signal.BroadcastSignal;
 import dev.getelements.elements.crossfire.model.signal.DirectSignal;
+import dev.getelements.elements.crossfire.model.signal.HostBroadcastSignal;
 import dev.getelements.elements.crossfire.model.signal.Signal;
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.util.Monitor;
@@ -178,15 +179,24 @@ public class MemoryMatchState {
                 requireNonNull(onMessage, "onMessage cannot be null");
                 requireNonNull(profileId, "profileId cannot be null");
 
-                return sessionStates
-                        .computeIfAbsent(profileId, SessionState::new)
-                        .subscribe(onMessage, onError);
+                final var host = sessionStates.isEmpty();
+                final var state = sessionStates.computeIfAbsent(profileId, SessionState::new);
+
+                if (host) {
+                    final var signal = new HostBroadcastSignal();
+                    signal.setProfileId(profileId);
+                    state.append(signal);
+                }
+
+                return state.subscribe(onMessage, onError);
 
             }
 
         }
 
         private class SessionState {
+
+            private boolean host = false;
 
             private final String profileId;
 
@@ -232,6 +242,17 @@ public class MemoryMatchState {
                     default -> throw new IllegalArgumentException("Unexpected value: " + signal.getLifecycle());
                 }
 
+            }
+
+            public void host() {
+                final var signal = new HostBroadcastSignal();
+                signal.setProfileId(profileId);
+                append(signal);
+                host = true;
+            }
+
+            public boolean isHost() {
+                return host;
             }
 
             public SubscriptionRecord getSubscriptionRecord() {
