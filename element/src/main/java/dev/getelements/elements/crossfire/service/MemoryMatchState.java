@@ -20,14 +20,18 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
+import static dev.getelements.elements.crossfire.model.signal.SignalLifecycle.SESSION;
 import static java.util.Objects.requireNonNull;
 
 public class MemoryMatchState {
 
     private static final Logger logger = LoggerFactory.getLogger(MemoryMatchState.class);
+
+    private MemoryMatchBacklog.SessionState host;
 
     private final MemoryMatchBacklog memoryMatchBacklog;
 
@@ -78,7 +82,11 @@ public class MemoryMatchState {
         );
     }
 
-    private static class MemoryMatchBacklog {
+    public Subscription onHost(final BiConsumer<ProtocolMessage, Consumer<Throwable>> onMessage) {
+        return null;
+    }
+
+    private class MemoryMatchBacklog {
 
         private final Lock read;
 
@@ -179,13 +187,11 @@ public class MemoryMatchState {
                 requireNonNull(onMessage, "onMessage cannot be null");
                 requireNonNull(profileId, "profileId cannot be null");
 
-                final var host = sessionStates.isEmpty();
                 final var state = sessionStates.computeIfAbsent(profileId, SessionState::new);
 
-                if (host) {
-                    final var signal = new HostBroadcastSignal();
-                    signal.setProfileId(profileId);
-                    state.append(signal);
+                if (host == null) {
+                    state.host();
+                    host = state;
                 }
 
                 return state.subscribe(onMessage, onError);
@@ -195,8 +201,6 @@ public class MemoryMatchState {
         }
 
         private class SessionState {
-
-            private boolean host = false;
 
             private final String profileId;
 
@@ -245,14 +249,21 @@ public class MemoryMatchState {
             }
 
             public void host() {
+
+                // Generates and buffers the signal in the appropriate outbox
                 final var signal = new HostBroadcastSignal();
+                signal.setLifecycle(SESSION);
                 signal.setProfileId(profileId);
                 append(signal);
-                host = true;
-            }
 
-            public boolean isHost() {
-                return host;
+                // Informs the whole match that there is indeed a new host.
+                sessionStates
+                        .values()
+                        .stream()
+                        .map(s -> s.subscription.get())
+                        .filter(Objects::nonNull)
+                        .forEach(s -> s.onMessage(signal));
+
             }
 
             public SubscriptionRecord getSubscriptionRecord() {
@@ -278,9 +289,23 @@ public class MemoryMatchState {
 
             private void unsubscribe() {
                 try (var mon = Monitor.enter(write)) {
+
                     session.clear();
                     subscription.set(null);
+
+                    if (host == this)
+                        host = MemoryMatchBacklog.this.sessionStates
+                                .values()
+                                .stream()
+                                .filter(s -> s != this && s.subscription.get() != null)
+                                .findFirst()
+                                .orElse(null);
+
+                    if (host != null)
+                        host.host();
+
                 }
+
             }
 
         }

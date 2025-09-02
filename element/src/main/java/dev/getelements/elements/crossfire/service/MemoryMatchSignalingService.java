@@ -93,9 +93,8 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
                 .stream()
                 .anyMatch(p -> p.getId().equals(profileId));
 
-        if (!exists) {
+        if (!exists)
             throw new ForbiddenException("Profile " + profileId + " is not part of match " + matchId);
-        }
 
         return matches
                 .computeIfAbsent(match.getId(), mid -> new MemoryMatchState(getMaxBacklogSize()))
