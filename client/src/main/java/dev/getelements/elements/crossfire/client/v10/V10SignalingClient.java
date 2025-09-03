@@ -1,8 +1,6 @@
 package dev.getelements.elements.crossfire.client.v10;
 
-import dev.getelements.elements.crossfire.client.Client;
-import dev.getelements.elements.crossfire.client.ClientPhase;
-import dev.getelements.elements.crossfire.client.PeerConnectionPool;
+import dev.getelements.elements.crossfire.client.SignalingClient;
 import dev.getelements.elements.crossfire.jackson.JacksonEncoder;
 import dev.getelements.elements.crossfire.jackson.JacksonProtocolMessageDecoder;
 import dev.getelements.elements.crossfire.model.ProtocolMessage;
@@ -11,6 +9,8 @@ import dev.getelements.elements.crossfire.model.error.ProtocolStateException;
 import dev.getelements.elements.crossfire.model.error.UnexpectedMessageException;
 import dev.getelements.elements.crossfire.model.handshake.HandshakeRequest;
 import dev.getelements.elements.crossfire.model.handshake.HandshakeResponse;
+import dev.getelements.elements.crossfire.model.signal.ConnectBroadcastSignal;
+import dev.getelements.elements.crossfire.model.signal.HostBroadcastSignal;
 import dev.getelements.elements.crossfire.model.signal.Signal;
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.util.ConcurrentDequePublisher;
@@ -24,9 +24,9 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 
-import static dev.getelements.elements.crossfire.client.ClientPhase.HANDSHAKING;
-import static dev.getelements.elements.crossfire.client.ClientPhase.TERMINATED;
-import static dev.getelements.elements.crossfire.client.v10.V10ClientState.create;
+import static dev.getelements.elements.crossfire.client.SignalingClientPhase.HANDSHAKING;
+import static dev.getelements.elements.crossfire.client.SignalingClientPhase.TERMINATED;
+import static dev.getelements.elements.crossfire.client.v10.V10SignalingClientState.create;
 import static dev.getelements.elements.crossfire.model.handshake.HandshakeRequest.VERSION_1_0;
 import static java.util.Objects.requireNonNull;
 
@@ -34,33 +34,28 @@ import static java.util.Objects.requireNonNull;
         encoders = JacksonEncoder.class,
         decoders = JacksonProtocolMessageDecoder.class
 )
-public class V10Client implements Client {
+public class V10SignalingClient implements SignalingClient {
 
-    private static final Logger logger = LoggerFactory.getLogger(V10Client.class);
-
-    private final Publisher<ProtocolError> onError = new ConcurrentDequePublisher<>();
+    private static final Logger logger = LoggerFactory.getLogger(V10SignalingClient.class);
 
     private final Publisher<Signal> onSignal = new ConcurrentDequePublisher<>();
 
-    private final V10PeerConnectionPool peerConnectionPool = new V10PeerConnectionPool(this);
+    private final Publisher<Throwable> onClientError = new ConcurrentDequePublisher<>();
+
+    private final Publisher<ProtocolError> onProtocolError = new ConcurrentDequePublisher<>();
 
     private final Publisher<HandshakeResponse> onHandshake = new ConcurrentDequePublisher<>();
 
-    private final AtomicReference<V10ClientState> state = new AtomicReference<>(create());
+    private final AtomicReference<V10SignalingClientState> state = new AtomicReference<>(create());
 
     @Override
-    public ClientPhase getPhase() {
-        return state.get().phase();
+    public MatchState getState() {
+        return this.state.get();
     }
 
     @Override
     public Optional<HandshakeResponse> findHandshakeResponse() {
         return Optional.ofNullable(state.get().handshake());
-    }
-
-    @Override
-    public PeerConnectionPool getPeerConnectionPool() {
-        return peerConnectionPool;
     }
 
     @Override
@@ -105,7 +100,7 @@ public class V10Client implements Client {
 
     }
 
-    private void onMessageSignalingPhase(final V10ClientState state, final ProtocolMessage message) throws IOException {
+    private void onMessageSignalingPhase(final V10SignalingClientState state, final ProtocolMessage message) throws IOException {
         switch (message.getType().getCategory()) {
             case ERROR -> onErrorMessage((ProtocolError) message);
             case SIGNALING -> onSignalingMessage((Signal) message);
@@ -114,10 +109,32 @@ public class V10Client implements Client {
     }
 
     private void onSignalingMessage(final Signal message) {
-        onSignal.publish(message);
+
+        final var state = switch (message.getType()) {
+            case HOST -> {
+                final var host = (HostBroadcastSignal) message;
+                yield this.state.updateAndGet(s -> s.host(host.getProfileId()));
+            }
+            case CONNECT -> {
+                final var connect = (ConnectBroadcastSignal) message;
+                yield this.state.updateAndGet(s -> s.connect(connect.getProfileId()));
+            }
+            case DISCONNECT -> {
+                final var disconnect = (ConnectBroadcastSignal) message;
+                yield this.state.updateAndGet(s -> s.disconnect(disconnect.getProfileId()));
+            }
+            default -> this.state.get();
+        };
+
+        switch (state.phase()) {
+            case SIGNALING -> onSignal.publish(message);
+            case TERMINATED -> logger.debug("Dropping message in terminated phase: {}", message.getType());
+            default -> throw new UnexpectedMessageException("Unexpected message in phase " + state.phase());
+        }
+
     }
 
-    private void onMessageHandshakingPhase(final V10ClientState state, final ProtocolMessage message) throws IOException {
+    private void onMessageHandshakingPhase(final V10SignalingClientState state, final ProtocolMessage message) throws IOException {
         switch (message.getType().getCategory()) {
             case ERROR -> onErrorMessage((ProtocolError) message);
             case HANDSHAKE -> onHandshakeMessage((HandshakeResponse) message);
@@ -145,23 +162,24 @@ public class V10Client implements Client {
     }
 
     private void onErrorMessage(final ProtocolError message) throws IOException {
-        final var state = this.state.updateAndGet(V10ClientState::terminate);
-        onError.publish(message);
+        final var state = this.state.updateAndGet(V10SignalingClientState::terminate);
+        onProtocolError.publish(message);
         state.closeSession();
     }
 
     @OnClose
     public void onSessionClose(final Session session,
                                final CloseReason closeReason) throws IOException {
-        this.state.updateAndGet(V10ClientState::terminate);
+        this.state.updateAndGet(V10SignalingClientState::terminate);
         logger.info("Connection closed: {}", closeReason);
     }
 
     @OnError
     public void onSessionError(final Session session,
                                final Throwable throwable) throws IOException {
-        this.state.updateAndGet(V10ClientState::terminate);
+        this.state.updateAndGet(V10SignalingClientState::terminate);
         logger.error("An error occurred.", throwable);
+        onClientError.publish(throwable);
     }
 
     @Override
@@ -178,7 +196,7 @@ public class V10Client implements Client {
             default -> throw new IllegalArgumentException("Invalid handshake request type: " + request.getType());
         }
 
-        final var state = this.state.updateAndGet(V10ClientState::handshaking);
+        final var state = this.state.updateAndGet(V10SignalingClientState::handshaking);
 
         if (HANDSHAKING.equals(state.phase()))
             state.session().getAsyncRemote().sendObject(request);
@@ -186,8 +204,13 @@ public class V10Client implements Client {
     }
 
     @Override
-    public Subscription onError(final BiConsumer<Subscription, ProtocolError> listener) {
-        return onError.subscribe(listener);
+    public Subscription onClientError(BiConsumer<Subscription, Throwable> listener) {
+        return onClientError.subscribe(listener);
+    }
+
+    @Override
+    public Subscription onProtocolError(final BiConsumer<Subscription, ProtocolError> listener) {
+        return onProtocolError.subscribe(listener);
     }
 
     @Override
@@ -203,7 +226,7 @@ public class V10Client implements Client {
     @Override
     public void close() {
 
-        final var state = this.state.updateAndGet(V10ClientState::terminate);
+        final var state = this.state.updateAndGet(V10SignalingClientState::terminate);
 
         try {
             state.closeSession();

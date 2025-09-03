@@ -3,10 +3,7 @@ package dev.getelements.elements.crossfire.service;
 import dev.getelements.elements.crossfire.model.ProtocolMessage;
 import dev.getelements.elements.crossfire.model.error.DuplicateConnectionException;
 import dev.getelements.elements.crossfire.model.error.MessageBufferOverrunException;
-import dev.getelements.elements.crossfire.model.signal.BroadcastSignal;
-import dev.getelements.elements.crossfire.model.signal.DirectSignal;
-import dev.getelements.elements.crossfire.model.signal.HostBroadcastSignal;
-import dev.getelements.elements.crossfire.model.signal.Signal;
+import dev.getelements.elements.crossfire.model.signal.*;
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.util.Monitor;
 import org.slf4j.Logger;
@@ -131,13 +128,17 @@ public class MemoryMatchState {
 
         public void publish(final BroadcastSignal signal) {
             try (var mon = Monitor.enter(read)) {
-                sessionStates
-                        .values()
-                        .stream()
-                        .map(SessionState::getSubscriptionRecord)
-                        .filter(Objects::nonNull)
-                        .forEach(subscription -> subscription.onMessage(signal));
+                doPublish(signal);
             }
+        }
+
+        private void doPublish(final BroadcastSignal signal) {
+            sessionStates
+                    .values()
+                    .stream()
+                    .map(SessionState::getSubscriptionRecord)
+                    .filter(Objects::nonNull)
+                    .forEach(subscription -> subscription.onMessage(signal));
         }
 
         public void publishAndPersist(final DirectSignal signal) {
@@ -212,6 +213,10 @@ public class MemoryMatchState {
 
             private SessionState(final String profileId) {
                 this.profileId = requireNonNull(profileId, "profileId cannot be null");
+                final var connect = new ConnectBroadcastSignal();
+                connect.setProfileId(profileId);
+                append(connect);
+                doPublish(connect);
             }
 
             public int size() {
@@ -257,12 +262,7 @@ public class MemoryMatchState {
                 append(signal);
 
                 // Informs the whole match that there is indeed a new host.
-                sessionStates
-                        .values()
-                        .stream()
-                        .map(s -> s.subscription.get())
-                        .filter(Objects::nonNull)
-                        .forEach(s -> s.onMessage(signal));
+                doPublish(signal);
 
             }
 

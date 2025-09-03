@@ -38,6 +38,16 @@ public interface ProtocolMessage {
         MATCHED(HANDSHAKE, MatchedResponse.class),
 
         /**
+         * Represents a signal indicating that a profile disconnected from the session.
+         */
+        CONNECT(SIGNALING, ConnectBroadcastSignal.class),
+
+        /**
+         * Represents a signal indicating that a profile disconnected from the session.
+         */
+        DISCONNECT(SIGNALING, DisconnectBroadcastSignal.class),
+
+        /**
          * Represents a signal that carries an SDP offer.
          */
         SDP_OFFER(SIGNALING, SdpOfferDirectSignal.class),
@@ -61,11 +71,6 @@ public interface ProtocolMessage {
          * Represents a signal that carries a candidate for the WebRTC connection.
          */
         CANDIDATE(SIGNALING, CandidateBroadcastSignal.class),
-
-        /**
-         * Represents a signal indicating that a profile disconnected from the session.
-         */
-        DISCONNECT(SIGNALING, DisconnectBroadcastSignal.class),
 
         /**
          * Specifies the designated HOST profile

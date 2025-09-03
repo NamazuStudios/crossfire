@@ -1,7 +1,7 @@
 package dev.getelements.elements.crossfire;
 
-import dev.getelements.elements.crossfire.client.Client;
-import dev.getelements.elements.crossfire.client.v10.V10Client;
+import dev.getelements.elements.crossfire.client.SignalingClient;
+import dev.getelements.elements.crossfire.client.v10.V10SignalingClient;
 import dev.getelements.elements.crossfire.model.handshake.FindHandshakeRequest;
 import dev.getelements.elements.sdk.dao.ApplicationConfigurationDao;
 import dev.getelements.elements.sdk.model.application.MatchmakingApplicationConfiguration;
@@ -23,8 +23,8 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
-import static dev.getelements.elements.crossfire.client.ClientPhase.CONNECTED;
-import static dev.getelements.elements.crossfire.client.ClientPhase.SIGNALING;
+import static dev.getelements.elements.crossfire.client.SignalingClientPhase.CONNECTED;
+import static dev.getelements.elements.crossfire.client.SignalingClientPhase.SIGNALING;
 import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.MATCHED;
 import static dev.getelements.elements.crossfire.model.handshake.HandshakeRequest.VERSION_1_0;
 import static dev.getelements.elements.sdk.model.user.User.Level.USER;
@@ -72,7 +72,7 @@ public class TestBasicMatchmaking {
         testContextList = IntStream.range(0, TEST_PLAYER_COUNT)
                 .mapToObj(i -> {
 
-                    final var client = new V10Client();
+                    final var client = new V10SignalingClient();
                     final var user = server.createUser(format("test_%d_user", i), USER);
                     final var profile = server.createProfile(user, format("test_%d_profile", i));
                     final var session = server.newSessionForUser(user, profile);
@@ -110,7 +110,7 @@ public class TestBasicMatchmaking {
     @Test(dataProvider = "allContexts")
     public void testFindHandshake(final TestContext context) throws InterruptedException {
 
-        assertEquals(context.client().getPhase(), CONNECTED);
+        assertEquals(context.signalingClient().getPhase(), CONNECTED);
 
         final var request = new FindHandshakeRequest();
         request.setVersion(VERSION_1_0);
@@ -118,14 +118,14 @@ public class TestBasicMatchmaking {
         request.setProfileId(context.profile().getId());
         request.setSessionKey(context.creation().getSessionSecret());
 
-        final var response = context.client().handshake(request, 30, TimeUnit.SECONDS);
+        final var response = context.signalingClient().handshake(request, 30, TimeUnit.SECONDS);
         assertNotNull(response);
         assertEquals(response.getType(), MATCHED);
         assertNotNull(response.getMatchId());
 
-        assertEquals(context.client().getPhase(), SIGNALING);
-        assertEquals(context.client().getHandshakeResponse().getMatchId(), response.getMatchId());
-        assertEquals(context.client().findHandshakeResponse().get().getMatchId(), response.getMatchId());
+        assertEquals(context.signalingClient().getPhase(), SIGNALING);
+        assertEquals(context.signalingClient().getHandshakeResponse().getMatchId(), response.getMatchId());
+        assertEquals(context.signalingClient().findHandshakeResponse().get().getMatchId(), response.getMatchId());
 
         logger.info("Found match: {}", response.getMatchId());
 
@@ -139,7 +139,7 @@ public class TestBasicMatchmaking {
     public record TestContext(
             User user,
             Profile profile,
-            Client client,
+            SignalingClient signalingClient,
             SessionCreation creation
     ) {}
 

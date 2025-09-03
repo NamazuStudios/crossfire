@@ -4,11 +4,10 @@ import dev.getelements.elements.crossfire.model.error.ProtocolError;
 import dev.getelements.elements.crossfire.model.error.TimeoutException;
 import dev.getelements.elements.crossfire.model.handshake.HandshakeRequest;
 import dev.getelements.elements.crossfire.model.handshake.HandshakeResponse;
-import dev.getelements.elements.crossfire.model.signal.BroadcastSignal;
-import dev.getelements.elements.crossfire.model.signal.DirectSignal;
 import dev.getelements.elements.crossfire.model.signal.Signal;
 import dev.getelements.elements.sdk.Subscription;
 
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
@@ -17,21 +16,26 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-public interface Client extends AutoCloseable {
+/**
+ * The Client interface to the Crossfire server. Crossfire handles the signaling and relay of data.
+ */
+public interface SignalingClient extends AutoCloseable {
+
+    /**
+     * Gets the state of the match.
+     *
+     * @return the state of the match
+     */
+    MatchState getState();
 
     /**
      * Returns the current phase of the client.
      *
      * @return the phase
      */
-    ClientPhase getPhase();
-
-    /**
-     * Gets the peer connection pool.
-     *
-     * @return the peer connection pool.
-     */
-    PeerConnectionPool getPeerConnectionPool();
+    default SignalingClientPhase getPhase() {
+        return getState().getPhase();
+    }
 
     /**
      * Sends the given signal to the server.
@@ -42,7 +46,7 @@ public interface Client extends AutoCloseable {
 
     /**
      * Returns the current {@link HandshakeResponse} if available. If the response is not available, it throws a
-     * {@link NoSuchElementException}. Will always be available in the {@link ClientPhase#SIGNALING} phase or later.
+     * {@link NoSuchElementException}. Will always be available in the {@link SignalingClientPhase#SIGNALING} phase or later.
      *
      * @return the current handshake response
      */
@@ -121,11 +125,18 @@ public interface Client extends AutoCloseable {
     }
 
     /**
-     * Subscribes to the error events.
+     * Subscribes to the client error events.
      *
      * @return a subscription to the error event
      */
-    Subscription onError(BiConsumer<Subscription, ProtocolError> listener);
+    Subscription onClientError(BiConsumer<Subscription, Throwable> listener);
+
+    /**
+     * Subscribes to the protocol error events.
+     *
+     * @return a subscription to the error event
+     */
+    Subscription onProtocolError(BiConsumer<Subscription, ProtocolError> listener);
 
     /**
      * Subscribes to the handshake response events.
@@ -145,5 +156,32 @@ public interface Client extends AutoCloseable {
      * Closes the client connection and releases any resources associated with it.
      */
     void close();
+
+    /**
+     * Gets the current match state.
+     */
+    interface MatchState {
+
+        /**
+         * Gets the phase of the signaling client.
+         * @return the phase
+         */
+        SignalingClientPhase getPhase();
+
+        /**
+         * Gets the host profile id, or null if not available.
+         *
+         * @return the host
+         */
+        String getHost();
+
+        /**
+         * Gets the list of all profiles in the match.
+         *
+         * @return the profiles
+         */
+        List<String> getProfiles();
+
+    }
 
 }

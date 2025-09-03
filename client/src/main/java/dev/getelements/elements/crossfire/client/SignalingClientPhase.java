@@ -1,6 +1,9 @@
 package dev.getelements.elements.crossfire.client;
 
-public enum ClientPhase {
+/**
+ * Indicates the client connection phase.
+ */
+public enum SignalingClientPhase {
 
     /**
      * Indicates that the client is not connected to any server, but is ready to connect to one.

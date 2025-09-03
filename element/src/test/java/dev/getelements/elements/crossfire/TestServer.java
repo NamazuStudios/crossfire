@@ -1,6 +1,6 @@
 package dev.getelements.elements.crossfire;
 
-import dev.getelements.elements.crossfire.client.v10.V10Client;
+import dev.getelements.elements.crossfire.client.v10.V10SignalingClient;
 import dev.getelements.elements.dao.mongo.test.DockerMongoTestInstance;
 import dev.getelements.elements.dao.mongo.test.MongoTestInstance;
 import dev.getelements.elements.sdk.dao.ApplicationDao;
@@ -16,7 +16,6 @@ import dev.getelements.elements.sdk.model.session.SessionCreation;
 import dev.getelements.elements.sdk.model.user.User;
 import dev.getelements.elements.sdk.util.ShutdownHooks;
 import jakarta.websocket.ContainerProvider;
-import jakarta.websocket.WebSocketContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -96,7 +95,7 @@ public class TestServer {
 
         for (int i = 0; i < STARTUP_TIMEOUT_SECONDS; i++) {
 
-            try (var session = container.connectToServer(V10Client.class, getTestTestServerWsUrl())) {
+            try (var session = container.connectToServer(V10SignalingClient.class, getTestTestServerWsUrl())) {
                 logger.info("Test Server WebSocket connection established.");
                 break;
             } catch (Exception e) {
