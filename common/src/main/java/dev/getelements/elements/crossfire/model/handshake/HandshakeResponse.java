@@ -1,10 +1,12 @@
 package dev.getelements.elements.crossfire.model.handshake;
 
 import dev.getelements.elements.crossfire.model.ProtocolMessage;
+import dev.getelements.elements.sdk.annotation.ElementPublic;
 
 /**
  * Interface representing a response to a handshake request in the Elements Crossfire protocol.
  */
+@ElementPublic
 public interface HandshakeResponse extends ProtocolMessage {
 
     /**

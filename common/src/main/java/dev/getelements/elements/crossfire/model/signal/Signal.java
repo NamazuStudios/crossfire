@@ -1,10 +1,12 @@
 package dev.getelements.elements.crossfire.model.signal;
 
 import dev.getelements.elements.crossfire.model.ProtocolMessage;
+import dev.getelements.elements.sdk.annotation.ElementPublic;
 
 /**
  * Represents a signal in the Crossfire protocol. Signals are used to communicate various events and data among clients.
  */
+@ElementPublic
 public interface Signal extends ProtocolMessage {
 
     /**

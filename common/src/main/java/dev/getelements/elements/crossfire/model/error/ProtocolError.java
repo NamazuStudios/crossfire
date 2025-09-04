@@ -1,10 +1,12 @@
 package dev.getelements.elements.crossfire.model.error;
 
 import dev.getelements.elements.crossfire.model.ProtocolMessage;
+import dev.getelements.elements.sdk.annotation.ElementPublic;
 
 /**
  * Represents a protocol error in the Crossfire system.
  */
+@ElementPublic
 public interface ProtocolError extends ProtocolMessage {
 
     /**

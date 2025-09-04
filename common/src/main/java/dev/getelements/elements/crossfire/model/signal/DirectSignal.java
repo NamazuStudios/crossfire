@@ -1,10 +1,11 @@
 package dev.getelements.elements.crossfire.model.signal;
 
-import dev.getelements.elements.crossfire.model.ProtocolMessage;
+import dev.getelements.elements.sdk.annotation.ElementPublic;
 
 /**
  * Generic interface for signals that are sent to a specific recipient.
  */
+@ElementPublic
 public interface DirectSignal extends Signal {
 
     /**

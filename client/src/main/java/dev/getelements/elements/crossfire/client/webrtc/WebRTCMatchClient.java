@@ -8,7 +8,6 @@ import dev.getelements.elements.sdk.Subscription;
 import dev.onvoid.webrtc.PeerConnectionFactory;
 import dev.onvoid.webrtc.RTCAnswerOptions;
 import dev.onvoid.webrtc.RTCConfiguration;
-import dev.onvoid.webrtc.RTCDataChannelInit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -103,8 +102,6 @@ public class WebRTCMatchClient implements MatchClient {
 
         private Supplier<RTCAnswerOptions> answerOptionsSupplier = RTCAnswerOptions::new;
 
-        private Supplier<RTCDataChannelInit> dataChannelInitSupplier = RTCDataChannelInit::new;
-
         private Function<String, RTCConfiguration> peerConfigurationProvider = pid -> new RTCConfiguration();
 
         /**
@@ -169,17 +166,6 @@ public class WebRTCMatchClient implements MatchClient {
          */
         public Builder withOfferOptionsSupplier(final Supplier<RTCAnswerOptions> answerOptionsSupplier) {
             this.answerOptionsSupplier = answerOptionsSupplier;
-            return this;
-        }
-
-        /**
-         * Sets the supplier for RTCDataChannelInit to use when creating a data channel.
-         *
-         * @param dataChannelInitSupplier
-         * @return this builder
-         */
-        public Builder withDataChannelInitSupplier(final Supplier<RTCDataChannelInit> dataChannelInitSupplier) {
-            this.dataChannelInitSupplier = dataChannelInitSupplier;
             return this;
         }
 

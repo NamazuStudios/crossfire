@@ -7,7 +7,6 @@ import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.annotation.ElementPublic;
 import dev.getelements.elements.sdk.annotation.ElementServiceExport;
 
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
