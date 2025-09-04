@@ -70,7 +70,7 @@ public interface ProtocolMessage {
         /**
          * Represents a signal that carries a candidate for the WebRTC connection.
          */
-        CANDIDATE(SIGNALING, CandidateBroadcastSignal.class),
+        CANDIDATE(SIGNALING_DIRECT, CandidateDirectSignal.class),
 
         /**
          * Specifies the designated HOST profile

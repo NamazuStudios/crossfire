@@ -4,10 +4,13 @@ import jakarta.validation.constraints.NotNull;
 
 import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.CANDIDATE;
 
-public class CandidateBroadcastSignal implements BroadcastSignal {
+public class CandidateDirectSignal implements DirectSignal {
 
     @NotNull
     private String profileId;
+
+    @NotNull
+    private String recipientProfileId;
 
     @NotNull
     private String mid;
@@ -32,6 +35,15 @@ public class CandidateBroadcastSignal implements BroadcastSignal {
 
     public void setProfileId(String profileId) {
         this.profileId = profileId;
+    }
+
+    @Override
+    public String getRecipientProfileId() {
+        return recipientProfileId;
+    }
+
+    public void setRecipientProfileId(String recipientProfileId) {
+        this.recipientProfileId = recipientProfileId;
     }
 
     public String getMid() {
