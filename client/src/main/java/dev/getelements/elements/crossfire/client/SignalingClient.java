@@ -1,6 +1,5 @@
 package dev.getelements.elements.crossfire.client;
 
-import dev.getelements.elements.crossfire.model.error.ProtocolError;
 import dev.getelements.elements.crossfire.model.error.TimeoutException;
 import dev.getelements.elements.crossfire.model.handshake.HandshakeRequest;
 import dev.getelements.elements.crossfire.model.handshake.HandshakeResponse;
@@ -125,20 +124,6 @@ public interface SignalingClient extends AutoCloseable {
     }
 
     /**
-     * Subscribes to the client error events.
-     *
-     * @return a subscription to the error event
-     */
-    Subscription onClientError(BiConsumer<Subscription, Throwable> listener);
-
-    /**
-     * Subscribes to the protocol error events.
-     *
-     * @return a subscription to the error event
-     */
-    Subscription onProtocolError(BiConsumer<Subscription, ProtocolError> listener);
-
-    /**
      * Subscribes to the handshake response events.
      *
      * @return a subscription to the handshake event
@@ -151,6 +136,13 @@ public interface SignalingClient extends AutoCloseable {
      * @return a subscription to the signaling event
      */
     Subscription onSignal(BiConsumer<Subscription, Signal> listener);
+
+    /**
+     * Subscribes to the client error events.
+     *
+     * @return a subscription to the error event
+     */
+    Subscription onClientError(BiConsumer<Subscription, Throwable> listener);
 
     /**
      * Closes the client connection and releases any resources associated with it.
@@ -174,6 +166,13 @@ public interface SignalingClient extends AutoCloseable {
          * @return the host
          */
         String getHost();
+
+        /**
+         * Gets the Profile id of the client.
+         *
+         * @return the profile id
+         */
+        String getProfileId();
 
         /**
          * Gets the list of all profiles in the match.

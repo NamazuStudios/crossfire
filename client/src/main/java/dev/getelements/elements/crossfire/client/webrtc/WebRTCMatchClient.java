@@ -4,6 +4,7 @@ import dev.getelements.elements.crossfire.client.MatchClient;
 import dev.getelements.elements.crossfire.client.Peer;
 import dev.getelements.elements.crossfire.client.SignalingClient;
 import dev.getelements.elements.crossfire.model.error.ProtocolError;
+import dev.getelements.elements.crossfire.model.signal.Signal;
 import dev.getelements.elements.sdk.Subscription;
 import dev.onvoid.webrtc.PeerConnectionFactory;
 import dev.onvoid.webrtc.RTCAnswerOptions;
@@ -31,25 +32,22 @@ public class WebRTCMatchClient implements MatchClient {
     private final WebRTCMatchClientPeer peer;
 
     public WebRTCMatchClient(
-            final String profileId,
             final String remoteProfileId,
             final SignalingClient signaling,
             final PeerConnectionFactory peerConnectionFactory,
             final Function<String, RTCConfiguration> peerConfigurationProvider,
             final Supplier<RTCAnswerOptions> answerOptionsSupplier) {
 
-        requireNonNull(profileId, "profileId");
         requireNonNull(signaling, "signaling");
         requireNonNull(peerConnectionFactory, "peerConnectionFactory");
         requireNonNull(peerConfigurationProvider, "peerConfigurationProvider");
         requireNonNull(answerOptionsSupplier, "offerOptionsSupplier");
 
         this.subscription = Subscription.begin()
-                .chain(signaling.onClientError(this::onClientError))
-                .chain(signaling.onProtocolError(this::onProtocolError));
+                .chain(signaling.onSignal(this::onSignal))
+                .chain(signaling.onClientError(this::onClientError));
 
         this.peer = new WebRTCMatchClientPeer(new WebRTCMatchClientPeer.Record(
-                profileId,
                 remoteProfileId,
                 signaling,
                 answerOptionsSupplier.get(),
@@ -59,22 +57,30 @@ public class WebRTCMatchClient implements MatchClient {
                 }
         ));
 
+        this.peer.connect();
+
     }
 
-    private void onClientError(final Subscription subscription, final Throwable throwable) {
-        logger.error("Client error. Terminating host.");
-        close();
+    private void onSignal(final Subscription subscription, final Signal signal) {
+        switch (signal.getType()) {
+            case ERROR -> onProtocolError(subscription, (ProtocolError) signal);
+        }
     }
 
     private void onProtocolError(final Subscription subscription, final ProtocolError protocolError) {
 
-        logger.error("Protocol error. Terminating host: {} - {}",
+        logger.error("Protocol error. Terminating client: {} - {}",
                 protocolError.getCode(),
                 protocolError.getMessage()
         );
 
         close();
 
+    }
+
+    private void onClientError(final Subscription subscription, final Throwable throwable) {
+        logger.error("Client error. Terminating host.");
+        close();
     }
 
     @Override
@@ -184,7 +190,6 @@ public class WebRTCMatchClient implements MatchClient {
                     : peerConnectionFactory;
 
             return new WebRTCMatchClient(
-                    profileId,
                     remoteProfileId,
                     signaling,
                     pcf,

@@ -357,6 +357,7 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
         if (SIGNALING.equals(update.phase())) {
             final var response = new MatchedResponse();
             response.setMatchId(update.match().getId());
+            response.setProfileId(update.auth().profile().getId());
             update.session().getAsyncRemote().sendObject(response);
             processBacklog(existing);
             getSignalingHandler().start(this, update.session(), update.match(), update.auth());

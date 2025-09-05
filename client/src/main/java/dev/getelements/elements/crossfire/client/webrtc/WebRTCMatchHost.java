@@ -17,6 +17,7 @@ import dev.onvoid.webrtc.RTCOfferOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -32,8 +33,6 @@ import static java.util.Objects.requireNonNull;
 public class WebRTCMatchHost implements MatchHost {
 
     private static final Logger logger = LoggerFactory.getLogger(WebRTCMatchHost.class);
-
-    private final String profileId;
 
     private final SignalingClient signaling;
 
@@ -51,14 +50,12 @@ public class WebRTCMatchHost implements MatchHost {
 
     private final ConcurrentMap<String, WebRTCMatchHostPeer> connections = new ConcurrentHashMap<>();
 
-    public WebRTCMatchHost(final String profileId,
-                           final SignalingClient signalingClient,
+    public WebRTCMatchHost(final SignalingClient signalingClient,
                            final PeerConnectionFactory peerConnectionFactory,
                            final Supplier<RTCOfferOptions> offerOptionsSupplier,
                            final Supplier<RTCDataChannelInit> dataChannelInitSupplier,
                            final Function<String, RTCConfiguration> peerConfigurationProvider) {
 
-        this.profileId = requireNonNull(profileId, "profileId");
         this.signaling = requireNonNull(signalingClient, "signalingClient");
         this.peerConnectionFactory = requireNonNull(peerConnectionFactory, "peerConnectionFactory");
         this.offerOptionsSupplier = requireNonNull(offerOptionsSupplier, "offerOptionsSupplier");
@@ -67,37 +64,31 @@ public class WebRTCMatchHost implements MatchHost {
 
         this.subscription = Subscription.begin()
                 .chain(this.signaling.onSignal(this::onSignal))
-                .chain(this.signaling.onClientError(this::onClientError))
-                .chain(this.signaling.onProtocolError(this::onProtocolError));
+                .chain(this.signaling.onClientError(this::onClientError));
 
-        this.signaling.getState().getProfiles().forEach(this::createSocketAndMakeOffer);
+        this.signaling.getState().getProfiles().forEach(this::connect);
 
     }
 
     private void onSignal(final Subscription subscription, final Signal signal) {
         switch (signal.getType()) {
+            case ERROR -> onProtocolError((ProtocolError) signal);
             case CONNECT -> onSignalConnect((ConnectBroadcastSignal) signal);
             case DISCONNECT -> onSignalDisconnect((DisconnectBroadcastSignal) signal);
-            default -> logger.trace("Ignoring signal type: {}", signal.getType());
         }
     }
 
     private void onSignalConnect(final ConnectBroadcastSignal signal) {
         logger.debug("Received connection signal: {}", signal);
-        createSocketAndMakeOffer(signal.getProfileId());
+        connect(signal.getProfileId());
     }
 
     private void onSignalDisconnect(final DisconnectBroadcastSignal signal) {
-        final var peer = connections.remove(signal.getProfileId());
+        connections.remove(signal.getProfileId());
         logger.debug("Removed peer {} due to disconnect signal", signal.getProfileId());
     }
 
-    private void onClientError(final Subscription subscription, final Throwable throwable) {
-        logger.error("Client error. Terminating host.");
-        close();
-    }
-
-    private void onProtocolError(final Subscription subscription, final ProtocolError protocolError) {
+    private void onProtocolError(final ProtocolError protocolError) {
 
         logger.error("Protocol error. Terminating host: {} - {}",
                 protocolError.getCode(),
@@ -108,11 +99,18 @@ public class WebRTCMatchHost implements MatchHost {
 
     }
 
-    private void createSocketAndMakeOffer(final String remoteProfileId) {
+    private void onClientError(final Subscription subscription, final Throwable throwable) {
+        logger.error("Client error. Terminating host.");
+        close();
+    }
+
+    private void connect(final String remoteProfileId) {
 
         // The host does not connect to themselves
-        if (profileId.equals(remoteProfileId))
+        if (Objects.equals(remoteProfileId, signaling.getState().getProfileId()))
             return;
+
+        final var profileId = signaling.getState().getProfileId();
 
         final LazyValue<WebRTCMatchHostPeer> peer = new SimpleLazyValue<>(() -> new WebRTCMatchHostPeer(
                 new WebRTCMatchHostPeer.Record(
@@ -132,6 +130,12 @@ public class WebRTCMatchHost implements MatchHost {
 
         // Compute the connection if absent.
         final var connected = connections.computeIfAbsent(profileId, id -> peer.get());
+
+        // Connect any peer that was actually used and put in the map
+
+        peer.getOptional()
+            .filter(p -> p == connected)
+            .ifPresent(WebRTCMatchHostPeer::connect);
 
         // Close any peer that was created but not used. This shouldn't happen but this is safeguard
         // as the underlying host contains a handle to native resources which must be closed.
@@ -164,8 +168,6 @@ public class WebRTCMatchHost implements MatchHost {
      */
     public static class Builder {
 
-        private String profileId;
-
         private SignalingClient signalingClient;
 
         private PeerConnectionFactory peerConnectionFactory;
@@ -175,17 +177,6 @@ public class WebRTCMatchHost implements MatchHost {
         private Supplier<RTCDataChannelInit> dataChannelInitSupplier = RTCDataChannelInit::new;
 
         private Function<String, RTCConfiguration> peerConfigurationProvider = pid -> new RTCConfiguration();
-
-        /**
-         * Specifies the profile ID of the local user.
-         *
-         * @param profileId the profile id
-         * @return this instance
-         */
-        public Builder withProfileId(final String profileId) {
-            this.profileId = profileId;
-            return this;
-        }
 
         /**
          * Specifies the {@link SignalingClient} to use to connect matches.
@@ -257,7 +248,7 @@ public class WebRTCMatchHost implements MatchHost {
          */
         public WebRTCMatchHost build() {
 
-            if (profileId == null || signalingClient == null) {
+            if (signalingClient == null) {
                 throw new IllegalStateException("All parameters must be set before building WebRTCMatchHost");
             }
 
@@ -269,7 +260,6 @@ public class WebRTCMatchHost implements MatchHost {
                     : peerConnectionFactory;
 
             return new WebRTCMatchHost(
-                    profileId,
                     signalingClient,
                     pcf,
                     offerOptionsSupplier,

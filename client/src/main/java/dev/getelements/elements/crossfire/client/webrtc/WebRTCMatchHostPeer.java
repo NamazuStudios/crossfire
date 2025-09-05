@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
 import static java.util.Objects.requireNonNull;
@@ -21,16 +22,14 @@ public class WebRTCMatchHostPeer extends WebRTCPeer {
 
     private final Subscription subscription;
 
-    private final RTCDataChannel dataChannel;
-
-    private final RTCPeerConnection peerConnection;
+    private final AtomicReference<WebRTCPeerConnectionState> peerConnectionState = new AtomicReference<>(WebRTCPeerConnectionState.create());
 
     private final PeerConnectionObserver peerConnectionObserver = new PeerConnectionObserver() {
 
         @Override
         public void onIceCandidate(final RTCIceCandidate candidate) {
             final var signal = new CandidateDirectSignal();
-            signal.setProfileId(peerRecord.profileId);
+            signal.setProfileId(peerRecord.profileId());
             signal.setRecipientProfileId(peerRecord.remoteProfileId);
             signal.setMid(candidate.sdpMid);
             signal.setCandidate(candidate.sdp);
@@ -61,62 +60,57 @@ public class WebRTCMatchHostPeer extends WebRTCPeer {
 
         final var options = peerRecord.offerOptions;
 
-        peerConnection.createOffer(options, new CreateSessionDescriptionObserver() {
+        peerConnectionState
+                .get()
+                .findConnection()
+                .ifPresent(c -> c.createOffer(options, new CreateSessionDescriptionObserver() {
 
-            @Override
-            public void onSuccess(final RTCSessionDescription description) {
-                logger.debug("Received session description: {}", description);
-                setLocalDescription(description);
-            }
+                        @Override
+                        public void onSuccess(final RTCSessionDescription description) {
+                            logger.debug("Received session descr`iption: {}", description);
+                            setLocalDescription(description);
+                        }
 
-            @Override
-            public void onFailure(final String error) {
-                logger.error("Failed to create offer: {}. Closing connection.", error);
-                onError.publish(new PeerError(error));
-                close();
-            }
+                        @Override
+                        public void onFailure(final String error) {
+                            logger.error("Failed to create offer: {}. Closing connection.", error);
+                            onError.publish(new PeerError(error));
+                            close();
+                        }
 
-        });
+                    }));
 
     }
 
     private void setLocalDescription(final RTCSessionDescription description) {
-        peerConnection.setLocalDescription(description, new SetSessionDescriptionObserver() {
+        peerConnectionState
+                .get()
+                .findConnection()
+                .ifPresent(c -> c.setLocalDescription(description, new SetSessionDescriptionObserver() {
 
-            @Override
-            public void onSuccess() {
-                logger.debug("Set local session description: {}", description);
-                final var signal = new SdpOfferDirectSignal();
-                signal.setPeerSdp(description.sdp);
-                signal.setProfileId(peerRecord.profileId);
-                signal.setRecipientProfileId(peerRecord.remoteProfileId);
-                peerRecord.signaling.signal(signal);
-            }
+                    @Override
+                    public void onSuccess() {
+                        logger.debug("Set local session description: {}", description);
+                        final var signal = new SdpOfferDirectSignal();
+                        signal.setPeerSdp(description.sdp);
+                        signal.setProfileId(peerRecord.profileId());
+                        signal.setRecipientProfileId(peerRecord.remoteProfileId());
+                        peerRecord.signaling().signal(signal);
+                    }
 
-            @Override
-            public void onFailure(String error) {
-                logger.error("Failed to set description: {}. Closing connection.", error);
-                onError.publish(new PeerError(error));
-                close();
-            }
+                    @Override
+                    public void onFailure(String error) {
+                        logger.error("Failed to set description: {}. Closing connection.", error);
+                        onError.publish(new PeerError(error));
+                        close();
+                    }
 
-        });
+                }));
     }
 
     public WebRTCMatchHostPeer(final Record peerRecord) {
-
         this.peerRecord = requireNonNull(peerRecord, "peerRecord");
-        this.peerConnection = peerRecord.peerConnectionConstructor().apply(peerConnectionObserver);
-
-        this.dataChannel = peerConnection.createDataChannel(
-                peerRecord.dataChannelLabel,
-                peerRecord.dataChannelInit
-        );
-
-        this.dataChannel.registerObserver(dataChannelObserver);
         this.subscription = peerRecord.signaling.onSignal(this::onSignal);
-        createOffer();
-
     }
 
     private void onSignal(final Subscription subscription, final Signal signal) {
@@ -151,8 +145,22 @@ public class WebRTCMatchHostPeer extends WebRTCPeer {
     private void onSignalDisconnect(final Subscription subscription,
                                     final DisconnectBroadcastSignal signal) {
         if (signal.getProfileId().equals(peerRecord.remoteProfileId)) {
-            doClose(subscription);
+            close();
         }
+    }
+
+    public void connect() {
+        this.peerConnection = peerRecord.peerConnectionConstructor().apply(peerConnectionObserver);
+
+        this.dataChannel = peerConnection.createDataChannel(
+                peerRecord.dataChannelLabel,
+                peerRecord.dataChannelInit
+        );
+
+        this.dataChannel.registerObserver(dataChannelObserver);
+
+        createOffer();
+
     }
 
     @Override
@@ -166,16 +174,18 @@ public class WebRTCMatchHostPeer extends WebRTCPeer {
     }
 
     public void close() {
-        doClose(subscription);
-    }
 
-    private void doClose(final Subscription subscription) {
-        subscription.unsubscribe();
-        peerConnection.close();
+        final var old = peerConnectionState.getAndUpdate(WebRTCPeerConnectionState::close);
+
+        if (old.open()) {
+            subscription.unsubscribe();
+            old.findChannel().ifPresent(RTCDataChannel::close);
+            old.findConnection().ifPresent(RTCPeerConnection::close);
+        }
+
     }
 
     public record Record(
-           String profileId,
            String remoteProfileId,
            SignalingClient signaling,
            String dataChannelLabel,
@@ -184,13 +194,16 @@ public class WebRTCMatchHostPeer extends WebRTCPeer {
            Function<PeerConnectionObserver, RTCPeerConnection> peerConnectionConstructor) {
 
         public Record {
-            requireNonNull(profileId, "profileId");
             requireNonNull(remoteProfileId, "remoteProfileId");
             requireNonNull(signaling, "signaling");
             requireNonNull(dataChannelLabel, "dataChannelLabel");
             requireNonNull(offerOptions, "offerOptions");
             requireNonNull(dataChannelInit, "dataChannelInit");
             requireNonNull(peerConnectionConstructor, "peerConnectionConstructor");
+        }
+
+        public String profileId() {
+            return signaling().getState().getProfileId();
         }
 
     }

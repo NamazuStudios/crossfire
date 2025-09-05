@@ -1,0 +1,124 @@
+package dev.getelements.elements.crossfire.client.signaling;
+
+import dev.getelements.elements.crossfire.client.Peer;
+import dev.getelements.elements.crossfire.client.PeerError;
+import dev.getelements.elements.crossfire.client.SignalingClient;
+import dev.getelements.elements.crossfire.model.error.ProtocolError;
+import dev.getelements.elements.crossfire.model.signal.BinaryBroadcastSignal;
+import dev.getelements.elements.crossfire.model.signal.BinaryRelayDirectSignal;
+import dev.getelements.elements.crossfire.model.signal.Signal;
+import dev.getelements.elements.sdk.Subscription;
+import dev.getelements.elements.sdk.util.ConcurrentDequePublisher;
+import dev.getelements.elements.sdk.util.Publisher;
+
+import java.nio.ByteBuffer;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiConsumer;
+
+import static dev.getelements.elements.crossfire.client.Peer.SendStatus.SENT;
+import static dev.getelements.elements.crossfire.client.Peer.SendStatus.TERMINATED;
+import static dev.getelements.elements.crossfire.model.signal.SignalLifecycle.ONCE;
+
+public class SignalingPeer implements Peer, AutoCloseable{
+
+    private final SignalingClient signaling;
+
+    private final String profileId;
+
+    private final String remoteProfileId;
+
+    private final Subscription subscription;
+
+    private final AtomicBoolean open = new AtomicBoolean(true);
+
+    private final Publisher<Message> onMessage = new ConcurrentDequePublisher<>();
+
+    private final Publisher<Throwable> onError = new ConcurrentDequePublisher<>();
+
+    public SignalingPeer(
+            final SignalingClient signaling,
+            final String profileId,
+            final String remoteProfileId) {
+        this.remoteProfileId = remoteProfileId;
+        this.signaling = signaling;
+        this.profileId = profileId;
+        this.subscription = Subscription.begin()
+                .chain(signaling.onSignal(this::onSignal))
+                .chain(signaling.onClientError(this::onClientError));
+    }
+
+    private void onSignal(final Subscription subscription, final Signal signal) {
+        switch (signal.getType()) {
+            case ERROR -> onProtocolError(subscription, (ProtocolError) signal);
+            case BINARY_RELAY -> onBinaryRelay(subscription, (BinaryRelayDirectSignal) signal);
+            case BINARY_BROADCAST -> onBinaryBroadcast(subscription, (BinaryBroadcastSignal) signal);
+        }
+    }
+
+    private void onBinaryRelay(final Subscription subscription, final BinaryRelayDirectSignal signal) {
+        final var buffer = ByteBuffer.wrap(signal.getPayload());
+        final var message = new Message(profileId, buffer);
+        onMessage.publish(message);
+    }
+
+    private void onBinaryBroadcast(final Subscription subscription, final BinaryBroadcastSignal signal) {
+        final var buffer = ByteBuffer.wrap(signal.getPayload());
+        final var message = new Message(profileId, buffer);
+        onMessage.publish(message);
+    }
+
+    private void onClientError(final Subscription subscription, final Throwable throwable) {
+        onError.publish(throwable);
+        close();
+    }
+
+    private void onProtocolError(final Subscription subscription, final ProtocolError protocolError) {
+        final var error = new PeerError(protocolError.getMessage());
+        onError.publish(error);
+        close();
+    }
+
+    @Override
+    public String getProfileId() {
+        return profileId;
+    }
+
+    @Override
+    public SendStatus send(final ByteBuffer buffer) {
+
+        if (!open.get()) {
+            return TERMINATED;
+        }
+
+        final var array = new byte[buffer.remaining()];
+        buffer.get(array);
+
+        final var signal = new BinaryRelayDirectSignal();
+        signal.setLifecycle(ONCE);
+        signal.setPayload(array);
+        signal.setProfileId(profileId);
+        signal.setRecipientProfileId(remoteProfileId);
+        signaling.signal(signal);
+
+        return SENT;
+
+    }
+
+    @Override
+    public Subscription onError(final BiConsumer<Subscription, Throwable> onError) {
+        return this.onError.subscribe(onError);
+    }
+
+    @Override
+    public Subscription onMessage(final BiConsumer<Subscription, Message> onMessage) {
+        return this.onMessage.subscribe(onMessage);
+    }
+
+    @Override
+    public void close() {
+        if (open.compareAndExchange(true, false)) {
+            subscription.unsubscribe();
+        }
+    }
+
+}

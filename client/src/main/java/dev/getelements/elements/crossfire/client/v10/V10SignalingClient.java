@@ -42,8 +42,6 @@ public class V10SignalingClient implements SignalingClient {
 
     private final Publisher<Throwable> onClientError = new ConcurrentDequePublisher<>();
 
-    private final Publisher<ProtocolError> onProtocolError = new ConcurrentDequePublisher<>();
-
     private final Publisher<HandshakeResponse> onHandshake = new ConcurrentDequePublisher<>();
 
     private final AtomicReference<V10SignalingClientState> state = new AtomicReference<>(create());
@@ -163,7 +161,6 @@ public class V10SignalingClient implements SignalingClient {
 
     private void onErrorMessage(final ProtocolError message) throws IOException {
         final var state = this.state.updateAndGet(V10SignalingClientState::terminate);
-        onProtocolError.publish(message);
         state.closeSession();
     }
 
@@ -206,11 +203,6 @@ public class V10SignalingClient implements SignalingClient {
     @Override
     public Subscription onClientError(BiConsumer<Subscription, Throwable> listener) {
         return onClientError.subscribe(listener);
-    }
-
-    @Override
-    public Subscription onProtocolError(final BiConsumer<Subscription, ProtocolError> listener) {
-        return onProtocolError.subscribe(listener);
     }
 
     @Override

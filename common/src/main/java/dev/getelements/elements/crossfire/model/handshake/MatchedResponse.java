@@ -12,6 +12,18 @@ public class MatchedResponse implements HandshakeResponse {
     @NotNull
     private String matchId;
 
+    @NotNull
+    private String profileId;
+
+    @Override
+    public String getProfileId() {
+        return profileId;
+    }
+
+    public void setProfileId(String profileId) {
+        this.profileId = profileId;
+    }
+
     @Override
     public Type getType() {
         return MATCHED;

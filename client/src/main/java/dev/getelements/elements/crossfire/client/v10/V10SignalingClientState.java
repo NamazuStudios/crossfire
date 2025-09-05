@@ -9,6 +9,7 @@ import jakarta.websocket.Session;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static dev.getelements.elements.crossfire.client.SignalingClientPhase.*;
 
@@ -96,6 +97,14 @@ record V10SignalingClientState(SignalingClientPhase phase,
     @Override
     public String getHost() {
         return host();
+    }
+
+    @Override
+    public String getProfileId() {
+        return Optional
+                .ofNullable(handshake())
+                .flatMap(p -> Optional.ofNullable(p.getProfileId()))
+                .orElse(null);
     }
 
     @Override

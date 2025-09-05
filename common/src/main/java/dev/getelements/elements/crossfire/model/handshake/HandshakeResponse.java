@@ -14,4 +14,12 @@ public interface HandshakeResponse extends ProtocolMessage {
      * @return the match id
      */
     String getMatchId();
+
+    /**
+     * Gets the profile id of the user associated with this handshake response.
+     *
+     * @return the profile id
+     */
+    String getProfileId();
+
 }

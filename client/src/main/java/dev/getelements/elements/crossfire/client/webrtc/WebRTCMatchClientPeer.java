@@ -22,20 +22,18 @@ public class WebRTCMatchClientPeer extends WebRTCPeer {
 
     private final Subscription subscription;
 
-    private final RTCPeerConnection peerConnection;
-
-    private final AtomicReference<RTCDataChannel> dataChannel = new AtomicReference<>();
+    private final AtomicReference<WebRTCPeerConnectionState> peerConnectionState = new AtomicReference<>(WebRTCPeerConnectionState.create());
 
     private final PeerConnectionObserver peerConnectionObserver = new PeerConnectionObserver() {
 
         @Override
         public void onIceCandidate(final RTCIceCandidate candidate) {
             final var signal = new CandidateDirectSignal();
-            signal.setProfileId(peerRecord.profileId);
-            signal.setRecipientProfileId(peerRecord.remoteProfileId);
+            signal.setProfileId(peerRecord.profileId());
+            signal.setRecipientProfileId(peerRecord.remoteProfileId());
             signal.setMid(candidate.sdpMid);
             signal.setCandidate(candidate.sdp);
-            peerRecord.signaling.signal(signal);
+            peerRecord.signaling().signal(signal);
         }
 
         @Override
@@ -58,21 +56,31 @@ public class WebRTCMatchClientPeer extends WebRTCPeer {
 
         @Override
         public void onDataChannel(final RTCDataChannel dataChannel) {
-            WebRTCMatchClientPeer.this.dataChannel.set(dataChannel);
+            peerConnectionState.updateAndGet(s -> s.channel(dataChannel));
         }
 
     };
 
     public WebRTCMatchClientPeer(final Record peerRecord) {
         this.peerRecord = requireNonNull(peerRecord, "peerRecord");
-        this.peerConnection = peerRecord.peerConnectionConstructor().apply(peerConnectionObserver);
         this.subscription = peerRecord.signaling.onSignal(this::onSignal);
     }
 
+    public void connect() {
+
+        final var connection = peerRecord.peerConnectionConstructor.apply(peerConnectionObserver);
+        final var state = peerConnectionState.updateAndGet(s -> s.connect(connection));
+
+        if (state.connection() != connection)
+            connection.close();
+        else if (!state.open())
+            connection.close();
+
+    }
 
     @Override
     protected Optional<RTCDataChannel> findDataChannel() {
-        return Optional.ofNullable(dataChannel.get());
+        return peerConnectionState.get().findChannel();
     }
 
     @Override
@@ -92,43 +100,45 @@ public class WebRTCMatchClientPeer extends WebRTCPeer {
 
         final var description = new RTCSessionDescription(RTCSdpType.OFFER, signal.getPeerSdp());
 
-        peerConnection.setRemoteDescription(description, new SetSessionDescriptionObserver() {
+        peerConnectionState.get().findConnection().ifPresent(connection ->
+                connection.setRemoteDescription(description, new SetSessionDescriptionObserver() {
 
-            @Override
-            public void onSuccess() {
-                logger.info("Set remote session description for peer {}", peerRecord.remoteProfileId);
-                createAnswer();
-            }
+                    @Override
+                    public void onSuccess() {
+                        logger.info("Set remote session description for peer {}", peerRecord.remoteProfileId);
+                        createAnswer();
+                    }
 
-            @Override
-            public void onFailure(final String error) {
-                logger.error("Failed to get answer: {}. Closing connection.", error);
-                close();
-            }
+                    @Override
+                    public void onFailure(final String error) {
+                        logger.error("Failed to get answer: {}. Closing connection.", error);
+                        close();
+                    }
 
-        });
+                }));
 
     }
 
     private void createAnswer() {
-        peerConnection.createAnswer(peerRecord.answerOptions, new CreateSessionDescriptionObserver() {
+        peerConnectionState.get().findConnection().ifPresent(connection ->
+                connection.createAnswer(peerRecord.answerOptions, new CreateSessionDescriptionObserver() {
 
-            @Override
-            public void onSuccess(final RTCSessionDescription description) {
-                final var signal = new SdpAnswerDirectSignal();
-                signal.setPeerSdp(description.sdp);
-                signal.setProfileId(peerRecord.profileId);
-                signal.setRecipientProfileId(peerRecord.remoteProfileId);
-                peerRecord.signaling.signal(signal);
-            }
+                    @Override
+                    public void onSuccess(final RTCSessionDescription description) {
+                        final var signal = new SdpAnswerDirectSignal();
+                        signal.setPeerSdp(description.sdp);
+                        signal.setProfileId(peerRecord.profileId());
+                        signal.setRecipientProfileId(peerRecord.remoteProfileId());
+                        peerRecord.signaling.signal(signal);
+                    }
 
-            @Override
-            public void onFailure(final String error) {
-                logger.error("Failed to create answer: {}. Closing connection.", error);
-                close();
-            }
+                    @Override
+                    public void onFailure(final String error) {
+                        logger.error("Failed to create answer: {}. Closing connection.", error);
+                        close();
+                    }
 
-        });
+                }));
     }
 
     private void onSignalDisconnect(final Subscription subscription,
@@ -136,27 +146,35 @@ public class WebRTCMatchClientPeer extends WebRTCPeer {
 
         final var profileId = signal.getProfileId();
 
-        if (profileId.equals(peerRecord.profileId) || profileId.equals(peerRecord.remoteProfileId)) {
-            doClose(subscription);
+        if (profileId.equals(peerRecord.profileId()) || profileId.equals(peerRecord.remoteProfileId())) {
+            close();
         }
 
     }
 
     @Override
     public void close() {
-        doClose(subscription);
-    }
 
-    private void doClose(final Subscription subscription) {
-        subscription.unsubscribe();
-        peerConnection.close();
+        final var old = peerConnectionState.getAndUpdate(WebRTCPeerConnectionState::close);
+
+        if (old.open()) {
+            subscription.unsubscribe();
+            old.findChannel().ifPresent(RTCDataChannel::close);
+            old.findConnection().ifPresent(RTCPeerConnection::close);
+        }
+
     }
 
     public record Record(
-            String profileId,
             String remoteProfileId,
             SignalingClient signaling,
             RTCAnswerOptions answerOptions,
-            Function<PeerConnectionObserver, RTCPeerConnection> peerConnectionConstructor) {}
+            Function<PeerConnectionObserver, RTCPeerConnection> peerConnectionConstructor) {
+
+        public String profileId() {
+            return signaling.getState().getProfileId();
+        }
+
+    }
 
 }
