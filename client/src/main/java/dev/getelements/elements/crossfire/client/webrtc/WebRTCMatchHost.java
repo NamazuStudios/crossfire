@@ -114,7 +114,6 @@ public class WebRTCMatchHost implements MatchHost {
 
         final LazyValue<WebRTCMatchHostPeer> peer = new SimpleLazyValue<>(() -> new WebRTCMatchHostPeer(
                 new WebRTCMatchHostPeer.Record(
-                        profileId,
                         remoteProfileId,
                         signaling,
                         "data-channel-" + profileId + "-" + remoteProfileId,

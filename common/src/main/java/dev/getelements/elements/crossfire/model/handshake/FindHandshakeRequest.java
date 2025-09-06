@@ -1,5 +1,6 @@
 package dev.getelements.elements.crossfire.model.handshake;
 
+import dev.getelements.elements.crossfire.model.Version;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 
@@ -13,8 +14,8 @@ import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.FIND
 public class FindHandshakeRequest implements HandshakeRequest {
 
     @NotNull
-    @Pattern(regexp = "\\Q" + VERSION_1_0 + "\\E", message = "Version must be " + VERSION_1_0)
-    private String version = VERSION_1_0;
+
+    private Version version = Version.V_1_0;
 
     private String profileId;
 
@@ -25,11 +26,11 @@ public class FindHandshakeRequest implements HandshakeRequest {
     private String configuration;
 
     @Override
-    public String getVersion() {
+    public Version getVersion() {
         return version;
     }
 
-    public void setVersion(String version) {
+    public void setVersion(Version version) {
         this.version = version;
     }
 

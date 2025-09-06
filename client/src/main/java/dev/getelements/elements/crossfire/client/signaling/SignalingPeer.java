@@ -19,7 +19,7 @@ import static dev.getelements.elements.crossfire.client.Peer.SendStatus.SENT;
 import static dev.getelements.elements.crossfire.client.Peer.SendStatus.TERMINATED;
 import static dev.getelements.elements.crossfire.model.signal.SignalLifecycle.ONCE;
 
-public class SignalingPeer implements Peer, AutoCloseable{
+public class SignalingPeer implements Peer, AutoCloseable {
 
     private final SignalingClient signaling;
 

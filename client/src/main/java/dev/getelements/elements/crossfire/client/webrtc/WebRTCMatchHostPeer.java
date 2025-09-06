@@ -4,6 +4,7 @@ import dev.getelements.elements.crossfire.client.PeerError;
 import dev.getelements.elements.crossfire.client.SignalingClient;
 import dev.getelements.elements.crossfire.model.signal.*;
 import dev.getelements.elements.sdk.Subscription;
+import dev.getelements.elements.sdk.util.SimpleLazyValue;
 import dev.onvoid.webrtc.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,32 +57,6 @@ public class WebRTCMatchHostPeer extends WebRTCPeer {
 
     };
 
-    private void createOffer() {
-
-        final var options = peerRecord.offerOptions;
-
-        peerConnectionState
-                .get()
-                .findConnection()
-                .ifPresent(c -> c.createOffer(options, new CreateSessionDescriptionObserver() {
-
-                        @Override
-                        public void onSuccess(final RTCSessionDescription description) {
-                            logger.debug("Received session descr`iption: {}", description);
-                            setLocalDescription(description);
-                        }
-
-                        @Override
-                        public void onFailure(final String error) {
-                            logger.error("Failed to create offer: {}. Closing connection.", error);
-                            onError.publish(new PeerError(error));
-                            close();
-                        }
-
-                    }));
-
-    }
-
     private void setLocalDescription(final RTCSessionDescription description) {
         peerConnectionState
                 .get()
@@ -123,20 +98,24 @@ public class WebRTCMatchHostPeer extends WebRTCPeer {
     private void onSignalAnswer(final Subscription subscription,
                                 final SdpAnswerDirectSignal signal) {
 
-        final var description = new RTCSessionDescription(RTCSdpType.ANSWER, signal.getPeerSdp());
+        peerConnectionState.get().findConnection().ifPresent(connection -> {
 
-        peerConnection.setRemoteDescription(description, new SetSessionDescriptionObserver() {
+            final var description = new RTCSessionDescription(RTCSdpType.ANSWER, signal.getPeerSdp());
 
-            @Override
-            public void onSuccess() {
-                logger.info("Set remote session description for peer {}", peerRecord.remoteProfileId);
-            }
+            connection.setRemoteDescription(description, new SetSessionDescriptionObserver() {
 
-            @Override
-            public void onFailure(final String error) {
-                logger.error("Failed to get answer: {}. Closing connection.", error);
-                close();
-            }
+                @Override
+                public void onSuccess() {
+                    logger.info("Set remote session description for peer {}", peerRecord.remoteProfileId);
+                }
+
+                @Override
+                public void onFailure(final String error) {
+                    logger.error("Failed to get answer: {}. Closing connection.", error);
+                    close();
+                }
+
+            });
 
         });
 
@@ -150,22 +129,73 @@ public class WebRTCMatchHostPeer extends WebRTCPeer {
     }
 
     public void connect() {
-        this.peerConnection = peerRecord.peerConnectionConstructor().apply(peerConnectionObserver);
 
-        this.dataChannel = peerConnection.createDataChannel(
-                peerRecord.dataChannelLabel,
-                peerRecord.dataChannelInit
+        final var connection = new SimpleLazyValue<>(() -> peerRecord
+                .peerConnectionConstructor
+                .apply(peerConnectionObserver)
         );
 
-        this.dataChannel.registerObserver(dataChannelObserver);
+        final var dataChannel = new SimpleLazyValue<>(() -> {
 
-        createOffer();
+            final var dc = connection.get().createDataChannel(
+                    peerRecord.dataChannelLabel,
+                    peerRecord.dataChannelInit
+            );
+
+            dc.registerObserver(dataChannelObserver);
+
+            return dc;
+
+        });
+
+        final var result = peerConnectionState.updateAndGet(state -> state.connection() == null
+            ? state.connect(connection.get(), dataChannel.get())
+            : state
+        );
+
+        // This should never happen. But if it does, we close the new connection to avoid leaks.
+
+        dataChannel.getOptional()
+                .filter(d -> result.channel() != null)
+                .ifPresent(RTCDataChannel::close);
+
+        connection.getOptional()
+                .filter(c -> result.connection() != null)
+                .ifPresent(RTCPeerConnection::close);
+
+        offer();
+
+    }
+
+    private void offer() {
+
+        final var options = peerRecord.offerOptions;
+
+        peerConnectionState
+                .get()
+                .findConnection()
+                .ifPresent(c -> c.createOffer(options, new CreateSessionDescriptionObserver() {
+
+                    @Override
+                    public void onSuccess(final RTCSessionDescription description) {
+                        logger.debug("Received session descr`iption: {}", description);
+                        setLocalDescription(description);
+                    }
+
+                    @Override
+                    public void onFailure(final String error) {
+                        logger.error("Failed to create offer: {}. Closing connection.", error);
+                        onError.publish(new PeerError(error));
+                        close();
+                    }
+
+                }));
 
     }
 
     @Override
     protected Optional<RTCDataChannel> findDataChannel() {
-        return Optional.of(dataChannel);
+        return peerConnectionState.get().findChannel();
     }
 
     @Override

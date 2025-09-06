@@ -1,5 +1,6 @@
 package dev.getelements.elements.crossfire.client;
 
+import dev.getelements.elements.crossfire.model.Version;
 import dev.getelements.elements.crossfire.model.error.TimeoutException;
 import dev.getelements.elements.crossfire.model.handshake.HandshakeRequest;
 import dev.getelements.elements.crossfire.model.handshake.HandshakeResponse;
@@ -19,6 +20,13 @@ import java.util.function.Consumer;
  * The Client interface to the Crossfire server. Crossfire handles the signaling and relay of data.
  */
 public interface SignalingClient extends AutoCloseable {
+
+    /**
+     * Gets the protocol version.
+     *
+     * @return the protocol version.
+     */
+    Version getVersion();
 
     /**
      * Gets the state of the match.

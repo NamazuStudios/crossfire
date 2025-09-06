@@ -2,6 +2,7 @@ package dev.getelements.elements.crossfire;
 
 import dev.getelements.elements.crossfire.client.SignalingClient;
 import dev.getelements.elements.crossfire.client.v10.V10SignalingClient;
+import dev.getelements.elements.crossfire.model.Version;
 import dev.getelements.elements.crossfire.model.handshake.FindHandshakeRequest;
 import dev.getelements.elements.sdk.dao.ApplicationConfigurationDao;
 import dev.getelements.elements.sdk.model.application.MatchmakingApplicationConfiguration;
@@ -26,7 +27,6 @@ import java.util.stream.IntStream;
 import static dev.getelements.elements.crossfire.client.SignalingClientPhase.CONNECTED;
 import static dev.getelements.elements.crossfire.client.SignalingClientPhase.SIGNALING;
 import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.MATCHED;
-import static dev.getelements.elements.crossfire.model.handshake.HandshakeRequest.VERSION_1_0;
 import static dev.getelements.elements.sdk.model.user.User.Level.USER;
 import static java.lang.String.format;
 import static org.testng.Assert.assertEquals;
@@ -113,7 +113,7 @@ public class TestBasicMatchmaking {
         assertEquals(context.signalingClient().getPhase(), CONNECTED);
 
         final var request = new FindHandshakeRequest();
-        request.setVersion(VERSION_1_0);
+        request.setVersion(Version.V_1_0);
         request.setConfiguration(configuration.getName());
         request.setProfileId(context.profile().getId());
         request.setSessionKey(context.creation().getSessionSecret());

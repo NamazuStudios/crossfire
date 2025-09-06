@@ -4,6 +4,7 @@ import dev.getelements.elements.crossfire.client.SignalingClient;
 import dev.getelements.elements.crossfire.jackson.JacksonEncoder;
 import dev.getelements.elements.crossfire.jackson.JacksonProtocolMessageDecoder;
 import dev.getelements.elements.crossfire.model.ProtocolMessage;
+import dev.getelements.elements.crossfire.model.Version;
 import dev.getelements.elements.crossfire.model.error.ProtocolError;
 import dev.getelements.elements.crossfire.model.error.ProtocolStateException;
 import dev.getelements.elements.crossfire.model.error.UnexpectedMessageException;
@@ -27,7 +28,6 @@ import java.util.function.BiConsumer;
 import static dev.getelements.elements.crossfire.client.SignalingClientPhase.HANDSHAKING;
 import static dev.getelements.elements.crossfire.client.SignalingClientPhase.TERMINATED;
 import static dev.getelements.elements.crossfire.client.v10.V10SignalingClientState.create;
-import static dev.getelements.elements.crossfire.model.handshake.HandshakeRequest.VERSION_1_0;
 import static java.util.Objects.requireNonNull;
 
 @ClientEndpoint(
@@ -45,6 +45,11 @@ public class V10SignalingClient implements SignalingClient {
     private final Publisher<HandshakeResponse> onHandshake = new ConcurrentDequePublisher<>();
 
     private final AtomicReference<V10SignalingClientState> state = new AtomicReference<>(create());
+
+    @Override
+    public Version getVersion() {
+        return Version.V_1_0;
+    }
 
     @Override
     public MatchState getState() {
@@ -186,7 +191,7 @@ public class V10SignalingClient implements SignalingClient {
 
         switch (request.getType()) {
             case FIND, JOIN -> {
-                if (!VERSION_1_0.equals(request.getVersion())) {
+                if (!Version.V_1_0.equals(request.getVersion())) {
                     throw new IllegalArgumentException("Invalid protocol version: " + request.getVersion());
                 }
             }

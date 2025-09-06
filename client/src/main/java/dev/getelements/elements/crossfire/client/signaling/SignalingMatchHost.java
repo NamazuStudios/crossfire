@@ -36,12 +36,12 @@ public class SignalingMatchHost implements MatchHost {
         this.profileId = profileId;
         this.subscription = Subscription.begin()
                 .chain(this.signaling.onSignal(this::onSignal))
-                .chain(this.signaling.onClientError(this::onClientError))
-                .chain(this.signaling.onProtocolError(this::onSignalError));
+                .chain(this.signaling.onClientError(this::onClientError));
     }
 
     private void onSignal(final Subscription subscription, final Signal signal) {
         switch (signal.getType()) {
+            case ERROR -> onSignalError(subscription, (ProtocolError) signal);
             case CONNECT -> onSignalConnect(subscription, (ConnectBroadcastSignal) signal);
             case DISCONNECT -> onSignalDisconnect(subscription, (DisconnectBroadcastSignal) signal);
         }
@@ -49,18 +49,21 @@ public class SignalingMatchHost implements MatchHost {
 
     private void onSignalError(final Subscription subscription, final ProtocolError signal) {
         logger.error("Protocol error: {} - {}", signal.getCode(), signal.getMessage());
-        doClose(subscription);
+        close();
     }
 
     private void onSignalConnect(final Subscription subscription, final ConnectBroadcastSignal signal) {
         logger.debug("User Connected: {}", signal);
-        connectPeer(signal.getProfileId());
+        connect(signal.getProfileId());
     }
 
-    private void connectPeer(final String remoteProfileId) {
+    private void connect(final String remoteProfileId) {
 
         final var peer = new SignalingPeer(signaling, profileId, remoteProfileId);
         final var existing = peers.putIfAbsent(remoteProfileId, peer);
+
+        // This should not happen, but if it does, close the new peer because it wasn't added
+        // and isn't necessary.
 
         if (existing != null)
             peer.close();
@@ -78,7 +81,7 @@ public class SignalingMatchHost implements MatchHost {
 
     private void onClientError(final Subscription subscription, final Throwable throwable) {
         logger.error("Client error.", throwable);
-        doClose(subscription);
+        close();
     }
 
     @Override
@@ -88,12 +91,9 @@ public class SignalingMatchHost implements MatchHost {
 
     @Override
     public void close() {
-        doClose(subscription);
-    }
-
-    private void doClose(final Subscription subscription) {
         if (open.compareAndSet(true, false)) {
             subscription.unsubscribe();
+            peers.values().forEach(SignalingPeer::close);
         }
     }
 
