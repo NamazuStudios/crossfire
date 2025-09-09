@@ -57,17 +57,20 @@ public interface Crossfire extends AutoCloseable {
     Optional<MatchClient> findMatchClient();
 
     /**
-     * Finds the signaling match host, if available. The signaling match is connected depending on the configuration.
-     * @return the signaling match host, if available
+     * Gets the {@link MatchHost} for the {@link Protocol}.
+     *
+     * @param protocol the protocol
+     * @return the {@link Optional} of the {@link MatchHost}
      */
-    Optional<MatchHost> findSignalingMatchHost();
+    Optional<MatchHost> findMatchHost(Protocol protocol);
 
     /**
-     * Finds the signaling match client, if available. The signaling match is connected depending on the configuration.
+     * Gets the {@link MatchHost} for the {@link Protocol}.
      *
-     * @return the signaling match client, if available
+     * @param protocol the protocol
+     * @return the {@link Optional} of the {@link MatchHost}
      */
-    Optional<MatchClient> findSignalingMatchClient();
+    Optional<MatchClient> findMatchClient(Protocol protocol);
 
     /**
      * Closes the Crossfire instance, including all clients and hosts.

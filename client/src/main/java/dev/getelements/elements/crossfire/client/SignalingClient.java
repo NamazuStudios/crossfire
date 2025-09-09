@@ -9,6 +9,7 @@ import dev.getelements.elements.sdk.Subscription;
 
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -188,6 +189,15 @@ public interface SignalingClient extends AutoCloseable {
          * @return the profiles
          */
         List<String> getProfiles();
+
+        /**
+         * Returns true if the current client is the host.
+         *
+         * @return true if host, otherwise false
+         */
+        default boolean isHost() {
+            return Objects.equals(getHost(), getProfileId());
+        }
 
     }
 

@@ -30,10 +30,9 @@ public class SignalingMatchHost implements MatchHost {
 
     private final ConcurrentMap<String, SignalingPeer> peers = new ConcurrentHashMap<>();
 
-    public SignalingMatchHost(final SignalingClient signaling,
-                              final String profileId) {
+    public SignalingMatchHost(final SignalingClient signaling) {
         this.signaling = signaling;
-        this.profileId = profileId;
+        this.profileId = signaling.getState().getProfileId();
         this.subscription = Subscription.begin()
                 .chain(this.signaling.onSignal(this::onSignal))
                 .chain(this.signaling.onClientError(this::onClientError));
