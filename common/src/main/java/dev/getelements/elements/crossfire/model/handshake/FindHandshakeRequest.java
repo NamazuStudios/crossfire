@@ -16,7 +16,6 @@ import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.FIND
 public class FindHandshakeRequest implements HandshakeRequest {
 
     @NotNull
-
     private Version version = Version.V_1_0;
 
     private String profileId;

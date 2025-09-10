@@ -1,5 +1,6 @@
 package dev.getelements.elements.crossfire.model.handshake;
 
+import dev.getelements.elements.sdk.annotation.ElementPublic;
 import jakarta.validation.constraints.NotNull;
 
 import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.MATCHED;
@@ -7,6 +8,7 @@ import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.MATC
 /**
  * Indicates that the client has successfully connected to a matched.
  */
+@ElementPublic
 public class MatchedResponse implements HandshakeResponse {
 
     @NotNull
