@@ -5,12 +5,14 @@ import dev.getelements.elements.crossfire.model.handshake.MatchedResponse;
 import dev.getelements.elements.crossfire.model.handshake.FindHandshakeRequest;
 import dev.getelements.elements.crossfire.model.handshake.JoinHandshakeRequest;
 import dev.getelements.elements.crossfire.model.signal.*;
+import dev.getelements.elements.sdk.annotation.ElementPublic;
 
 import java.util.Optional;
 import java.util.stream.Stream;
 
 import static dev.getelements.elements.crossfire.model.ProtocolMessage.Category.*;
 
+@ElementPublic
 public interface ProtocolMessage {
 
     /**
@@ -20,6 +22,7 @@ public interface ProtocolMessage {
      */
     Type getType();
 
+    @ElementPublic
     enum Type {
 
         /**
@@ -128,6 +131,7 @@ public interface ProtocolMessage {
      * The category of the protocol message. The life of the websocket connection is divided into categories for each
      * phase of the matchmaking system.
      */
+    @ElementPublic
     enum Category {
 
         /**

@@ -100,6 +100,7 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
     @Override
     public void stop(final Session session) throws IOException {
         final var result = state.updateAndGet(V10ConnectionStateRecord::terminate);
+        pinger.stop();
         logger.debug("{}: Stopping protocol message handler {}.", result.phase(), result.sessionId());
     }
 

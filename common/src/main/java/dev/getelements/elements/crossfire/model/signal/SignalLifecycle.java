@@ -1,10 +1,13 @@
 package dev.getelements.elements.crossfire.model.signal;
 
+import dev.getelements.elements.sdk.annotation.ElementPublic;
+
 /**
  * Defines the lifecycle of the signaling messages in the Crossfire protocol. This controls how messages are buffered
  * in the server. When a new connection is made, the persistent messages are sent to the new client based on the
  * lifecycle rules.
  */
+@ElementPublic
 public enum SignalLifecycle {
 
     /**

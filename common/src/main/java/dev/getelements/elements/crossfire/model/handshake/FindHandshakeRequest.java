@@ -1,6 +1,7 @@
 package dev.getelements.elements.crossfire.model.handshake;
 
 import dev.getelements.elements.crossfire.model.Version;
+import dev.getelements.elements.sdk.annotation.ElementPublic;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 
@@ -11,6 +12,7 @@ import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.FIND
  * already have a match ID, and wishes to be assigned into a matchmaking queue. Once found, they will receive a match
  * ID and can then begin exchanging signaling data to establish the peer communication.
  */
+@ElementPublic
 public class FindHandshakeRequest implements HandshakeRequest {
 
     @NotNull

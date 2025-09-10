@@ -1,11 +1,13 @@
 package dev.getelements.elements.crossfire.model.handshake;
 
 import dev.getelements.elements.crossfire.model.Version;
+import dev.getelements.elements.sdk.annotation.ElementPublic;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 
 import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.JOIN;
 
+@ElementPublic
 public class JoinHandshakeRequest implements HandshakeRequest {
 
     @NotNull
