@@ -2,6 +2,7 @@ package dev.getelements.elements.crossfire.client;
 
 import dev.getelements.elements.crossfire.model.Protocol;
 
+import java.net.URI;
 import java.util.Optional;
 import java.util.Set;
 
@@ -32,6 +33,14 @@ public interface Crossfire extends AutoCloseable {
      * @return the supported modes
      */
     Set<Mode> getSupportedModes();
+
+    /**
+     * Connects the signaling client to the server. This must be called before any other operation and many operations
+     * will not be available until after the handshake is complete.
+     *
+     * @throws SignalingClientException if there is an error establishing the connection
+     */
+    void connect(URI uri);
 
     /**
      * Gets the signaling client for the Crossfire instance.

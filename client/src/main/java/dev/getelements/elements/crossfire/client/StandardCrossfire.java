@@ -11,9 +11,13 @@ import dev.getelements.elements.crossfire.model.signal.HostBroadcastSignal;
 import dev.getelements.elements.crossfire.model.signal.Signal;
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.util.SimpleLazyValue;
+import jakarta.websocket.ContainerProvider;
+import jakarta.websocket.DeploymentException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.net.URI;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
@@ -215,6 +219,19 @@ public class StandardCrossfire implements Crossfire {
     @Override
     public Set<Mode> getSupportedModes() {
         return supportedModes;
+    }
+
+    @Override
+    public void connect(final URI uri) {
+
+        final var container = ContainerProvider.getWebSocketContainer();
+
+        try {
+            container.connectToServer(getSignalingClient(), uri);
+        } catch (IOException | DeploymentException e) {
+            throw new SignalingClientException(e);
+        }
+
     }
 
     @Override

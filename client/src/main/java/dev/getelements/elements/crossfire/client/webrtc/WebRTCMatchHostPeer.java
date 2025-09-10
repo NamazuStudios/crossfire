@@ -1,6 +1,6 @@
 package dev.getelements.elements.crossfire.client.webrtc;
 
-import dev.getelements.elements.crossfire.client.PeerError;
+import dev.getelements.elements.crossfire.client.PeerException;
 import dev.getelements.elements.crossfire.client.SignalingClient;
 import dev.getelements.elements.crossfire.model.signal.*;
 import dev.getelements.elements.sdk.Subscription;
@@ -45,7 +45,7 @@ public class WebRTCMatchHostPeer extends WebRTCPeer {
                     peerRecord.remoteProfileId
             );
 
-            onError.publish(new PeerError(event.getErrorText()));
+            onError.publish(new PeerException(event.getErrorText()));
             close();
 
         }
@@ -76,7 +76,7 @@ public class WebRTCMatchHostPeer extends WebRTCPeer {
                     @Override
                     public void onFailure(String error) {
                         logger.error("Failed to set description: {}. Closing connection.", error);
-                        onError.publish(new PeerError(error));
+                        onError.publish(new PeerException(error));
                         close();
                     }
 
@@ -185,7 +185,7 @@ public class WebRTCMatchHostPeer extends WebRTCPeer {
                     @Override
                     public void onFailure(final String error) {
                         logger.error("Failed to create offer: {}. Closing connection.", error);
-                        onError.publish(new PeerError(error));
+                        onError.publish(new PeerException(error));
                         close();
                     }
 

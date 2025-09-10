@@ -1,6 +1,6 @@
 package dev.getelements.elements.crossfire.client.webrtc;
 
-import dev.getelements.elements.crossfire.client.PeerError;
+import dev.getelements.elements.crossfire.client.PeerException;
 import dev.getelements.elements.crossfire.client.SignalingClient;
 import dev.getelements.elements.crossfire.model.signal.*;
 import dev.getelements.elements.sdk.Subscription;
@@ -45,7 +45,7 @@ public class WebRTCMatchClientPeer extends WebRTCPeer {
                     peerRecord.remoteProfileId
             );
 
-            onError.publish(new PeerError(event.getErrorText()));
+            onError.publish(new PeerException(event.getErrorText()));
             close();
 
         }

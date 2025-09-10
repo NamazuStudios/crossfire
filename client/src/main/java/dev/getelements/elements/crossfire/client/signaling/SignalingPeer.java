@@ -1,7 +1,7 @@
 package dev.getelements.elements.crossfire.client.signaling;
 
 import dev.getelements.elements.crossfire.client.Peer;
-import dev.getelements.elements.crossfire.client.PeerError;
+import dev.getelements.elements.crossfire.client.PeerException;
 import dev.getelements.elements.crossfire.client.SignalingClient;
 import dev.getelements.elements.crossfire.model.error.ProtocolError;
 import dev.getelements.elements.crossfire.model.signal.BinaryBroadcastSignal;
@@ -73,7 +73,7 @@ public class SignalingPeer implements Peer, AutoCloseable {
     }
 
     private void onProtocolError(final Subscription subscription, final ProtocolError protocolError) {
-        final var error = new PeerError(protocolError.getMessage());
+        final var error = new PeerException(protocolError.getMessage());
         onError.publish(error);
         close();
     }
