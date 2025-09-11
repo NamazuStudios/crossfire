@@ -1,7 +1,8 @@
 package dev.getelements.elements.crossfire;
 
+import dev.getelements.elements.crossfire.client.Crossfire;
 import dev.getelements.elements.crossfire.client.SignalingClient;
-import dev.getelements.elements.crossfire.client.v10.V10SignalingClient;
+import dev.getelements.elements.crossfire.client.StandardCrossfire;
 import dev.getelements.elements.crossfire.model.Version;
 import dev.getelements.elements.crossfire.model.handshake.FindHandshakeRequest;
 import dev.getelements.elements.sdk.dao.ApplicationConfigurationDao;
@@ -10,7 +11,6 @@ import dev.getelements.elements.sdk.model.profile.Profile;
 import dev.getelements.elements.sdk.model.session.SessionCreation;
 import dev.getelements.elements.sdk.model.user.User;
 import jakarta.websocket.ContainerProvider;
-import jakarta.websocket.DeploymentException;
 import jakarta.websocket.WebSocketContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,7 +19,6 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
@@ -72,18 +71,17 @@ public class TestBasicMatchmaking {
         testContextList = IntStream.range(0, TEST_PLAYER_COUNT)
                 .mapToObj(i -> {
 
-                    final var client = new V10SignalingClient();
                     final var user = server.createUser(format("test_%d_user", i), USER);
                     final var profile = server.createProfile(user, format("test_%d_profile", i));
                     final var session = server.newSessionForUser(user, profile);
 
-                    try {
-                        webSocketContainer.connectToServer(client, server.getTestTestServerWsUrl());
-                        return new TestContext(user, profile, client, session);
-                    } catch (DeploymentException | IOException e) {
-                        Assert.fail("Failed to connect client", e);
-                        return null;
-                    }
+                    final var crossfire = new StandardCrossfire.Builder()
+                            .withDefaultUri(server.getTestTestServerWsUrl())
+                            .withWebSocketContainer(webSocketContainer)
+                            .build()
+                            .connect();
+
+                    return new TestContext(crossfire, user, profile, session);
 
                 })
                 .toList();
@@ -119,6 +117,7 @@ public class TestBasicMatchmaking {
         request.setSessionKey(context.creation().getSessionSecret());
 
         final var response = context.signalingClient().handshake(request, 30, TimeUnit.SECONDS);
+
         assertNotNull(response);
         assertEquals(response.getType(), MATCHED);
         assertNotNull(response.getMatchId());
@@ -137,10 +136,16 @@ public class TestBasicMatchmaking {
     }
 
     public record TestContext(
+            Crossfire crossfire,
             User user,
             Profile profile,
-            SignalingClient signalingClient,
             SessionCreation creation
-    ) {}
+    ) {
+
+        public SignalingClient signalingClient() {
+            return crossfire.getSignalingClient();
+        }
+
+    }
 
 }

@@ -19,6 +19,16 @@ import static dev.getelements.elements.crossfire.model.Protocol.WEBRTC;
 public interface Crossfire extends AutoCloseable {
 
     /**
+     * The environment variable that can be used to set the default URI for the Crossfire instance.
+     */
+    String URI_ENV_VARIABLE = "ELEMENTS_CROSSFIRE_URI";
+
+    /**
+     * The system property that can be used to set the default URI for the Crossfire instance.
+     */
+    String URI_SYSTEM_PROPERTY = "dev.getelements.elements.crossfire.client.uri";
+
+    /**
      * Gets the current mode of the Crossfire instance. Because the signaling layer may support multiple modes, the
      * mode may be null if no mode is active, or may change in response to signaling messages.
      *
@@ -35,12 +45,23 @@ public interface Crossfire extends AutoCloseable {
     Set<Mode> getSupportedModes();
 
     /**
+     * Connects the signaling client to the server using the default URI. The default implementation uses environment
+     * variables and system properties to determine the URI. Implementations may override this method to provide an
+     * alternative way to determine the default URI. If no default URI is available, this method throws an exception
+     * indicating that the URI must be provided (e.g., via {@link #connect(URI)}).
+     *
+     * @return this Crossfire instance
+     */
+    Crossfire connect();
+
+    /**
      * Connects the signaling client to the server. This must be called before any other operation and many operations
      * will not be available until after the handshake is complete.
      *
+     * @return this Crossfire instance
      * @throws SignalingClientException if there is an error establishing the connection
      */
-    void connect(URI uri);
+    Crossfire connect(URI uri);
 
     /**
      * Gets the signaling client for the Crossfire instance.

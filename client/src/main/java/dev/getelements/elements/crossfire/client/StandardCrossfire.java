@@ -11,13 +11,14 @@ import dev.getelements.elements.crossfire.model.signal.HostBroadcastSignal;
 import dev.getelements.elements.crossfire.model.signal.Signal;
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.util.SimpleLazyValue;
-import jakarta.websocket.ContainerProvider;
 import jakarta.websocket.DeploymentException;
+import jakarta.websocket.WebSocketContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
@@ -38,6 +39,10 @@ public class StandardCrossfire implements Crossfire {
 
     private final SignalingClient signaling;
 
+    private final WebSocketContainer webSocketContainer;
+
+    private Supplier<URI> defaultUriSupplier;
+
     private final Supplier<WebRTCMatchHost.Builder> webrtcHostBuilder;
 
     private final Supplier<WebRTCMatchClient.Builder> webrtcClientBuilder;
@@ -48,16 +53,20 @@ public class StandardCrossfire implements Crossfire {
             final Protocol defaultProtocol,
             final Set<Mode> supportedModes,
             final SignalingClient signaling,
+            final WebSocketContainer webSocketContainer,
+            final Supplier<URI> defaultUriSupplier,
             final Supplier<WebRTCMatchHost.Builder> webrtcHostBuilder,
             final Supplier<WebRTCMatchClient.Builder> webrtcClientBuilder) {
 
-        this.webrtcHostBuilder = requireNonNull(webrtcHostBuilder);
-        this.webrtcClientBuilder = requireNonNull(webrtcClientBuilder);
+        this.webrtcHostBuilder = requireNonNull(webrtcHostBuilder, "webrtcHostBuilder");
+        this.webrtcClientBuilder = requireNonNull(webrtcClientBuilder, "webrtcClientBuilder");
         this.defaultProtocol = requireNonNull(defaultProtocol, "defaultProtocol");
         this.supportedModes = Collections.unmodifiableSet(EnumSet.copyOf(supportedModes));
         this.signaling = requireNonNull(signaling, "signaling");
+        this.defaultUriSupplier = requireNonNull(defaultUriSupplier, "defaultUriSupplier");
+        this.webSocketContainer = requireNonNull(webSocketContainer, "webSocketContainer");
 
-        if (supportedModes.stream().anyMatch(m -> getMode().getProtocol().equals(defaultProtocol))) {
+        if (supportedModes.stream().map(Mode::getProtocol).anyMatch(p -> p.equals(defaultProtocol))) {
             this.subscription = Subscription.begin()
                     .chain(signaling.onSignal(this::onSignal))
                     .chain(signaling.onClientError(this::onClientError));
@@ -222,21 +231,27 @@ public class StandardCrossfire implements Crossfire {
     }
 
     @Override
-    public void connect(final URI uri) {
+    public StandardCrossfire connect() {
+        final var uri = defaultUriSupplier.get();
+        return connect(uri);
+    }
 
-        final var container = ContainerProvider.getWebSocketContainer();
+    @Override
+    public StandardCrossfire connect(final URI uri) {
 
         try {
-            container.connectToServer(getSignalingClient(), uri);
+            webSocketContainer.connectToServer(getSignalingClient(), uri);
         } catch (IOException | DeploymentException e) {
             throw new SignalingClientException(e);
         }
+
+        return this;
 
     }
 
     @Override
     public SignalingClient getSignalingClient() {
-        return null;
+        return signaling;
     }
 
     @Override
@@ -338,6 +353,29 @@ public class StandardCrossfire implements Crossfire {
         /** The set of supported modes for the crossfire instance. */
         private Set<Mode> supportedModes = EnumSet.allOf(Mode.class);
 
+        private Supplier<URI> defaultUriSupplier = () -> {
+
+            final var env = System.getenv(URI_ENV_VARIABLE);
+            final var property = System.getProperty(URI_SYSTEM_PROPERTY, env);
+
+            if (property == null) {
+                throw new SignalingClientException("No default URI specified. Set the "
+                        + URI_ENV_VARIABLE + " environment variable or the "
+                        + URI_SYSTEM_PROPERTY + " system property."
+                );
+            }
+
+            try {
+                return new URI(property);
+            } catch (URISyntaxException ex) {
+                throw new SignalingClientException(ex);
+            }
+
+        };
+
+        /** A supplier used to provide the WebSocket container. */
+        private Supplier<WebSocketContainer> webSocketContainerSupplier;
+
         /** A supplier used to provide the signaling client */
         private Supplier<SignalingClient> signalingClientSupplier = V10SignalingClient::new;
 
@@ -348,12 +386,56 @@ public class StandardCrossfire implements Crossfire {
         private Supplier<WebRTCMatchClient.Builder> webrtcClientBuilder = WebRTCMatchClient.Builder::new;
 
         /**
+         * Sets the default URI supplier.
+         *
+         * @param uri a URI to use as the default
+         * @return the current Builder instance
+         */
+        public Builder withDefaultUri(final URI uri) {
+            return withDefaultUriSupplier(() -> uri);
+        }
+
+        /**
+         * Sets the WebSocket container.
+         * @param webSocketContainer the websocket container to use
+         * @return the websocket container
+         */
+        public Builder withWebSocketContainer(final WebSocketContainer webSocketContainer) {
+            return withWebSocketContainerSupplier(() -> webSocketContainer);
+        }
+
+        /**
+         * Sets the WebSocket container supplier.
+         *
+         * @param webSocketContainerSupplier a supplier that provides a WebSocket container
+         * @return the current Builder instance
+         */
+        public Builder withWebSocketContainerSupplier(final Supplier<WebSocketContainer> webSocketContainerSupplier) {
+            requireNonNull(webSocketContainerSupplier, "WebSocket container supplier must be specified.");
+            this.webSocketContainerSupplier = webSocketContainerSupplier;
+            return this;
+        }
+
+        /**
+         * Sets the default URI supplier.
+         *
+         * @param defaultUriSupplier a supplier that provides the default URI
+         * @return the current Builder instance
+         */
+        public Builder withDefaultUriSupplier(final Supplier<URI> defaultUriSupplier) {
+            requireNonNull(defaultUriSupplier, "Default URI supplier must be specified.");
+            this.defaultUriSupplier = defaultUriSupplier;
+            return this;
+        }
+
+        /**
          * Sets the default protocol.
          *
          * @param defaultProtocol the default protocol to use
          * @return the current Builder instance
          */
         public Builder withDefaultProtocol(final Protocol defaultProtocol) {
+            requireNonNull(defaultProtocol, "Default protocol must be specified.");
             this.defaultProtocol = defaultProtocol;
             return this;
         }
@@ -365,8 +447,16 @@ public class StandardCrossfire implements Crossfire {
          * @return the current Builder instance
          */
         public Builder withSupportedModes(final Set<Mode> supportedModes) {
+
+            requireNonNull(supportedModes, "Supported modes must be specified.");
+
+            if (supportedModes.isEmpty()) {
+                throw new IllegalArgumentException("At least one supported mode must be specified.");
+            }
+
             this.supportedModes = supportedModes;
             return this;
+
         }
 
         /**
@@ -376,6 +466,7 @@ public class StandardCrossfire implements Crossfire {
          * @return the current Builder instance
          */
         public Builder withSignalingClientSupplier(final SignalingClient signaling) {
+            requireNonNull(signaling, "Signaling client must be specified.");
             this.signalingClientSupplier = () -> signaling;
             return this;
         }
@@ -387,6 +478,7 @@ public class StandardCrossfire implements Crossfire {
          * @return the current Builder instance
          */
         public Builder withWebRTCHostBuilder(final Supplier<WebRTCMatchHost.Builder> webrtcHostBuilder) {
+            requireNonNull(webrtcHostBuilder, "WebRTC host must be specified.");
             this.webrtcHostBuilder = webrtcHostBuilder;
             return this;
         }
@@ -398,6 +490,7 @@ public class StandardCrossfire implements Crossfire {
          * @return the current Builder instance
          */
         public Builder withWebRTCClientBuilder(final Supplier<WebRTCMatchClient.Builder> webrtcClientBuilder) {
+            requireNonNull(webrtcClientBuilder, "WebRTC client must be specified.");
             this.webrtcClientBuilder = webrtcClientBuilder;
             return this;
         }
@@ -410,14 +503,16 @@ public class StandardCrossfire implements Crossfire {
          */
         public StandardCrossfire build() {
 
-            if (signalingClientSupplier == null) {
-                throw new IllegalStateException("No signaling client set.");
-            }
+            final var websocketContainer = webSocketContainerSupplier == null
+                    ? SharedWebSocketContainer.getInstance()
+                    : webSocketContainerSupplier.get();
 
             return new StandardCrossfire(
                     defaultProtocol,
                     supportedModes,
                     signalingClientSupplier.get(),
+                    websocketContainer,
+                    defaultUriSupplier,
                     webrtcHostBuilder,
                     webrtcClientBuilder
             );
