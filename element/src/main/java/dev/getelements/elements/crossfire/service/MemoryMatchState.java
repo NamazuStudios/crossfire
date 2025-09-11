@@ -196,7 +196,6 @@ public class MemoryMatchState {
                 final var backlog = sessionStates
                         .values()
                         .stream()
-                        .filter(s -> !s.getProfileId().equals(profileId))
                         .flatMap(SessionState::stream)
                         .filter(s -> switch (s.getType().getCategory()) {
                             case SIGNALING -> true;
