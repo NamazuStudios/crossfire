@@ -44,4 +44,9 @@ public class MatchedResponse implements HandshakeResponse {
         this.matchId = matchId;
     }
 
+    @Override
+    public boolean isServerOnly() {
+        return true;
+    }
+
 }

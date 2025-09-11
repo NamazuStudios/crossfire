@@ -14,6 +14,7 @@ import jakarta.validation.Validator;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static com.google.inject.name.Names.named;
 import static dev.getelements.elements.crossfire.matchmaker.FIFOMatchmakingAlgorithm.NAME;
@@ -46,6 +47,10 @@ public class  CrossfireModule extends PrivateModule {
 
         bind(ExecutorService.class)
                 .toProvider(Executors::newCachedThreadPool)
+                .asEagerSingleton();
+
+        bind(ScheduledExecutorService.class)
+                .toProvider(Executors::newSingleThreadScheduledExecutor)
                 .asEagerSingleton();
 
         bind(MatchmakingAlgorithm.class)

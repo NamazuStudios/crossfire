@@ -80,6 +80,16 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
     }
 
     @Override
+    public void assignHost(final String matchId) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void assignHost(final String matchId, final String profileId) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public Subscription join(
             final String matchId,
             final String profileId,

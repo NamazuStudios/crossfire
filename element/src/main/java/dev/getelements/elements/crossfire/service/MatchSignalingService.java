@@ -33,6 +33,19 @@ public interface MatchSignalingService {
     void send(String matchId, BroadcastSignal signal);
 
     /**
+     * Assigns a host to matches that do not have one. This assigns a host arbitrarily. If a host is already present
+     * then this method does not change it.
+     *
+     * @param matchId the match ID
+     */
+    void assignHost(String matchId);
+
+    /**
+     * Assigns a host to matches. If a host is already present then this method does change the host.
+     */
+    void assignHost(String matchId, String profileId);
+
+    /**
      * Subscribes to updates with the supplied connection id, match id, profile id, and consumers. If this is the first
      * subscription, then it will immediately receive all backlogged messages. Only one {@link Subscription} may exist
      * at a time. Existing subscriptions

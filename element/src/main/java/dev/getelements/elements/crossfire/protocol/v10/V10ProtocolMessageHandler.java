@@ -117,7 +117,17 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
 
             final var violations = getValidator().validate(message);
 
-            if (violations.isEmpty()) {
+            if (message.isServerOnly()) {
+
+                final var error = new StandardProtocolError();
+                error.setCode(INVALID_MESSAGE.toString());
+                error.setMessage("Invalid message: " + message.getType() + " is server-only. Rejecting.");
+                session.getAsyncRemote().sendObject(error);
+
+                final var reason = new CloseReason(NOT_CONSISTENT, "Invalid Message.");
+                doTerminate(reason, null);
+
+            } else if (violations.isEmpty()) {
 
                 final var state = this.state.get();
                 logger.debug("{}: Session {} received protocol message {}", state, session.getId(), message.getType());
@@ -138,6 +148,8 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
                         .map(ConstraintViolation::getMessage)
                         .collect(Collectors.joining("\n"))
                 );
+
+                session.getAsyncRemote().sendObject(error);
 
                 final var reason = new CloseReason(NOT_CONSISTENT, "Invalid Message.");
                 doTerminate(reason, null);

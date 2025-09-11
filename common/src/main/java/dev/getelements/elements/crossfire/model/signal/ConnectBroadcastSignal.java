@@ -29,4 +29,9 @@ public class ConnectBroadcastSignal implements BroadcastSignal {
         return MATCH;
     }
 
+    @Override
+    public boolean isServerOnly() {
+        return true;
+    }
+
 }

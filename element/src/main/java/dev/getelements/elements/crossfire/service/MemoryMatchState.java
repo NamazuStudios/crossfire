@@ -17,7 +17,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
@@ -79,10 +78,6 @@ public class MemoryMatchState {
         );
     }
 
-    public Subscription onHost(final BiConsumer<ProtocolMessage, Consumer<Throwable>> onMessage) {
-        return null;
-    }
-
     private class MemoryMatchBacklog {
 
         private final Lock read;
@@ -93,7 +88,9 @@ public class MemoryMatchState {
 
         private final BoundedList.Builder<Signal> backlogListBuilder = new BoundedList.Builder<>();
 
-        public MemoryMatchBacklog(final int maxBacklogSize, final Lock read, final Lock write) {
+        public MemoryMatchBacklog(final int maxBacklogSize,
+                                  final Lock read,
+                                  final Lock write) {
             this.read = read;
             this.write = write;
             backlogListBuilder
@@ -195,12 +192,32 @@ public class MemoryMatchState {
                     host = state;
                 }
 
+                // Process the full backlog for this profile
+                final var backlog = sessionStates
+                        .values()
+                        .stream()
+                        .filter(s -> !s.getProfileId().equals(profileId))
+                        .flatMap(SessionState::stream)
+                        .filter(s -> switch (s.getType().getCategory()) {
+                            case SIGNALING -> true;
+                            case SIGNALING_DIRECT -> ((DirectSignal) s).getRecipientProfileId().equals(profileId);
+                            default -> false;
+                        })
+                        .toList();
+
+                backlog.forEach(onMessage);
+
                 return state.subscribe(onMessage, onError);
 
             }
 
         }
 
+        /**
+         * Tracks all outgoing messages for a given profileId as well as the single active subscription. Depending on
+         * the message's lifecycle, messages are stored in different outboxes. The outboxes are bounded lists that
+         * ensure a single Match cannot consume memory indefinitely.
+         **/
         private class SessionState {
 
             private final String profileId;
@@ -219,8 +236,16 @@ public class MemoryMatchState {
                 doPublish(connect);
             }
 
+            public String getProfileId() {
+                return profileId;
+            }
+
             public int size() {
                 return match.size() + session.size();
+            }
+
+            public Stream<Signal> stream() {
+                return Stream.concat(match.stream(), session.stream());
             }
 
             public void append(final DirectSignal signal) {

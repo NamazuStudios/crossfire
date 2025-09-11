@@ -35,4 +35,9 @@ public class HostBroadcastSignal implements BroadcastSignal {
         this.lifecycle = lifecycle;
     }
 
+    @Override
+    public boolean isServerOnly() {
+        return true;
+    }
+
 }
