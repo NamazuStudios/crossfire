@@ -177,6 +177,12 @@ public interface SignalingClient extends AutoCloseable {
         String getHost();
 
         /**
+         * Gets the match id.
+         * @return the match id
+         */
+        String getMatchId();
+
+        /**
          * Gets the Profile id of the client.
          *
          * @return the profile id

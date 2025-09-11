@@ -32,6 +32,6 @@ public interface Pinger {
      * @param message the pong message received from the remote endpoint
      * @throws IOException if there is an error processing the pong message
      */
-    void onPong(Session session, PongMessage message) throws IOException;
+    void onPong(Session session, PongMessage message);
 
 }

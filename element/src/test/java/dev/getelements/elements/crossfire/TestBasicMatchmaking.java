@@ -5,6 +5,7 @@ import dev.getelements.elements.crossfire.client.SignalingClient;
 import dev.getelements.elements.crossfire.client.StandardCrossfire;
 import dev.getelements.elements.crossfire.model.Version;
 import dev.getelements.elements.crossfire.model.handshake.FindHandshakeRequest;
+import dev.getelements.elements.crossfire.model.signal.Signal;
 import dev.getelements.elements.sdk.dao.ApplicationConfigurationDao;
 import dev.getelements.elements.sdk.model.application.MatchmakingApplicationConfiguration;
 import dev.getelements.elements.sdk.model.profile.Profile;
@@ -19,8 +20,12 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.util.Deque;
 import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static dev.getelements.elements.crossfire.client.SignalingClientPhase.CONNECTED;
@@ -40,6 +45,8 @@ public class TestBasicMatchmaking {
     private static final Logger logger = LoggerFactory.getLogger(TestBasicMatchmaking.class);
 
     private final TestServer server = TestServer.getInstance();
+
+    private final Deque<Signal> signals = new ConcurrentLinkedDeque<>();
 
     private List<TestContext> testContextList = List.of();
 
@@ -80,6 +87,13 @@ public class TestBasicMatchmaking {
                             .withWebSocketContainer(webSocketContainer)
                             .build()
                             .connect();
+
+                    crossfire
+                            .getSignalingClient()
+                            .onSignal((sub, signal) -> {
+                                signals.addLast(signal);
+                                logger.info("Signal received: {}", signal.getType());
+                            });
 
                     return new TestContext(crossfire, user, profile, session);
 
@@ -133,6 +147,15 @@ public class TestBasicMatchmaking {
     @Test(dependsOnMethods = "testFindHandshake")
     public void testTestAllJoinedSameMatch() {
 
+        final var uniqueMatchIds = testContextList.stream()
+                .map(TestContext::signalingClient)
+                .map(SignalingClient::getState)
+                .map(SignalingClient.MatchState::getMatchId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        assertEquals(uniqueMatchIds.size(), 1, "All clients should have joined the same match");
+
     }
 
     public record TestContext(
@@ -143,7 +166,7 @@ public class TestBasicMatchmaking {
     ) {
 
         public SignalingClient signalingClient() {
-            return crossfire.getSignalingClient();
+            return crossfire().getSignalingClient();
         }
 
     }

@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static dev.getelements.elements.crossfire.client.SignalingClientPhase.*;
+import static java.util.Optional.ofNullable;
 
 record V10SignalingClientState(SignalingClientPhase phase,
                                Session session,
@@ -100,10 +101,17 @@ record V10SignalingClientState(SignalingClientPhase phase,
     }
 
     @Override
-    public String getProfileId() {
+    public String getMatchId() {
         return Optional
                 .ofNullable(handshake())
-                .flatMap(p -> Optional.ofNullable(p.getProfileId()))
+                .flatMap(p -> ofNullable(p.getMatchId()))
+                .orElse(null);
+    }
+
+    @Override
+    public String getProfileId() {
+        return ofNullable(handshake())
+                .flatMap(p -> ofNullable(p.getProfileId()))
                 .orElse(null);
     }
 

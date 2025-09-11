@@ -91,10 +91,12 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
 
     @Override
     public void start(final Session session) throws IOException {
-        final var result = state.updateAndGet(existing -> existing.start(session));
-        pinger.start(session);
-        getHandshakeHandler().start(this, session);
-        logger.debug("{}: Connection started for session {}", result.phase(), session.getId());
+        perform(() -> {
+            final var result = state.updateAndGet(existing -> existing.start(session));
+            pinger.start(session);
+            getHandshakeHandler().start(this, session);
+            logger.debug("{}: Connection started for session {}", result.phase(), session.getId());
+        });
     }
 
     @Override
@@ -106,41 +108,43 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
 
     @Override
     public void onMessage(final Session session, final PongMessage message) throws IOException {
-        getPinger().onPong(session, message);
+        perform(() -> getPinger().onPong(session, message));
     }
 
     @Override
     public void onMessage(final Session session, final ProtocolMessage message) throws IOException {
+        perform(() -> {
 
-        final var violations = getValidator().validate(message);
+            final var violations = getValidator().validate(message);
 
-        if (violations.isEmpty()) {
+            if (violations.isEmpty()) {
 
-            final var state = this.state.get();
-            logger.debug("{}: Session {} received protocol message {}", state, session.getId(), message.getType());
+                final var state = this.state.get();
+                logger.debug("{}: Session {} received protocol message {}", state, session.getId(), message.getType());
 
-            switch (state.phase()) {
-                case READY -> onMessageReadyPhase(state, session, message);
-                case HANDSHAKE -> onMessageHandshakePhase(state, session, message);
-                case SIGNALING -> onSignalingMessage(state, session, message);
-                default -> throw invalid(state, message);
+                switch (state.phase()) {
+                    case READY -> onMessageReadyPhase(state, session, message);
+                    case HANDSHAKE -> onMessageHandshakePhase(state, session, message);
+                    case SIGNALING -> onSignalingMessage(state, session, message);
+                    default -> throw invalid(state, message);
+                }
+
+            } else {
+
+                final var error = new StandardProtocolError();
+                error.setCode(INVALID_MESSAGE.toString());
+                error.setMessage("Invalid message: " + violations
+                        .stream()
+                        .map(ConstraintViolation::getMessage)
+                        .collect(Collectors.joining("\n"))
+                );
+
+                final var reason = new CloseReason(NOT_CONSISTENT, "Invalid Message.");
+                doTerminate(reason, null);
+
             }
 
-        } else {
-
-            final var error = new StandardProtocolError();
-            error.setCode(INVALID_MESSAGE.toString());
-            error.setMessage("Invalid message: " + violations
-                    .stream()
-                    .map(ConstraintViolation::getMessage)
-                    .collect(Collectors.joining("\n"))
-            );
-
-            final var reason = new CloseReason(NOT_CONSISTENT, "Invalid Message.");
-            doTerminate(reason, null);
-
-        }
-
+        });
     }
 
     private void onMessageReadyPhase(
@@ -274,28 +278,27 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
 
     @Override
     public Future<?> submit(final Runnable task) {
-        return getExecutorService().submit(() -> {
+        return getExecutorService().submit(() -> perform(task));
+    }
 
-            try {
-                task.run();
-            } catch (final Throwable th) {
+    private void perform(final Runnable task) {
+        try {
+            task.run();
+        } catch (final Throwable th) {
 
-                final var state = this.state.get();
+            final var state = this.state.get();
 
-                logger.error("{}: Error executing task {} for session {}: {}",
-                        state.phase(),
-                        task.getClass().getName(),
-                        state.sessionId(),
-                        th.getMessage(),
-                        th
-                );
+            logger.error("{}: Error executing task {} for session {}: {}",
+                    state.phase(),
+                    task.getClass().getName(),
+                    state.sessionId(),
+                    th.getMessage(),
+                    th
+            );
 
-                terminate(th);
+            terminate(th);
 
-            }
-
-        });
-
+        }
     }
 
     @Override

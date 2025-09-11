@@ -21,38 +21,39 @@ public class StandardPinger implements Pinger {
     @ElementDefaultAttribute("30")
     public static final String PING_TIMEOUT = "dev.getelements.elements.ping.interval.seconds";
 
+    private static final ByteBuffer ZERO_BUFFER = ByteBuffer.allocate(0);
+
     private static final Logger logger = LoggerFactory.getLogger(StandardPinger.class);
 
     private static final ScheduledExecutorService pinger = Executors.newSingleThreadScheduledExecutor();
 
     private int pingInterval;
 
-    private Session session;
-
     private ScheduledFuture<?> future;
 
     @Override
     public void start(final Session session) {
 
-        logger.debug("Starting pinger for session {}", session.getId());
+        logger.debug("Starting for session {}", session.getId());
 
         future = pinger.scheduleAtFixedRate(
                 () -> {
                     try {
-                        session.getBasicRemote().sendPing(ByteBuffer.allocate(0));
+                        session.getBasicRemote().sendPing(ZERO_BUFFER);
                     } catch (IOException e) {
-                        logger.error("No failed to ping remote.", e);
+                        logger.error("Failed failed to ping remote.", e);
                     }
                 },
                 getPingInterval(),
                 getPingInterval(),
                 TimeUnit.SECONDS
         );
+
     }
 
     @OnMessage
     @Override
-    public void onPong(final Session session, final PongMessage message) throws IOException {
+    public void onPong(final Session session, final PongMessage message) {
         logger.debug("Received PongMessage from matching session {}", session.getId());
     }
 
