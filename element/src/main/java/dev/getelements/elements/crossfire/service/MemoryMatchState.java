@@ -3,6 +3,7 @@ package dev.getelements.elements.crossfire.service;
 import dev.getelements.elements.crossfire.model.ProtocolMessage;
 import dev.getelements.elements.crossfire.model.error.DuplicateConnectionException;
 import dev.getelements.elements.crossfire.model.error.MessageBufferOverrunException;
+import dev.getelements.elements.crossfire.model.error.UnexpectedMessageException;
 import dev.getelements.elements.crossfire.model.signal.*;
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.util.Monitor;
@@ -251,9 +252,17 @@ public class MemoryMatchState {
             public void append(final DirectSignal signal) {
 
                 if (!profileId.equals(signal.getProfileId())) {
-                    throw new IllegalArgumentException("Unexpected value: " + signal.getProfileId());
+                    throw new UnexpectedMessageException("Outbound Direct Message Mismatch "
+                            + profileId
+                            + "(this queue) != "
+                            + signal.getProfileId()
+                            + "(signal sender)."
+                    );
                 } else if (profileId.equals(signal.getRecipientProfileId())) {
-                    throw new IllegalArgumentException("Unexpected value: " + signal.getRecipientProfileId());
+                    throw new UnexpectedMessageException("Cannot mirror messages. "
+                            + signal.getRecipientProfileId() + " "
+                            + "is attempting to send a signal to themselves."
+                    );
                 }
 
                 switch(signal.getLifecycle()) {
@@ -267,13 +276,16 @@ public class MemoryMatchState {
             public void append(final BroadcastSignal signal) {
 
                 if (!profileId.equals(signal.getProfileId())) {
-                    throw new IllegalArgumentException("Unexpected value: " + signal.getProfileId());
+                    throw new UnexpectedMessageException("Outbound Direct Message Mismatch "
+                            + profileId + " (this queue) != "
+                            + signal.getProfileId() + " (signal sender)."
+                    );
                 }
 
                 switch(signal.getLifecycle()) {
                     case MATCH -> match.add(signal);
                     case SESSION -> session.add(signal);
-                    default -> throw new IllegalArgumentException("Unexpected value: " + signal.getLifecycle());
+                    default -> throw new IllegalArgumentException("Unexpected lifecycle value: " + signal.getLifecycle());
                 }
 
             }
@@ -330,7 +342,6 @@ public class MemoryMatchState {
                         host.host();
 
                 }
-
             }
 
         }

@@ -2,20 +2,27 @@ package dev.getelements.elements.crossfire.client.webrtc;
 
 import dev.getelements.elements.crossfire.client.MatchClient;
 import dev.getelements.elements.crossfire.client.Peer;
+import dev.getelements.elements.crossfire.client.PeerStatus;
 import dev.getelements.elements.crossfire.client.SignalingClient;
+import dev.getelements.elements.crossfire.model.Protocol;
 import dev.getelements.elements.crossfire.model.error.ProtocolError;
 import dev.getelements.elements.crossfire.model.signal.Signal;
 import dev.getelements.elements.sdk.Subscription;
+import dev.getelements.elements.sdk.util.ConcurrentDequePublisher;
+import dev.getelements.elements.sdk.util.Publisher;
 import dev.onvoid.webrtc.PeerConnectionFactory;
 import dev.onvoid.webrtc.RTCAnswerOptions;
 import dev.onvoid.webrtc.RTCConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import static dev.getelements.elements.crossfire.model.Protocol.WEBRTC;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -30,6 +37,8 @@ public class WebRTCMatchClient implements MatchClient {
     private final AtomicBoolean open = new AtomicBoolean(true);
 
     private final WebRTCMatchClientPeer peer;
+
+    private final Publisher<PeerStatus> onPeerStatus = new ConcurrentDequePublisher<>();
 
     public WebRTCMatchClient(
             final String remoteProfileId,
@@ -51,13 +60,12 @@ public class WebRTCMatchClient implements MatchClient {
                 remoteProfileId,
                 signaling,
                 answerOptionsSupplier.get(),
+                onPeerStatus,
                 observer -> {
                     final var configuration = peerConfigurationProvider.apply(remoteProfileId);
                     return peerConnectionFactory.createPeerConnection(configuration, observer);
                 }
         ));
-
-        this.peer.connect();
 
     }
 
@@ -84,8 +92,23 @@ public class WebRTCMatchClient implements MatchClient {
     }
 
     @Override
-    public Peer getPeer() {
-        return peer;
+    public Protocol getProtocol() {
+        return WEBRTC;
+    }
+
+    @Override
+    public void connect() {
+        this.peer.connect();
+    }
+
+    @Override
+    public Optional<Peer> findPeer() {
+        return open.get() ? Optional.of(peer) : Optional.empty();
+    }
+
+    @Override
+    public Subscription onPeerStatus(final BiConsumer<Subscription, PeerStatus> onPeerStatus) {
+        return this.onPeerStatus.subscribe(onPeerStatus);
     }
 
     @Override

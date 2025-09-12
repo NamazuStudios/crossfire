@@ -71,6 +71,36 @@ public class TestBasicMatchmaking {
 
     }
 
+    @DataProvider
+    public Object[][] host() {
+
+        if (testContextList.isEmpty()) {
+            Assert.fail("Test contexts are not initialized. Ensure setupContexts() succeeds called before running tests.");
+        }
+
+        return testContextList
+                .stream()
+                .filter(c -> c.signalingClient().getState().isHost())
+                .map(c -> new Object[]{c})
+                .toArray(Object[][]::new);
+
+    }
+
+    @DataProvider
+    public Object[][] client() {
+
+        if (testContextList.isEmpty()) {
+            Assert.fail("Test contexts are not initialized. Ensure setupContexts() succeeds called before running tests.");
+        }
+
+        return testContextList
+                .stream()
+                .filter(c -> !c.signalingClient().getState().isHost())
+                .map(c -> new Object[]{c})
+                .toArray(Object[][]::new);
+
+    }
+
     @BeforeClass
     public void setupContainer() {
         webSocketContainer = ContainerProvider.getWebSocketContainer();
@@ -196,6 +226,14 @@ public class TestBasicMatchmaking {
 
         assertEquals(actualHostId, expectedHostId, "Host mismatch.");
         signals.forEach(s -> logger.info("Signal dequeued: {} from context {}.", s.getType(), context.profile().getId()));
+
+    }
+
+    @Test(dataProvider = "allContexts",
+          dependsOnMethods = "testAllConnectedAndHostAssigned",
+          threadPoolSize = TEST_PLAYER_COUNT
+    )
+    public void testSendSignaling() {
 
     }
 

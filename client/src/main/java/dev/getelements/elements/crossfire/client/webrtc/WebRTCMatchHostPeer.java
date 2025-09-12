@@ -1,9 +1,11 @@
 package dev.getelements.elements.crossfire.client.webrtc;
 
 import dev.getelements.elements.crossfire.client.PeerException;
+import dev.getelements.elements.crossfire.client.PeerStatus;
 import dev.getelements.elements.crossfire.client.SignalingClient;
 import dev.getelements.elements.crossfire.model.signal.*;
 import dev.getelements.elements.sdk.Subscription;
+import dev.getelements.elements.sdk.util.Publisher;
 import dev.getelements.elements.sdk.util.SimpleLazyValue;
 import dev.onvoid.webrtc.*;
 import org.slf4j.Logger;
@@ -84,6 +86,7 @@ public class WebRTCMatchHostPeer extends WebRTCPeer {
     }
 
     public WebRTCMatchHostPeer(final Record peerRecord) {
+        super(peerRecord.onPeerStatus);
         this.peerRecord = requireNonNull(peerRecord, "peerRecord");
         this.subscription = peerRecord.signaling.onSignal(this::onSignal);
     }
@@ -221,15 +224,17 @@ public class WebRTCMatchHostPeer extends WebRTCPeer {
            String dataChannelLabel,
            RTCOfferOptions offerOptions,
            RTCDataChannelInit dataChannelInit,
+           Publisher<PeerStatus> onPeerStatus,
            Function<PeerConnectionObserver, RTCPeerConnection> peerConnectionConstructor) {
 
         public Record {
-            requireNonNull(remoteProfileId, "remoteProfileId");
             requireNonNull(signaling, "signaling");
+            requireNonNull(remoteProfileId, "remoteProfileId");
             requireNonNull(dataChannelLabel, "dataChannelLabel");
             requireNonNull(offerOptions, "offerOptions");
             requireNonNull(dataChannelInit, "dataChannelInit");
             requireNonNull(peerConnectionConstructor, "peerConnectionConstructor");
+            requireNonNull(onPeerStatus, "onPeerStatus");
         }
 
         public String profileId() {

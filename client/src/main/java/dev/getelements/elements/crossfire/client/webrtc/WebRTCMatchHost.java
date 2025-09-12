@@ -2,13 +2,17 @@ package dev.getelements.elements.crossfire.client.webrtc;
 
 import dev.getelements.elements.crossfire.client.MatchHost;
 import dev.getelements.elements.crossfire.client.Peer;
+import dev.getelements.elements.crossfire.client.PeerStatus;
 import dev.getelements.elements.crossfire.client.SignalingClient;
+import dev.getelements.elements.crossfire.model.Protocol;
 import dev.getelements.elements.crossfire.model.error.ProtocolError;
 import dev.getelements.elements.crossfire.model.signal.ConnectBroadcastSignal;
 import dev.getelements.elements.crossfire.model.signal.DisconnectBroadcastSignal;
 import dev.getelements.elements.crossfire.model.signal.Signal;
 import dev.getelements.elements.sdk.Subscription;
+import dev.getelements.elements.sdk.util.ConcurrentDequePublisher;
 import dev.getelements.elements.sdk.util.LazyValue;
+import dev.getelements.elements.sdk.util.Publisher;
 import dev.getelements.elements.sdk.util.SimpleLazyValue;
 import dev.onvoid.webrtc.PeerConnectionFactory;
 import dev.onvoid.webrtc.RTCConfiguration;
@@ -22,9 +26,11 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import static dev.getelements.elements.crossfire.model.Protocol.WEBRTC;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -48,6 +54,8 @@ public class WebRTCMatchHost implements MatchHost {
 
     private final Supplier<RTCDataChannelInit> dataChannelInitSupplier;
 
+    private final Publisher<PeerStatus> onPeerStatus = new ConcurrentDequePublisher<>();
+
     private final ConcurrentMap<String, WebRTCMatchHostPeer> connections = new ConcurrentHashMap<>();
 
     public WebRTCMatchHost(final SignalingClient signalingClient,
@@ -55,19 +63,14 @@ public class WebRTCMatchHost implements MatchHost {
                            final Supplier<RTCOfferOptions> offerOptionsSupplier,
                            final Supplier<RTCDataChannelInit> dataChannelInitSupplier,
                            final Function<String, RTCConfiguration> peerConfigurationProvider) {
-
         this.signaling = requireNonNull(signalingClient, "signalingClient");
         this.peerConnectionFactory = requireNonNull(peerConnectionFactory, "peerConnectionFactory");
         this.offerOptionsSupplier = requireNonNull(offerOptionsSupplier, "offerOptionsSupplier");
         this.dataChannelInitSupplier = requireNonNull(dataChannelInitSupplier, "dataChannelInitSupplier");
         this.peerConfigurationProvider = requireNonNull(peerConfigurationProvider, "peerConfigurationProvider");
-
         this.subscription = Subscription.begin()
                 .chain(this.signaling.onSignal(this::onSignal))
                 .chain(this.signaling.onClientError(this::onClientError));
-
-        this.signaling.getState().getProfiles().forEach(this::connect);
-
     }
 
     private void onSignal(final Subscription subscription, final Signal signal) {
@@ -119,6 +122,7 @@ public class WebRTCMatchHost implements MatchHost {
                         "data-channel-" + profileId + "-" + remoteProfileId,
                         offerOptionsSupplier.get(),
                         dataChannelInitSupplier.get(),
+                        onPeerStatus,
                         observer -> {
                             final var configuration = peerConfigurationProvider.apply(remoteProfileId);
                             return peerConnectionFactory.createPeerConnection(configuration, observer);
@@ -149,8 +153,23 @@ public class WebRTCMatchHost implements MatchHost {
     }
 
     @Override
+    public Protocol getProtocol() {
+        return WEBRTC;
+    }
+
+    @Override
+    public void start() {
+        this.signaling.getState().getProfiles().forEach(this::connect);
+    }
+
+    @Override
     public Optional<Peer> findPeer(final String profileId) {
         return Optional.ofNullable(connections.get(profileId));
+    }
+
+    @Override
+    public Subscription onPeerStatus(final BiConsumer<Subscription, PeerStatus> onPeerStatus) {
+        return this.onPeerStatus.subscribe(onPeerStatus);
     }
 
     @Override

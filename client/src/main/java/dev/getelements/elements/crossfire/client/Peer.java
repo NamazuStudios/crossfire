@@ -25,7 +25,7 @@ public interface Peer {
      * @param string the buffer of data to send
      * @return SendStatus if the message was accepted for sending, false otherwise
      */
-    SendStatus send(final String string);
+    SendResult send(String string);
 
     /**
      * Sends a message to a peer identified by the given profile ID. If there is no peer connected, the message will
@@ -35,7 +35,7 @@ public interface Peer {
      * @param buffer the buffer of data to send
      * @return SendStatus if the message was accepted for sending, false otherwise
      */
-    SendStatus send(final ByteBuffer buffer);
+    SendResult send(ByteBuffer buffer);
 
     /**
      * Receives messages sent from a client.
@@ -64,7 +64,7 @@ public interface Peer {
     /**
      * Indicates the status of the message.
      */
-    enum SendStatus {
+    enum SendResult {
 
         /**
          * Message was successfully sent.
@@ -112,5 +112,4 @@ public interface Peer {
      * @param data
      */
     record StringMessage(String profileId, String data) {}
-
 }

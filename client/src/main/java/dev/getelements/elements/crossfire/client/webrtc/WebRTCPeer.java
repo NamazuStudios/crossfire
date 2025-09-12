@@ -1,6 +1,8 @@
 package dev.getelements.elements.crossfire.client.webrtc;
 
 import dev.getelements.elements.crossfire.client.Peer;
+import dev.getelements.elements.crossfire.client.PeerPhase;
+import dev.getelements.elements.crossfire.client.PeerStatus;
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.util.ConcurrentDequePublisher;
 import dev.getelements.elements.sdk.util.Publisher;
@@ -14,13 +16,16 @@ import java.nio.ByteBuffer;
 import java.util.Optional;
 import java.util.function.BiConsumer;
 
-import static dev.getelements.elements.crossfire.client.Peer.SendStatus.NOT_READY;
-import static dev.getelements.elements.crossfire.client.Peer.SendStatus.TERMINATED;
+import static dev.getelements.elements.crossfire.client.Peer.SendResult.NOT_READY;
+import static dev.getelements.elements.crossfire.client.PeerPhase.CONNECTED;
+import static dev.getelements.elements.crossfire.client.PeerPhase.READY;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 public abstract class WebRTCPeer implements Peer, AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(WebRTCPeer.class);
+
+    private final Publisher<PeerStatus> onPeerStatus;
 
     protected final Publisher<Message> onMessage = new ConcurrentDequePublisher<>();
 
@@ -32,10 +37,18 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
 
         @Override
         public void onStateChange() {
-            findDataChannel().ifPresent(dataChannel -> logger.trace(
-                    "Data channel state changed: {}",
-                    dataChannel.getState())
+            findDataChannel().ifPresentOrElse(
+                    this::onPeerStatus,
+                    () -> logger.warn("Received data channel state change, but no data channel is present.")
             );
+        }
+
+        private void onPeerStatus(final RTCDataChannel dataChannel) {
+            switch (dataChannel.getState()) {
+                case OPEN -> onPeerStatus.publish(new PeerStatus(CONNECTED, WebRTCPeer.this));
+                case CONNECTING -> onPeerStatus.publish(new PeerStatus(READY, WebRTCPeer.this));
+                case CLOSED -> onPeerStatus.publish(new PeerStatus(PeerPhase.TERMINATED, WebRTCPeer.this));
+            }
         }
 
         @Override
@@ -57,41 +70,52 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
 
     };
 
+    public WebRTCPeer(final Publisher<PeerStatus> onPeerStatus) {
+        this.onPeerStatus = onPeerStatus;
+    }
 
+    /**
+     * Closes this peer and releases any resources associated with it.
+     */
     public abstract void close();
 
+    /**
+     * Finds the {@link RTCDataChannel} associated with the peer. If available, it will return the datachannel.
+     *
+     * @return the {@link Optional} containing the data channel
+     */
     protected abstract Optional<RTCDataChannel> findDataChannel();
 
     @Override
-    public SendStatus send(final ByteBuffer buffer) {
+    public SendResult send(final ByteBuffer buffer) {
         return findDataChannel().map(dataChannel -> switch (dataChannel.getState()) {
             case CONNECTING -> NOT_READY;
-            case CLOSED, CLOSING -> TERMINATED;
+            case CLOSED, CLOSING -> SendResult.TERMINATED;
             case OPEN -> {
                 try {
                     dataChannel.send(new RTCDataChannelBuffer(buffer, true));
-                    yield SendStatus.SENT;
+                    yield SendResult.SENT;
                 } catch (final Exception e) {
                     logger.error("Failed to send data channel.", e);
-                    yield SendStatus.ERROR;
+                    yield SendResult.ERROR;
                 }
             }
         }).orElse(NOT_READY);
     }
 
     @Override
-    public SendStatus send(final String string) {
+    public SendResult send(final String string) {
         return findDataChannel().map(dataChannel -> switch (dataChannel.getState()) {
             case CONNECTING -> NOT_READY;
-            case CLOSED, CLOSING -> TERMINATED;
+            case CLOSED, CLOSING -> SendResult.TERMINATED;
             case OPEN -> {
                 try {
                     final var buffer = UTF_8.encode(string);
                     dataChannel.send(new RTCDataChannelBuffer(buffer, false));
-                    yield SendStatus.SENT;
+                    yield SendResult.SENT;
                 } catch (final Exception e) {
                     logger.error("Failed to send data channel.", e);
-                    yield SendStatus.ERROR;
+                    yield SendResult.ERROR;
                 }
             }
         }).orElse(NOT_READY);

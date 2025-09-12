@@ -1,8 +1,6 @@
 package dev.getelements.elements.crossfire.client.signaling;
 
-import dev.getelements.elements.crossfire.client.Peer;
-import dev.getelements.elements.crossfire.client.PeerException;
-import dev.getelements.elements.crossfire.client.SignalingClient;
+import dev.getelements.elements.crossfire.client.*;
 import dev.getelements.elements.crossfire.model.error.ProtocolError;
 import dev.getelements.elements.crossfire.model.signal.*;
 import dev.getelements.elements.sdk.Subscription;
@@ -13,8 +11,7 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 
-import static dev.getelements.elements.crossfire.client.Peer.SendStatus.SENT;
-import static dev.getelements.elements.crossfire.client.Peer.SendStatus.TERMINATED;
+import static dev.getelements.elements.crossfire.client.Peer.SendResult.SENT;
 import static dev.getelements.elements.crossfire.model.signal.SignalLifecycle.ONCE;
 
 public class SignalingPeer implements Peer, AutoCloseable {
@@ -29,6 +26,8 @@ public class SignalingPeer implements Peer, AutoCloseable {
 
     private final AtomicBoolean open = new AtomicBoolean(true);
 
+    private final Publisher<PeerStatus> onPeerStatus;
+
     private final Publisher<Message> onMessage = new ConcurrentDequePublisher<>();
 
     private final Publisher<StringMessage> onStringMessage = new ConcurrentDequePublisher<>();
@@ -38,10 +37,12 @@ public class SignalingPeer implements Peer, AutoCloseable {
     public SignalingPeer(
             final SignalingClient signaling,
             final String profileId,
-            final String remoteProfileId) {
+            final String remoteProfileId,
+            final Publisher<PeerStatus> onPeerStatus) {
         this.remoteProfileId = remoteProfileId;
         this.signaling = signaling;
         this.profileId = profileId;
+        this.onPeerStatus = onPeerStatus;
         this.subscription = Subscription.begin()
                 .chain(signaling.onSignal(this::onSignal))
                 .chain(signaling.onClientError(this::onClientError));
@@ -96,10 +97,10 @@ public class SignalingPeer implements Peer, AutoCloseable {
     }
 
     @Override
-    public SendStatus send(final ByteBuffer buffer) {
+    public SendResult send(final ByteBuffer buffer) {
 
         if (!open.get()) {
-            return TERMINATED;
+            return SendResult.TERMINATED;
         }
 
         final var array = new byte[buffer.remaining()];
@@ -117,10 +118,10 @@ public class SignalingPeer implements Peer, AutoCloseable {
     }
 
     @Override
-    public SendStatus send(final String string) {
+    public SendResult send(final String string) {
 
         if (!open.get()) {
-            return TERMINATED;
+            return SendResult.TERMINATED;
         }
 
         final var signal = new StringRelayDirectSignal();
@@ -153,6 +154,7 @@ public class SignalingPeer implements Peer, AutoCloseable {
     public void close() {
         if (open.compareAndExchange(true, false)) {
             subscription.unsubscribe();
+            onPeerStatus.publish(new PeerStatus(PeerPhase.TERMINATED, this));
         }
     }
 

@@ -1,9 +1,11 @@
 package dev.getelements.elements.crossfire.client.webrtc;
 
 import dev.getelements.elements.crossfire.client.PeerException;
+import dev.getelements.elements.crossfire.client.PeerStatus;
 import dev.getelements.elements.crossfire.client.SignalingClient;
 import dev.getelements.elements.crossfire.model.signal.*;
 import dev.getelements.elements.sdk.Subscription;
+import dev.getelements.elements.sdk.util.Publisher;
 import dev.getelements.elements.sdk.util.SimpleLazyValue;
 import dev.onvoid.webrtc.*;
 import org.slf4j.Logger;
@@ -63,6 +65,7 @@ public class WebRTCMatchClientPeer extends WebRTCPeer {
     };
 
     public WebRTCMatchClientPeer(final Record peerRecord) {
+        super(peerRecord.onPeerStatus);
         this.peerRecord = requireNonNull(peerRecord, "peerRecord");
         this.subscription = peerRecord.signaling.onSignal(this::onSignal);
     }
@@ -178,6 +181,7 @@ public class WebRTCMatchClientPeer extends WebRTCPeer {
             String remoteProfileId,
             SignalingClient signaling,
             RTCAnswerOptions answerOptions,
+            Publisher<PeerStatus> onPeerStatus,
             Function<PeerConnectionObserver, RTCPeerConnection> peerConnectionConstructor) {
 
         public Record {
@@ -185,6 +189,7 @@ public class WebRTCMatchClientPeer extends WebRTCPeer {
             requireNonNull(signaling, "signaling must not be null");
             requireNonNull(answerOptions, "answerOptions must not be null");
             requireNonNull(peerConnectionConstructor, "peerConnectionConstructor must not be null");
+            requireNonNull(onPeerStatus, "onPeerStatus must not be null");
         }
 
         public String profileId() {

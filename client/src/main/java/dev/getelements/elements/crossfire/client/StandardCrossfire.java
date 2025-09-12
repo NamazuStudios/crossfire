@@ -10,7 +10,8 @@ import dev.getelements.elements.crossfire.model.error.ProtocolError;
 import dev.getelements.elements.crossfire.model.signal.HostBroadcastSignal;
 import dev.getelements.elements.crossfire.model.signal.Signal;
 import dev.getelements.elements.sdk.Subscription;
-import dev.getelements.elements.sdk.util.SimpleLazyValue;
+import dev.getelements.elements.sdk.util.ConcurrentDequePublisher;
+import dev.getelements.elements.sdk.util.Publisher;
 import jakarta.websocket.DeploymentException;
 import jakarta.websocket.WebSocketContainer;
 import org.slf4j.Logger;
@@ -21,6 +22,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
 import static dev.getelements.elements.crossfire.model.Protocol.WEBRTC;
@@ -48,6 +50,14 @@ public class StandardCrossfire implements Crossfire {
     private final Supplier<WebRTCMatchClient.Builder> webrtcClientBuilder;
 
     private final AtomicReference<State> state = new AtomicReference<>(State.create());
+
+    private final Publisher<MatchHost> onHostOpened = new ConcurrentDequePublisher<>();
+
+    private final Publisher<MatchHost> onHostClosed = new ConcurrentDequePublisher<>();
+
+    private final Publisher<MatchClient> onClientOpened = new ConcurrentDequePublisher<>();
+
+    private final Publisher<MatchClient> onClientClosed = new ConcurrentDequePublisher<>();
 
     public StandardCrossfire(
             final Protocol defaultProtocol,
@@ -122,44 +132,50 @@ public class StandardCrossfire implements Crossfire {
         State old;
         State update;
 
-        final var hosts = new SimpleLazyValue<>(() -> {
+        final var hosts = new EnumMap<Protocol, MatchHost>(Protocol.class);
 
-            final var result = new EnumMap<Protocol, MatchHost>(Protocol.class);
-
-            allModes.forEach(m -> {
-                switch(m) {
-                    case WEBRTC_HOST -> result.put(m.getProtocol(), webrtcHostBuilder.get()
-                            .withSignalingClient(signaling)
-                            .build()
-                    );
-                    case SIGNALING_HOST -> result.put(m.getProtocol(), new SignalingMatchHost(signaling));
-                }
-            });
-
-            return result;
-
+        allModes.forEach(m -> {
+            switch(m) {
+                case WEBRTC_HOST -> hosts.put(m.getProtocol(), webrtcHostBuilder.get()
+                        .withSignalingClient(signaling)
+                        .build()
+                );
+                case SIGNALING_HOST -> hosts.put(m.getProtocol(), new SignalingMatchHost(signaling));
+            }
         });
 
         do {
             old  = state.get();
-            update = old.host(defaultMode, hosts.get());
+            update = old.host(defaultMode, hosts);
         } while (!state.compareAndSet(old, update));
 
         // We always clean up the old state, because if the update failed as we are taking responsibility for the
         // update as it happened.
 
-        old.hosts().values().forEach(MatchHost::close);
-        old.clients().values().forEach(MatchClient::close);
+        old.hosts()
+                .values()
+                .stream()
+                .peek(onHostClosed::publish)
+                .forEach(MatchHost::close);
+
+        old.clients()
+                .values()
+                .stream()
+                .peek(onClientClosed::publish)
+                .forEach(MatchClient::close);
 
         // This should never happen, but we add a failsafe here anyhow. In case somebody tries to update the host
         // state concurrently and the update fails, we dispose of the newly created hosts that were not added to the
         // state.
 
-        final var updated = update.hosts();
-
-        hosts.getOptional()
-            .filter(h -> h != updated)
-            .ifPresent(h -> h.values().forEach(MatchHost::close));
+        if (hosts == update.hosts()) {
+            hosts.values()
+                    .stream()
+                    .peek(onHostOpened::publish)
+                    .forEach(MatchHost::start);
+        } else {
+            hosts.values().forEach(MatchHost::close);
+        }
 
     }
 
@@ -170,44 +186,48 @@ public class StandardCrossfire implements Crossfire {
         State old;
         State update;
 
-        final var clients = new SimpleLazyValue<>(() -> {
+        final var clients = new EnumMap<Protocol, MatchClient>(Protocol.class);
 
-            final var result = new EnumMap<Protocol, MatchClient>(Protocol.class);
-
-            allModes.forEach(m -> {
-                switch(m) {
-                    case WEBRTC_CLIENT -> result.put(m.getProtocol(), webrtcClientBuilder.get()
-                            .withSignalingClient(signaling)
-                            .build()
-                    );
-                    case SIGNALING_CLIENT -> result.put(m.getProtocol(), new SignalingMatchClient(signaling));
-                }
-            });
-
-            return result;
-
+        allModes.forEach(m -> {
+            switch(m) {
+                case WEBRTC_CLIENT -> clients.put(m.getProtocol(), webrtcClientBuilder.get()
+                        .withSignalingClient(signaling)
+                        .build()
+                );
+                case SIGNALING_CLIENT -> clients.put(m.getProtocol(), new SignalingMatchClient(signaling));
+            }
         });
+
 
         do {
             old  = state.get();
-            update = old.client(defaultMode, clients.get());
+            update = old.client(defaultMode, clients);
         } while (!state.compareAndSet(old, update));
 
         // We always clean up the old state, because if the update failed as we are taking responsibility for the
         // update as it happened.
 
-        old.hosts().values().forEach(MatchHost::close);
-        old.clients().values().forEach(MatchClient::close);
+        old.hosts()
+                .values()
+                .stream()
+                .peek(onHostClosed::publish)
+                .forEach(MatchHost::close);
+
+        old.clients()
+                .values()
+                .stream()
+                .peek(onClientClosed::publish)
+                .forEach(MatchClient::close);
 
         // This should never happen, but we add a failsafe here anyhow. In case somebody tries to update the host
         // state concurrently and the update fails, we dispose of the newly created hosts that were not added to the
         // state.
 
-        final var updated = update.clients();
-
-        clients.getOptional()
-                .filter(h -> h != updated)
-                .ifPresent(h -> h.values().forEach(MatchClient::close));
+        if (clients != update.clients()) {
+            clients.values().forEach(onClientOpened::publish);
+        } else {
+            clients.values().forEach(MatchClient::close);
+        }
 
     }
 
@@ -279,6 +299,26 @@ public class StandardCrossfire implements Crossfire {
     public Optional<MatchClient> findMatchClient(final Protocol protocol) {
         final var state = this.state.get();
         return state.findMatchClient(protocol);
+    }
+
+    @Override
+    public Subscription onHostOpened(final BiConsumer<Subscription, MatchHost> onHostOpened) {
+        return this.onHostOpened.subscribe(onHostOpened);
+    }
+
+    @Override
+    public Subscription onHostClosed(final BiConsumer<Subscription, MatchHost> onHostClosed) {
+        return this.onHostClosed.subscribe(onHostClosed);
+    }
+
+    @Override
+    public Subscription onClientOpened(final BiConsumer<Subscription, MatchClient> onClientOpened) {
+        return this.onClientOpened.subscribe(onClientOpened);
+    }
+
+    @Override
+    public Subscription onClientClosed(BiConsumer<Subscription, MatchClient> onClientClosed) {
+        return this.onClientClosed.subscribe(onClientClosed);
     }
 
     @Override

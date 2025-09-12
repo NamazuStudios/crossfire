@@ -1,10 +1,12 @@
 package dev.getelements.elements.crossfire.client;
 
 import dev.getelements.elements.crossfire.model.Protocol;
+import dev.getelements.elements.sdk.Subscription;
 
 import java.net.URI;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BiConsumer;
 
 import static dev.getelements.elements.crossfire.model.Protocol.SIGNALING;
 import static dev.getelements.elements.crossfire.model.Protocol.WEBRTC;
@@ -103,6 +105,38 @@ public interface Crossfire extends AutoCloseable {
     Optional<MatchClient> findMatchClient(Protocol protocol);
 
     /**
+     * Indicates when the host is ready to accept connections.
+     *
+     * @param onHostOpened a consumer for when the host has been opened.
+     * @return a {@link Subscription}
+     */
+    Subscription onHostOpened(BiConsumer<Subscription, MatchHost> onHostOpened);
+
+    /**
+     * Indicates when the host has been closed.
+     *
+     * @param onHostClosed a consumer for when the host has been closed.
+     * @return a {@link Subscription}
+     */
+    Subscription onHostClosed(BiConsumer<Subscription, MatchHost> onHostClosed);
+
+    /**
+     * Indicates when the client has been opened.
+     *
+     * @param onClientOpened a consumer for when the client has been created.
+     * @return a {@link Subscription}
+     */
+    Subscription onClientOpened(BiConsumer<Subscription, MatchClient> onClientOpened);
+
+    /**
+     * Indicates when the client has been closed.
+     *
+     * @param onClientClosed a consumer for when the client has been closed.
+     * @return a {@link Subscription}
+     */
+    Subscription onClientClosed(BiConsumer<Subscription, MatchClient> onClientClosed);
+
+    /**
      * Closes the Crossfire instance, including all clients and hosts.
      */
     void close();
@@ -160,5 +194,7 @@ public interface Crossfire extends AutoCloseable {
         }
 
     }
+
+
 
 }
