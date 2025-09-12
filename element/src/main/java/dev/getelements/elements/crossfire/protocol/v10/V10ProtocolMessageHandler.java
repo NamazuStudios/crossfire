@@ -21,7 +21,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
@@ -235,23 +234,12 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
 
     public void bufferInbound(final ProtocolMessage message) {
 
-        final var result = this.state.updateAndGet(existing -> switch (existing.phase()) {
-
-            case SIGNALING -> existing;
-
-            case READY, WAITING, HANDSHAKE -> {
-
-                if (existing.ib().size() >= getMaxBufferSize()) {
-                    throw new MessageBufferOverrunException("Inbound buffer size exceeded: " + existing.ib().size());
+        final var result = this.state.updateAndGet(existing ->
+                switch (existing.phase()) {
+                    case SIGNALING -> existing;
+                    default -> throw invalid(existing, message);
                 }
-
-                yield existing.bufferInbound(message);
-
-            }
-
-            default -> throw invalid(existing, message);
-
-        });
+        );
 
         if (SIGNALING.equals(result.phase())) {
 
@@ -317,21 +305,8 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
     public void send(final ProtocolMessage message) {
 
         final var result = state.updateAndGet(existing -> switch (existing.phase()) {
-
             case SIGNALING -> existing;
-
-            case READY, WAITING, HANDSHAKE -> {
-
-                if (existing.ob().size() >= getMaxBufferSize()) {
-                    throw new MessageBufferOverrunException("Inbound buffer size exceeded: " + existing.ib().size());
-                }
-
-                yield existing.bufferOutbound(message);
-
-            }
-
             default -> throw invalid(existing, message);
-
         });
 
         if (SIGNALING.equals(result.phase())) {
@@ -357,12 +332,7 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
     @Override
     public void matched(final MultiMatchRecord multiMatchRecord) {
 
-        V10ConnectionStateRecord update;
-        V10ConnectionStateRecord existing;
-
-        do {
-            existing = state.get();
-        } while (!state.compareAndSet(existing, update = existing.matched(multiMatchRecord)));
+        final var update = state.updateAndGet(state -> state.matched(multiMatchRecord));
 
         logger.debug("{}: Matched session {} to match {}.   ",
                 update.phase(),
@@ -371,12 +341,7 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
         );
 
         if (SIGNALING.equals(update.phase())) {
-            final var response = new MatchedResponse();
-            response.setMatchId(update.match().getId());
-            response.setProfileId(update.auth().profile().getId());
-            update.session().getAsyncRemote().sendObject(response);
-            processBacklog(existing);
-            getSignalingHandler().start(this, update.session(), update.match(), update.auth());
+            startSignaling(update);
         }
 
     }
@@ -384,12 +349,7 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
     @Override
     public void authenticated(final AuthRecord authRecord) {
 
-        V10ConnectionStateRecord update;
-        V10ConnectionStateRecord existing;
-
-        do {
-            existing = state.get();
-        } while (!state.compareAndSet(existing, update = existing.authenticated(authRecord)));
+        final var update = state.updateAndGet(state -> state.authenticated(authRecord));
 
         logger.debug("{}: Authenticated session {} for {}",
                 update.phase(),
@@ -398,42 +358,22 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
         );
 
         if (SIGNALING.equals(update.phase())) {
-            final var response = new MatchedResponse();
-            response.setMatchId(update.match().getId());
-            update.session().getAsyncRemote().sendObject(response);
-            processBacklog(existing);
-            getSignalingHandler().start(
-                    this,
-                    update.session(),
-                    update.match(),
-                    update.auth()
-            );
+            startSignaling(update);
         }
 
     }
 
-    private void processBacklog(final V10ConnectionStateRecord state) {
+    private void startSignaling(final V10ConnectionStateRecord state) {
 
-        final var inbound = state.ib() == null ? List.<ProtocolMessage>of() : state.ib();
-        final var outbound = state.ob() == null ? List.<ProtocolMessage>of() : state.ob();
-
-        logger.debug("{}: Processing backlog for session {}", state.phase(), state.sessionId());
-        inbound.forEach(message -> onSignalingMessage(state, state.session(), message));
-
-        logger.debug("{}: Processed inbound backlog for session {}. Count: {}",
-                state.phase(),
+        logger.debug("Starting signaling for session {} in match {}.",
                 state.sessionId(),
-                inbound.size()
+                state.match().getId()
         );
 
-        final var remote = state.session().getAsyncRemote();
-        outbound.forEach(remote::sendObject);
-
-        logger.debug("{}: Processed outbound backlog for session {}. Count: {}",
-                state.phase(),
-                state.sessionId(),
-                outbound.size()
-        );
+        final var response = new MatchedResponse();
+        response.setMatchId(state.match().getId());
+        state.session().getAsyncRemote().sendObject(response);
+        getSignalingHandler().start(this, state.session(), state.match(), state.auth());
 
     }
 

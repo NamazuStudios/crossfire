@@ -2,10 +2,14 @@ package dev.getelements.elements.crossfire;
 
 import dev.getelements.elements.crossfire.client.Crossfire;
 import dev.getelements.elements.crossfire.client.SignalingClient;
+import dev.getelements.elements.crossfire.client.SignalingClientPhase;
 import dev.getelements.elements.crossfire.client.StandardCrossfire;
+import dev.getelements.elements.crossfire.model.Protocol;
 import dev.getelements.elements.crossfire.model.Version;
 import dev.getelements.elements.crossfire.model.handshake.FindHandshakeRequest;
 import dev.getelements.elements.crossfire.model.handshake.HandshakeResponse;
+import dev.getelements.elements.crossfire.model.signal.ConnectBroadcastSignal;
+import dev.getelements.elements.crossfire.model.signal.HostBroadcastSignal;
 import dev.getelements.elements.crossfire.model.signal.Signal;
 import dev.getelements.elements.sdk.dao.ApplicationConfigurationDao;
 import dev.getelements.elements.sdk.model.application.MatchmakingApplicationConfiguration;
@@ -14,6 +18,7 @@ import dev.getelements.elements.sdk.model.session.SessionCreation;
 import dev.getelements.elements.sdk.model.user.User;
 import jakarta.websocket.ContainerProvider;
 import jakarta.websocket.WebSocketContainer;
+import org.eclipse.jetty.util.BlockingArrayQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -21,18 +26,19 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.util.Deque;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static dev.getelements.elements.crossfire.client.Crossfire.Mode.SIGNALING_CLIENT;
 import static dev.getelements.elements.crossfire.client.SignalingClientPhase.CONNECTED;
-import static dev.getelements.elements.crossfire.client.SignalingClientPhase.SIGNALING;
 import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.MATCHED;
 import static dev.getelements.elements.sdk.model.user.User.Level.USER;
 import static java.lang.String.format;
@@ -48,10 +54,6 @@ public class TestBasicMatchmaking {
     private static final Logger logger = LoggerFactory.getLogger(TestBasicMatchmaking.class);
 
     private final TestServer server = TestServer.getInstance();
-
-    private final ConcurrentMap<Crossfire, Deque<Signal>> signals = new ConcurrentHashMap<>();
-
-    private final ConcurrentMap<Crossfire, Deque<HandshakeResponse>> handshakes = new ConcurrentHashMap<>();
 
     private List<TestContext> testContextList = List.of();
 
@@ -93,23 +95,7 @@ public class TestBasicMatchmaking {
                             .build()
                             .connect();
 
-                    crossfire
-                            .getSignalingClient()
-                            .onSignal((sub, signal) -> {
-                                logger.info("Signal received: {}", signal.getType());
-                                signals.computeIfAbsent(crossfire, k  -> new ConcurrentLinkedDeque<>())
-                                       .addLast(signal);
-                            });
-
-                    crossfire
-                            .getSignalingClient()
-                            .onHandshake((sub, handshake) -> {
-                                logger.info("Handshake response received: {}", handshake.getType());
-                                handshakes.computeIfAbsent(crossfire, k  -> new ConcurrentLinkedDeque<>())
-                                          .addLast(handshake);
-                            });
-
-                    return new TestContext(crossfire, user, profile, session);
+                    return new TestContext(crossfire, user, profile, session, new BlockingArrayQueue<>());
 
                 })
                 .toList();
@@ -133,7 +119,9 @@ public class TestBasicMatchmaking {
 
     }
 
-    @Test(dataProvider = "allContexts")
+    @Test(dataProvider = "allContexts",
+          threadPoolSize = TEST_PLAYER_COUNT
+    )
     public void testFindHandshake(final TestContext context) throws InterruptedException {
 
         assertEquals(context.signalingClient().getPhase(), CONNECTED);
@@ -150,7 +138,7 @@ public class TestBasicMatchmaking {
         assertEquals(response.getType(), MATCHED);
         assertNotNull(response.getMatchId());
 
-        assertEquals(context.signalingClient().getPhase(), SIGNALING);
+        assertEquals(context.signalingClient().getPhase(), SignalingClientPhase.SIGNALING);
         assertEquals(context.signalingClient().getHandshakeResponse().getMatchId(), response.getMatchId());
         assertEquals(context.signalingClient().findHandshakeResponse().get().getMatchId(), response.getMatchId());
 
@@ -172,12 +160,62 @@ public class TestBasicMatchmaking {
 
     }
 
+    @Test(dataProvider = "allContexts",
+          dependsOnMethods = "testTestAllJoinedSameMatch",
+          threadPoolSize = TEST_PLAYER_COUNT
+    )
+    public void testAllConnectedAndHostAssigned(final TestContext context) throws InterruptedException {
+
+        String actualHostId = null;
+
+        final var expectedProfileIds = testContextList
+                .stream()
+                .map(TestContext::profile)
+                .map(Profile::getId)
+                .collect(Collectors.toSet());
+
+        final var signals = new ArrayList<Signal>();
+
+        while (actualHostId == null && !expectedProfileIds.isEmpty()) {
+
+            final var signal = context.signals().take();
+            logger.info("Signal received: {} from context {}.", signal.getType(), context.profile().getId());
+
+            signals.add(signal);
+
+            switch (signal.getType()) {
+                case HOST -> actualHostId = ((HostBroadcastSignal)signal).getProfileId();
+                case CONNECT -> expectedProfileIds.remove(((ConnectBroadcastSignal)signal).getProfileId());
+            }
+
+        }
+
+        final var expectedHostId = context
+                .signalingClient()
+                .getState()
+                .getHost();
+
+        assertEquals(actualHostId, expectedHostId, "Host mismatch.");
+        signals.forEach(s -> logger.info("Signal dequeued: {} from context {}.", s.getType(), context.profile().getId()));
+
+    }
+
     public record TestContext(
             Crossfire crossfire,
             User user,
             Profile profile,
-            SessionCreation creation
+            SessionCreation creation,
+            BlockingQueue<Signal> signals
     ) {
+
+        public TestContext {
+            crossfire
+                    .getSignalingClient()
+                    .onSignal((sub, signal) -> {
+                        signals().add(signal);
+                        logger.info("Received signal {} for profile {}.", signal.getType(), profile().getId());
+                    });
+        }
 
         public SignalingClient signalingClient() {
             return crossfire().getSignalingClient();

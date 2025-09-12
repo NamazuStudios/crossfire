@@ -67,9 +67,11 @@ public class StandardCrossfire implements Crossfire {
         this.webSocketContainer = requireNonNull(webSocketContainer, "webSocketContainer");
 
         if (supportedModes.stream().map(Mode::getProtocol).anyMatch(p -> p.equals(defaultProtocol))) {
-            this.subscription = Subscription.begin()
-                    .chain(signaling.onSignal(this::onSignal))
-                    .chain(signaling.onClientError(this::onClientError));
+// TODO: Fix this logic later
+//            this.subscription = Subscription.begin()
+//                    .chain(signaling.onSignal(this::onSignal))
+//                    .chain(signaling.onClientError(this::onClientError));
+            this.subscription = Subscription.begin();
         } else {
             throw new IllegalArgumentException("defaultProtocol must be supported by at least one mode");
         }
@@ -438,6 +440,16 @@ public class StandardCrossfire implements Crossfire {
             requireNonNull(defaultProtocol, "Default protocol must be specified.");
             this.defaultProtocol = defaultProtocol;
             return this;
+        }
+
+        /**
+         * Sets the supported modes.
+         *
+         * @param supportedModes the set of supported modes
+         * @return the current Builder instance
+         */
+        public Builder withSupportedModes(final Mode ... supportedModes) {
+            return withSupportedModes(Set.of(supportedModes));
         }
 
         /**

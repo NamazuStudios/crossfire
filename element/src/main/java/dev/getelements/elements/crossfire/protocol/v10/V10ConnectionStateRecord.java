@@ -19,13 +19,10 @@ record V10ConnectionStateRecord(
         Session session,
         MultiMatchRecord match,
         ProtocolMessageHandler.AuthRecord auth,
-        ConnectionPhase phase,
-        List<ProtocolMessage> ib,
-        List<ProtocolMessage> ob
-) {
+        ConnectionPhase phase) {
 
     public static V10ConnectionStateRecord create() {
-        return new V10ConnectionStateRecord(null, null, null, WAITING, null, null);
+        return new V10ConnectionStateRecord(null, null, null, WAITING);
     }
 
     public String sessionId() {
@@ -37,7 +34,7 @@ record V10ConnectionStateRecord(
         requireNonNull(session, "Session cannot be null");
 
         return switch (phase()) {
-            case WAITING -> new V10ConnectionStateRecord(session, match(), auth(), READY, ib(), ob());
+            case WAITING -> new V10ConnectionStateRecord(session, match(), auth(), READY);
             case TERMINATED -> this;
             default -> throw new ProtocolStateException("Cannot start session in phase " + phase());
         };
@@ -46,7 +43,7 @@ record V10ConnectionStateRecord(
 
     public V10ConnectionStateRecord handshake() {
         return switch (phase()) {
-            case READY -> new V10ConnectionStateRecord(session(), match(), auth(), HANDSHAKE, ib(), ob());
+            case READY -> new V10ConnectionStateRecord(session(), match(), auth(), HANDSHAKE);
             case TERMINATED -> this;
             default -> throw new ProtocolStateException("Cannot start handshaking in " + phase());
         };
@@ -60,9 +57,7 @@ record V10ConnectionStateRecord(
             case TERMINATED -> this;
             case HANDSHAKE -> {
                 final var phase = auth() != null ? SIGNALING : HANDSHAKE;
-                final var ob = SIGNALING.equals(phase) ? List.<ProtocolMessage>of() : ob();
-                final var ib = SIGNALING.equals(phase) ? List.<ProtocolMessage>of() : ib();
-                yield new V10ConnectionStateRecord(session(), match, auth(), phase, ib, ob);
+                yield new V10ConnectionStateRecord(session(), match, auth(), phase);
             }
             default -> throw new ProtocolStateException("Cannot match in " + phase());
         };
@@ -77,23 +72,11 @@ record V10ConnectionStateRecord(
             case TERMINATED -> this;
             case HANDSHAKE -> {
                 final var phase = match() != null ? SIGNALING : HANDSHAKE;
-                final var ob = SIGNALING.equals(phase) ? List.<ProtocolMessage>of() : ob();
-                final var ib = SIGNALING.equals(phase) ? List.<ProtocolMessage>of() : ib();
-                yield new V10ConnectionStateRecord(session(), match(), auth, phase, ib, ob);
+                yield new V10ConnectionStateRecord(session(), match(), auth, phase);
             }
             default -> throw new ProtocolStateException("Cannot authenticate in " + phase());
         };
 
-    }
-
-    public V10ConnectionStateRecord bufferInbound(final ProtocolMessage message) {
-        final var ib = append(ib(), message);
-        return new V10ConnectionStateRecord(session(), match(), auth(), phase(), unmodifiableList(ib), ob());
-    }
-
-    public V10ConnectionStateRecord bufferOutbound(final ProtocolMessage message) {
-        final var ob = append(ob(), message);
-        return new V10ConnectionStateRecord(session(), match(), auth(), phase(), ib(), unmodifiableList(ob));
     }
 
     private static List<ProtocolMessage> append(final List<ProtocolMessage> base, final ProtocolMessage message) {
@@ -109,7 +92,7 @@ record V10ConnectionStateRecord(
     public V10ConnectionStateRecord terminate() {
         return switch (phase()) {
             case TERMINATED -> this;
-            default -> new V10ConnectionStateRecord(session(), match(), auth(), TERMINATED, ib(), ob());
+            default -> new V10ConnectionStateRecord(session(), match(), auth(), TERMINATED);
         };
     }
 
