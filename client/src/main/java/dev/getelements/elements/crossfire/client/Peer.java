@@ -22,6 +22,16 @@ public interface Peer {
      * buffer until a peer connects.  Note this will not block the thread, but will assume that the buffer will
      * remain untouched until the message is sent.
      *
+     * @param string the buffer of data to send
+     * @return SendStatus if the message was accepted for sending, false otherwise
+     */
+    SendStatus send(final String string);
+
+    /**
+     * Sends a message to a peer identified by the given profile ID. If there is no peer connected, the message will
+     * buffer until a peer connects.  Note this will not block the thread, but will assume that the buffer will
+     * remain untouched until the message is sent.
+     *
      * @param buffer the buffer of data to send
      * @return SendStatus if the message was accepted for sending, false otherwise
      */
@@ -42,6 +52,14 @@ public interface Peer {
      * @return a {@link Subscription}
      */
     Subscription onMessage(BiConsumer<Subscription, Message> onMessage);
+
+    /**
+     * Receives messages sent from a client.
+     *
+     * @param onMessage the message
+     * @return a {@link Subscription}
+     */
+    Subscription onStringMessage(BiConsumer<Subscription, StringMessage> onMessage);
 
     /**
      * Indicates the status of the message.
@@ -86,5 +104,13 @@ public interface Peer {
      * @param data
      */
     record Message(String profileId, ByteBuffer data) {}
+
+    /**
+     * A message received from a client.
+     *
+     * @param profileId the profile id
+     * @param data
+     */
+    record StringMessage(String profileId, String data) {}
 
 }

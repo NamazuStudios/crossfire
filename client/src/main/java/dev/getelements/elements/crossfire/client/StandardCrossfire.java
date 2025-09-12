@@ -67,11 +67,9 @@ public class StandardCrossfire implements Crossfire {
         this.webSocketContainer = requireNonNull(webSocketContainer, "webSocketContainer");
 
         if (supportedModes.stream().map(Mode::getProtocol).anyMatch(p -> p.equals(defaultProtocol))) {
-// TODO: Fix this logic later
-//            this.subscription = Subscription.begin()
-//                    .chain(signaling.onSignal(this::onSignal))
-//                    .chain(signaling.onClientError(this::onClientError));
-            this.subscription = Subscription.begin();
+            this.subscription = Subscription.begin()
+                    .chain(signaling.onSignal(this::onSignal))
+                    .chain(signaling.onClientError(this::onClientError));
         } else {
             throw new IllegalArgumentException("defaultProtocol must be supported by at least one mode");
         }
@@ -104,9 +102,9 @@ public class StandardCrossfire implements Crossfire {
         if (allModes.isEmpty() || defaultMode == null) {
             clearClientState();
         } else if (defaultMode.isHost()) {
-            setHostState(defaultMode, allModes);
+            setHostState(signal, defaultMode, allModes);
         } else {
-            setClientState(defaultMode, allModes);
+            setClientState(signal, defaultMode, allModes);
         }
 
     }
@@ -117,7 +115,8 @@ public class StandardCrossfire implements Crossfire {
         old.clients().values().forEach(MatchClient::close);
     }
 
-    private void setHostState(final Mode defaultMode,
+    private void setHostState(final HostBroadcastSignal signal,
+                              final Mode defaultMode,
                               final EnumSet<Mode> allModes) {
 
         State old;
@@ -143,7 +142,8 @@ public class StandardCrossfire implements Crossfire {
 
         do {
             old  = state.get();
-        } while (state.compareAndSet(old, update = old.host(defaultMode, hosts.get())));
+            update = old.host(defaultMode, hosts.get());
+        } while (!state.compareAndSet(old, update));
 
         // We always clean up the old state, because if the update failed as we are taking responsibility for the
         // update as it happened.
@@ -163,7 +163,8 @@ public class StandardCrossfire implements Crossfire {
 
     }
 
-    private void setClientState(final Mode defaultMode,
+    private void setClientState(final HostBroadcastSignal signal,
+                                final Mode defaultMode,
                                 final EnumSet<Mode> allModes) {
 
         State old;
@@ -190,7 +191,7 @@ public class StandardCrossfire implements Crossfire {
         do {
             old  = state.get();
             update = old.client(defaultMode, clients.get());
-        } while (state.compareAndSet(old, update));
+        } while (!state.compareAndSet(old, update));
 
         // We always clean up the old state, because if the update failed as we are taking responsibility for the
         // update as it happened.

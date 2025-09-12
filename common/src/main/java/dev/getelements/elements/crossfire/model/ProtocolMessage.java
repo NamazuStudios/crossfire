@@ -1,9 +1,9 @@
 package dev.getelements.elements.crossfire.model;
 
 import dev.getelements.elements.crossfire.model.error.StandardProtocolError;
-import dev.getelements.elements.crossfire.model.handshake.MatchedResponse;
 import dev.getelements.elements.crossfire.model.handshake.FindHandshakeRequest;
 import dev.getelements.elements.crossfire.model.handshake.JoinHandshakeRequest;
+import dev.getelements.elements.crossfire.model.handshake.MatchedResponse;
 import dev.getelements.elements.crossfire.model.signal.*;
 import dev.getelements.elements.sdk.annotation.ElementPublic;
 
@@ -79,6 +79,16 @@ public interface ProtocolMessage {
          * Represents a signal that carries a binary payload to be relayed to a specific profile in the match.
          */
         BINARY_RELAY(SIGNALING_DIRECT, BinaryRelayDirectSignal.class),
+
+        /**
+         * Represents a signal that carries a binary payload to be broadcasted to all profiles in the match.
+         */
+        STRING_BROADCAST(SIGNALING, StringBroadcastSignal.class),
+
+        /**
+         * Represents a signal that carries a binary payload to be relayed to a specific profile in the match.
+         */
+        STRING_RELAY(SIGNALING_DIRECT, StringRelayDirectSignal.class),
 
         /**
          * Represents a signal that carries a candidate for the WebRTC connection.

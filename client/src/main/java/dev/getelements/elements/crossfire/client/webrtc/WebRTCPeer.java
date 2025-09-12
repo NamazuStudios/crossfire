@@ -16,12 +16,15 @@ import java.util.function.BiConsumer;
 
 import static dev.getelements.elements.crossfire.client.Peer.SendStatus.NOT_READY;
 import static dev.getelements.elements.crossfire.client.Peer.SendStatus.TERMINATED;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 public abstract class WebRTCPeer implements Peer, AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(WebRTCPeer.class);
 
     protected final Publisher<Message> onMessage = new ConcurrentDequePublisher<>();
+
+    protected final Publisher<StringMessage> onStringMessage = new ConcurrentDequePublisher<>();
 
     protected final Publisher<Throwable> onError = new ConcurrentDequePublisher<>();
 
@@ -37,8 +40,14 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
 
         @Override
         public void onMessage(final RTCDataChannelBuffer buffer) {
-            final var message = new Message(getProfileId(), buffer.data);
-            onMessage.publish(message);
+            if (buffer.binary) {
+                final var message = new Message(getProfileId(), buffer.data);
+                onMessage.publish(message);
+            } else {
+                final var string = UTF_8.decode(buffer.data).toString();
+                final var message = new StringMessage(getProfileId(), string);
+                onStringMessage.publish(message);
+            }
         }
 
         @Override
@@ -47,6 +56,7 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
         }
 
     };
+
 
     public abstract void close();
 
@@ -59,6 +69,24 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
             case CLOSED, CLOSING -> TERMINATED;
             case OPEN -> {
                 try {
+                    dataChannel.send(new RTCDataChannelBuffer(buffer, true));
+                    yield SendStatus.SENT;
+                } catch (final Exception e) {
+                    logger.error("Failed to send data channel.", e);
+                    yield SendStatus.ERROR;
+                }
+            }
+        }).orElse(NOT_READY);
+    }
+
+    @Override
+    public SendStatus send(final String string) {
+        return findDataChannel().map(dataChannel -> switch (dataChannel.getState()) {
+            case CONNECTING -> NOT_READY;
+            case CLOSED, CLOSING -> TERMINATED;
+            case OPEN -> {
+                try {
+                    final var buffer = UTF_8.encode(string);
                     dataChannel.send(new RTCDataChannelBuffer(buffer, false));
                     yield SendStatus.SENT;
                 } catch (final Exception e) {
@@ -77,6 +105,11 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
     @Override
     public Subscription onMessage(final BiConsumer<Subscription, Message> onMessage) {
         return this.onMessage.subscribe(onMessage);
+    }
+
+    @Override
+    public Subscription onStringMessage(BiConsumer<Subscription, StringMessage> onMessage) {
+        return this.onStringMessage.subscribe(onMessage);
     }
 
 }

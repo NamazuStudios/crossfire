@@ -133,6 +133,7 @@ public class MemoryMatchState {
             sessionStates
                     .values()
                     .stream()
+                    .filter(s -> !s.getProfileId().equals(signal.getProfileId()))
                     .map(SessionState::getSubscriptionRecord)
                     .filter(Objects::nonNull)
                     .forEach(subscription -> subscription.onMessage(signal));

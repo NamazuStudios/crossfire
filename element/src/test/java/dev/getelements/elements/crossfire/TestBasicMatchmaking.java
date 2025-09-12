@@ -7,7 +7,6 @@ import dev.getelements.elements.crossfire.client.StandardCrossfire;
 import dev.getelements.elements.crossfire.model.Protocol;
 import dev.getelements.elements.crossfire.model.Version;
 import dev.getelements.elements.crossfire.model.handshake.FindHandshakeRequest;
-import dev.getelements.elements.crossfire.model.handshake.HandshakeResponse;
 import dev.getelements.elements.crossfire.model.signal.ConnectBroadcastSignal;
 import dev.getelements.elements.crossfire.model.signal.HostBroadcastSignal;
 import dev.getelements.elements.crossfire.model.signal.Signal;
@@ -29,10 +28,7 @@ import org.testng.annotations.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -92,6 +88,8 @@ public class TestBasicMatchmaking {
                     final var crossfire = new StandardCrossfire.Builder()
                             .withDefaultUri(server.getTestTestServerWsUrl())
                             .withWebSocketContainer(webSocketContainer)
+                            .withDefaultProtocol(Protocol.SIGNALING)
+                            .withSupportedModes(Crossfire.Mode.SIGNALING_HOST, SIGNALING_CLIENT)
                             .build()
                             .connect();
 
@@ -170,6 +168,7 @@ public class TestBasicMatchmaking {
 
         final var expectedProfileIds = testContextList
                 .stream()
+                .filter(tc -> tc != context)
                 .map(TestContext::profile)
                 .map(Profile::getId)
                 .collect(Collectors.toSet());

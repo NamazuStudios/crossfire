@@ -4,9 +4,7 @@ import dev.getelements.elements.crossfire.client.Peer;
 import dev.getelements.elements.crossfire.client.PeerException;
 import dev.getelements.elements.crossfire.client.SignalingClient;
 import dev.getelements.elements.crossfire.model.error.ProtocolError;
-import dev.getelements.elements.crossfire.model.signal.BinaryBroadcastSignal;
-import dev.getelements.elements.crossfire.model.signal.BinaryRelayDirectSignal;
-import dev.getelements.elements.crossfire.model.signal.Signal;
+import dev.getelements.elements.crossfire.model.signal.*;
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.util.ConcurrentDequePublisher;
 import dev.getelements.elements.sdk.util.Publisher;
@@ -33,6 +31,8 @@ public class SignalingPeer implements Peer, AutoCloseable {
 
     private final Publisher<Message> onMessage = new ConcurrentDequePublisher<>();
 
+    private final Publisher<StringMessage> onStringMessage = new ConcurrentDequePublisher<>();
+
     private final Publisher<Throwable> onError = new ConcurrentDequePublisher<>();
 
     public SignalingPeer(
@@ -52,19 +52,31 @@ public class SignalingPeer implements Peer, AutoCloseable {
             case ERROR -> onProtocolError(subscription, (ProtocolError) signal);
             case BINARY_RELAY -> onBinaryRelay(subscription, (BinaryRelayDirectSignal) signal);
             case BINARY_BROADCAST -> onBinaryBroadcast(subscription, (BinaryBroadcastSignal) signal);
+            case STRING_RELAY -> onStringRelay(subscription, (StringRelayDirectSignal) signal);
+            case STRING_BROADCAST -> onStringBroadcast(subscription, (StringBroadcastSignal) signal);
         }
     }
 
     private void onBinaryRelay(final Subscription subscription, final BinaryRelayDirectSignal signal) {
         final var buffer = ByteBuffer.wrap(signal.getPayload());
-        final var message = new Message(profileId, buffer);
+        final var message = new Message(signal.getProfileId(), buffer);
         onMessage.publish(message);
     }
 
     private void onBinaryBroadcast(final Subscription subscription, final BinaryBroadcastSignal signal) {
         final var buffer = ByteBuffer.wrap(signal.getPayload());
-        final var message = new Message(profileId, buffer);
+        final var message = new Message(signal.getProfileId(), buffer);
         onMessage.publish(message);
+    }
+
+    private void onStringRelay(final Subscription subscription, final StringRelayDirectSignal signal) {
+        final var message = new StringMessage(signal.getProfileId(), signal.getPayload());
+        onStringMessage.publish(message);
+    }
+
+    private void onStringBroadcast(final Subscription subscription, final StringBroadcastSignal signal) {
+        final var message = new StringMessage(signal.getProfileId(), signal.getPayload());
+        onStringMessage.publish(message);
     }
 
     private void onClientError(final Subscription subscription, final Throwable throwable) {
@@ -105,6 +117,24 @@ public class SignalingPeer implements Peer, AutoCloseable {
     }
 
     @Override
+    public SendStatus send(final String string) {
+
+        if (!open.get()) {
+            return TERMINATED;
+        }
+
+        final var signal = new StringRelayDirectSignal();
+        signal.setLifecycle(ONCE);
+        signal.setPayload(string);
+        signal.setProfileId(profileId);
+        signal.setRecipientProfileId(remoteProfileId);
+        signaling.signal(signal);
+
+        return SENT;
+
+    }
+
+    @Override
     public Subscription onError(final BiConsumer<Subscription, Throwable> onError) {
         return this.onError.subscribe(onError);
     }
@@ -112,6 +142,11 @@ public class SignalingPeer implements Peer, AutoCloseable {
     @Override
     public Subscription onMessage(final BiConsumer<Subscription, Message> onMessage) {
         return this.onMessage.subscribe(onMessage);
+    }
+
+    @Override
+    public Subscription onStringMessage(BiConsumer<Subscription, StringMessage> onMessage) {
+        return this.onStringMessage.subscribe(onMessage);
     }
 
     @Override
