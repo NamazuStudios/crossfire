@@ -1,9 +1,8 @@
 package dev.getelements.elements.crossfire;
 
-import dev.getelements.elements.crossfire.client.Crossfire;
-import dev.getelements.elements.crossfire.client.SignalingClient;
-import dev.getelements.elements.crossfire.client.SignalingClientPhase;
-import dev.getelements.elements.crossfire.client.StandardCrossfire;
+import dev.getelements.elements.crossfire.client.*;
+import dev.getelements.elements.crossfire.client.Peer.Message;
+import dev.getelements.elements.crossfire.client.Peer.StringMessage;
 import dev.getelements.elements.crossfire.model.Protocol;
 import dev.getelements.elements.crossfire.model.Version;
 import dev.getelements.elements.crossfire.model.handshake.FindHandshakeRequest;
@@ -123,7 +122,11 @@ public class TestBasicMatchmaking {
                             .build()
                             .connect();
 
-                    return new TestContext(crossfire, user, profile, session, new BlockingArrayQueue<>());
+                    return new TestContext(crossfire, user, profile, session,
+                            new BlockingArrayQueue<>(),
+                            new BlockingArrayQueue<>(),
+                            new BlockingArrayQueue<>()
+                    );
 
                 })
                 .toList();
@@ -242,7 +245,9 @@ public class TestBasicMatchmaking {
             User user,
             Profile profile,
             SessionCreation creation,
-            BlockingQueue<Signal> signals
+            BlockingQueue<Signal> signals,
+            BlockingQueue<Message> messages,
+            BlockingQueue<StringMessage> stringMessages
     ) {
 
         public TestContext {
