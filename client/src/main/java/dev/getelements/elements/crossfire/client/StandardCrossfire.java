@@ -224,7 +224,10 @@ public class StandardCrossfire implements Crossfire {
         // state.
 
         if (clients != update.clients()) {
-            clients.values().forEach(onClientOpened::publish);
+            clients.values()
+                    .stream()
+                    .peek(onClientOpened::publish)
+                    .forEach(MatchClient::connect);
         } else {
             clients.values().forEach(MatchClient::close);
         }

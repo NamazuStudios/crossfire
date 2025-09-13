@@ -7,6 +7,7 @@ import dev.getelements.elements.crossfire.model.error.UnexpectedMessageException
 import dev.getelements.elements.crossfire.model.signal.*;
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.util.Monitor;
+import java8.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -110,17 +111,9 @@ public class MemoryMatchState {
 
         public void publish(final DirectSignal signal) {
             try (var mon = Monitor.enter(read)) {
-
-                final var backlog = sessionStates.get(signal.getProfileId());
-
-                if (backlog == null)
-                    return;
-
-                final var subscription = backlog.getSubscriptionRecord();
-
-                if (subscription != null)
-                    subscription.onMessage(signal);
-
+                Optional.ofNullable(sessionStates.get(signal.getRecipientProfileId()))
+                        .map(SessionState::getSubscriptionRecord)
+                        .ifPresent(subscriptionRecord -> subscriptionRecord.onMessage(signal));
             }
         }
 
@@ -146,22 +139,18 @@ public class MemoryMatchState {
                 final var backlog = sessionStates.computeIfAbsent(signal.getProfileId(), SessionState::new);
                 backlog.append(signal);
 
-                final var subscription = backlog.getSubscriptionRecord();
-
-                if (subscription != null)
-                    subscription.onMessage(signal);
+                Optional.ofNullable(sessionStates.get(signal.getRecipientProfileId()))
+                        .map(SessionState::getSubscriptionRecord)
+                        .ifPresent(subscriptionRecord -> subscriptionRecord.onMessage(signal));
 
             }
         }
 
         public void publishAndPersist(final Stream<String> profileIds, final BroadcastSignal signal) {
             try (var mon = Monitor.enter(write)) {
-                profileIds
-                        .map(pid -> sessionStates.computeIfAbsent(pid, SessionState::new))
-                        .peek(backlog -> backlog.append(signal))
-                        .map(SessionState::getSubscriptionRecord)
-                        .filter(Objects::nonNull)
-                        .forEach(subscription -> subscription.onMessage(signal));
+                final var backlog = sessionStates.computeIfAbsent(signal.getProfileId(), SessionState::new);
+                backlog.append(signal);
+                doPublish(signal);
             }
         }
 

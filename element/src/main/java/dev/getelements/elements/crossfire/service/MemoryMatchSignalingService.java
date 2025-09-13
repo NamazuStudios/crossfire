@@ -66,7 +66,7 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
 
         final var recipientExists = profiles
                 .stream()
-                .anyMatch(p -> p.getId().equals(signal.getProfileId()));
+                .anyMatch(p -> p.getId().equals(signal.getRecipientProfileId()));
 
         if (!senderExists) {
             throw new ForbiddenException("Profile with id " + signal.getProfileId() + " does not exist");
