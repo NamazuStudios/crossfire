@@ -7,6 +7,7 @@ import java.net.URI;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiConsumer;
+import java.util.stream.Collectors;
 
 import static dev.getelements.elements.crossfire.model.Protocol.SIGNALING;
 import static dev.getelements.elements.crossfire.model.Protocol.WEBRTC;
@@ -45,6 +46,18 @@ public interface Crossfire extends AutoCloseable {
      * @return the supported modes
      */
     Set<Mode> getSupportedModes();
+
+    /**
+     * Gets all supported {@link Protocol}s
+     *
+     * @return the set of protocols
+     */
+    default Set<Protocol> getSupportedProtocols() {
+        return getSupportedModes()
+                .stream()
+                .map(Mode::getProtocol)
+                .collect(Collectors.toSet());
+    }
 
     /**
      * Connects the signaling client to the server using the default URI. The default implementation uses environment
@@ -107,34 +120,18 @@ public interface Crossfire extends AutoCloseable {
     /**
      * Indicates when the host is ready to accept connections.
      *
-     * @param onHostOpened a consumer for when the host has been opened.
+     * @param onHostOpenStatus a consumer for when the host has been opened.
      * @return a {@link Subscription}
      */
-    Subscription onHostOpened(BiConsumer<Subscription, MatchHost> onHostOpened);
-
-    /**
-     * Indicates when the host has been closed.
-     *
-     * @param onHostClosed a consumer for when the host has been closed.
-     * @return a {@link Subscription}
-     */
-    Subscription onHostClosed(BiConsumer<Subscription, MatchHost> onHostClosed);
+    Subscription onHostOpenStatus(BiConsumer<Subscription, OpenStatus<MatchHost>> onHostOpenStatus);
 
     /**
      * Indicates when the client has been opened.
      *
-     * @param onClientOpened a consumer for when the client has been created.
+     * @param onClientOpenStatus a consumer for when the client has been created.
      * @return a {@link Subscription}
      */
-    Subscription onClientOpened(BiConsumer<Subscription, MatchClient> onClientOpened);
-
-    /**
-     * Indicates when the client has been closed.
-     *
-     * @param onClientClosed a consumer for when the client has been closed.
-     * @return a {@link Subscription}
-     */
-    Subscription onClientClosed(BiConsumer<Subscription, MatchClient> onClientClosed);
+    Subscription onClientOpenStatus(BiConsumer<Subscription, OpenStatus<MatchClient>> onClientOpenStatus);
 
     /**
      * Closes the Crossfire instance, including all clients and hosts.
@@ -195,6 +192,13 @@ public interface Crossfire extends AutoCloseable {
 
     }
 
-
+    /**
+     * Record to represent the open or close status of a type.
+     *
+     * @param open if true
+     * @param object the object that was opened or closed
+     * @param <T>
+     */
+    record OpenStatus<T>(boolean open, T object) {}
 
 }

@@ -10,7 +10,6 @@ import dev.getelements.elements.sdk.annotation.ElementEventConsumer;
 import dev.getelements.elements.sdk.dao.MultiMatchDao;
 import dev.getelements.elements.sdk.model.exception.ForbiddenException;
 import dev.getelements.elements.sdk.model.match.MultiMatch;
-import dev.getelements.elements.sdk.model.profile.Profile;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import org.slf4j.Logger;
@@ -50,7 +49,7 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
         }
 
         matches.computeIfAbsent(match.getId(), mid -> new MemoryMatchState(getMaxBacklogSize()))
-               .send(profiles.stream().map(Profile::getId), signal);
+               .send(signal);
 
     }
 

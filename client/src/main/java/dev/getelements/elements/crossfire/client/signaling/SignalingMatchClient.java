@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 
 import static dev.getelements.elements.crossfire.client.PeerPhase.CONNECTED;
+import static dev.getelements.elements.crossfire.client.PeerPhase.READY;
 import static dev.getelements.elements.crossfire.model.Protocol.SIGNALING;
 
 public class SignalingMatchClient implements MatchClient {
@@ -87,7 +88,7 @@ public class SignalingMatchClient implements MatchClient {
     @Override
     public void connect() {
         if (open.get()) {
-            onPeerStatus.publish(new PeerStatus(CONNECTED, peer));
+            peer.connect();
         } else {
             throw new IllegalStateException("Client is closed.");
         }

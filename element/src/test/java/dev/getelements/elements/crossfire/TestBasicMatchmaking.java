@@ -9,6 +9,7 @@ import dev.getelements.elements.crossfire.model.handshake.FindHandshakeRequest;
 import dev.getelements.elements.crossfire.model.signal.ConnectBroadcastSignal;
 import dev.getelements.elements.crossfire.model.signal.HostBroadcastSignal;
 import dev.getelements.elements.crossfire.model.signal.Signal;
+import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.dao.ApplicationConfigurationDao;
 import dev.getelements.elements.sdk.model.application.MatchmakingApplicationConfiguration;
 import dev.getelements.elements.sdk.model.profile.Profile;
@@ -29,14 +30,18 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static dev.getelements.elements.crossfire.client.Crossfire.Mode.SIGNALING_CLIENT;
 import static dev.getelements.elements.crossfire.client.SignalingClientPhase.CONNECTED;
 import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.MATCHED;
 import static dev.getelements.elements.sdk.model.user.User.Level.USER;
 import static java.lang.String.format;
+import static java.util.Objects.requireNonNull;
+import static java.util.regex.Pattern.quote;
 import static org.testng.Assert.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
 
@@ -125,7 +130,8 @@ public class TestBasicMatchmaking {
                     return new TestContext(crossfire, user, profile, session,
                             new BlockingArrayQueue<>(),
                             new BlockingArrayQueue<>(),
-                            new BlockingArrayQueue<>()
+                            new BlockingArrayQueue<>(),
+                            Subscription.begin()
                     );
 
                 })
@@ -232,11 +238,24 @@ public class TestBasicMatchmaking {
 
     }
 
-    @Test(dataProvider = "allContexts",
+    @Test(dataProvider = "host",
           dependsOnMethods = "testAllConnectedAndHostAssigned",
           threadPoolSize = TEST_PLAYER_COUNT
     )
-    public void testSendSignaling() {
+    public void testHostSendSignal(final TestContext context) {
+        final var crossfire = context.crossfire();
+
+        for (final var protocol : crossfire.getSupportedProtocols()) {
+            final var host = context.crossfire().findMatchHost(protocol);
+
+        }
+    }
+
+    @Test(dataProvider = "host",
+            dependsOnMethods = "testAllConnectedAndHostAssigned",
+            threadPoolSize = TEST_PLAYER_COUNT
+    )
+    public void testClientReplySignal(final TestContext context) {
 
     }
 
@@ -247,22 +266,101 @@ public class TestBasicMatchmaking {
             SessionCreation creation,
             BlockingQueue<Signal> signals,
             BlockingQueue<Message> messages,
-            BlockingQueue<StringMessage> stringMessages
+            BlockingQueue<StringMessage> stringMessages,
+            Subscription subscription
     ) {
 
         public TestContext {
+
             crossfire
                     .getSignalingClient()
                     .onSignal((sub, signal) -> {
                         signals().add(signal);
                         logger.info("Received signal {} for profile {}.", signal.getType(), profile().getId());
                     });
+
+            subscription = Subscription.begin()
+                    .chain(subscription)
+                    .chain(crossfire.onClientOpenStatus(this::onClientOpened));
+
+        }
+
+        private void onClientOpened(final Subscription clientSubscription,
+                                    final Crossfire.OpenStatus<MatchClient> matchClient) {
+            if (matchClient.open()) {
+                matchClient.object().onPeerStatus(this::onPeerStatus);
+            } else {
+                clientSubscription.unsubscribe();
+            }
+        }
+
+        private void onPeerStatus(final Subscription peerSubscription, final PeerStatus peerStatus) {
+            switch (peerStatus.phase()) {
+                case READY -> {
+                    peerStatus.peer().onMessage(((s, m) -> messages.add(m)));
+                    peerStatus.peer().onStringMessage(((s, m) -> stringMessages.add(m)));
+                }
+                case CONNECTED -> logger.info("Connected remote peer: {}", peerStatus.peer().getProfileId());
+                case TERMINATED -> peerSubscription.unsubscribe();
+            }
         }
 
         public SignalingClient signalingClient() {
             return crossfire().getSignalingClient();
         }
 
+    }
+
+    private record TestMessage(Protocol protocol,
+                               TestAction action,
+                               String profileId,
+                               String recipientProfileId) {
+
+        public TestMessage {
+            requireNonNull(protocol);
+            requireNonNull(action);
+            requireNonNull(profileId);
+        }
+
+        public static TestMessage from(final String string) {
+
+            final var components = string.split(quote(":"));
+
+            return switch (components.length) {
+                case 3 -> new TestMessage(
+                        Protocol.valueOf(components[0]),
+                        TestAction.valueOf(components[1]),
+                        components[2],
+                        null
+                );
+                case 4 -> new TestMessage(
+                        Protocol.valueOf(components[0]),
+                        TestAction.valueOf(components[1]),
+                        components[2],
+                        components[3]
+                );
+                default -> throw new IllegalArgumentException("Invalid component count: "
+                        + components.length
+                        + " in "
+                        + string
+                );
+            };
+
+        }
+
+        public String toString() {
+            return Stream.of(protocol, action, profileId, recipientProfileId)
+                    .filter(Objects::nonNull)
+                    .map(Objects::toString)
+                    .collect(Collectors.joining(":"));
+        }
+
+    }
+
+    private enum TestAction {
+        BROADCAST_MESSAGE,
+        HOST_SEND_MESSAGE,
+        CLIENT_REPLY_MESSAGE,
     }
 
 }

@@ -51,13 +51,9 @@ public class StandardCrossfire implements Crossfire {
 
     private final AtomicReference<State> state = new AtomicReference<>(State.create());
 
-    private final Publisher<MatchHost> onHostOpened = new ConcurrentDequePublisher<>();
+    private final Publisher<OpenStatus<MatchHost>> onHostOpenStatus = new ConcurrentDequePublisher<>();
 
-    private final Publisher<MatchHost> onHostClosed = new ConcurrentDequePublisher<>();
-
-    private final Publisher<MatchClient> onClientOpened = new ConcurrentDequePublisher<>();
-
-    private final Publisher<MatchClient> onClientClosed = new ConcurrentDequePublisher<>();
+    private final Publisher<OpenStatus<MatchClient>> onClientOpenStatus = new ConcurrentDequePublisher<>();
 
     public StandardCrossfire(
             final Protocol defaultProtocol,
@@ -151,18 +147,7 @@ public class StandardCrossfire implements Crossfire {
 
         // We always clean up the old state, because if the update failed as we are taking responsibility for the
         // update as it happened.
-
-        old.hosts()
-                .values()
-                .stream()
-                .peek(onHostClosed::publish)
-                .forEach(MatchHost::close);
-
-        old.clients()
-                .values()
-                .stream()
-                .peek(onClientClosed::publish)
-                .forEach(MatchClient::close);
+        close(old);
 
         // This should never happen, but we add a failsafe here anyhow. In case somebody tries to update the host
         // state concurrently and the update fails, we dispose of the newly created hosts that were not added to the
@@ -171,7 +156,7 @@ public class StandardCrossfire implements Crossfire {
         if (hosts == update.hosts()) {
             hosts.values()
                     .stream()
-                    .peek(onHostOpened::publish)
+                    .peek(h -> onHostOpenStatus.publish(new OpenStatus<>(true, h)))
                     .forEach(MatchHost::start);
         } else {
             hosts.values().forEach(MatchHost::close);
@@ -206,27 +191,16 @@ public class StandardCrossfire implements Crossfire {
 
         // We always clean up the old state, because if the update failed as we are taking responsibility for the
         // update as it happened.
-
-        old.hosts()
-                .values()
-                .stream()
-                .peek(onHostClosed::publish)
-                .forEach(MatchHost::close);
-
-        old.clients()
-                .values()
-                .stream()
-                .peek(onClientClosed::publish)
-                .forEach(MatchClient::close);
+        close(old);
 
         // This should never happen, but we add a failsafe here anyhow. In case somebody tries to update the host
         // state concurrently and the update fails, we dispose of the newly created hosts that were not added to the
         // state.
 
-        if (clients != update.clients()) {
+        if (clients == update.clients()) {
             clients.values()
                     .stream()
-                    .peek(onClientOpened::publish)
+                    .peek(c -> onClientOpenStatus.publish(new OpenStatus<>(true, c)))
                     .forEach(MatchClient::connect);
         } else {
             clients.values().forEach(MatchClient::close);
@@ -305,23 +279,13 @@ public class StandardCrossfire implements Crossfire {
     }
 
     @Override
-    public Subscription onHostOpened(final BiConsumer<Subscription, MatchHost> onHostOpened) {
-        return this.onHostOpened.subscribe(onHostOpened);
+    public Subscription onHostOpenStatus(final BiConsumer<Subscription, OpenStatus<MatchHost>> onHostOpenStatus) {
+        return this.onHostOpenStatus.subscribe(onHostOpenStatus);
     }
 
     @Override
-    public Subscription onHostClosed(final BiConsumer<Subscription, MatchHost> onHostClosed) {
-        return this.onHostClosed.subscribe(onHostClosed);
-    }
-
-    @Override
-    public Subscription onClientOpened(final BiConsumer<Subscription, MatchClient> onClientOpened) {
-        return this.onClientOpened.subscribe(onClientOpened);
-    }
-
-    @Override
-    public Subscription onClientClosed(BiConsumer<Subscription, MatchClient> onClientClosed) {
-        return this.onClientClosed.subscribe(onClientClosed);
+    public Subscription onClientOpenStatus(final BiConsumer<Subscription, OpenStatus<MatchClient>> onClientOpenStatus) {
+        return this.onClientOpenStatus.subscribe(onClientOpenStatus);
     }
 
     @Override
@@ -330,8 +294,26 @@ public class StandardCrossfire implements Crossfire {
         final var old = state.getAndUpdate(State::terminate);
 
         if (old.open()) {
+            signaling.close();
             subscription.unsubscribe();
+            close(old);
         }
+
+    }
+
+    private void close(final State state) {
+
+        state.hosts()
+                .values()
+                .stream()
+                .peek(h -> onHostOpenStatus.publish(new OpenStatus<>(false, h)))
+                .forEach(MatchHost::close);
+
+        state.clients()
+                .values()
+                .stream()
+                .peek(c -> onClientOpenStatus.publish(new OpenStatus<>(false, c)))
+                .forEach(MatchClient::close);
 
     }
 

@@ -8,10 +8,11 @@ import dev.getelements.elements.sdk.util.ConcurrentDequePublisher;
 import dev.getelements.elements.sdk.util.Publisher;
 
 import java.nio.ByteBuffer;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 
 import static dev.getelements.elements.crossfire.client.Peer.SendResult.SENT;
+import static dev.getelements.elements.crossfire.client.PeerPhase.*;
 import static dev.getelements.elements.crossfire.model.signal.SignalLifecycle.ONCE;
 
 public class SignalingPeer implements Peer, AutoCloseable {
@@ -24,7 +25,7 @@ public class SignalingPeer implements Peer, AutoCloseable {
 
     private final Subscription subscription;
 
-    private final AtomicBoolean open = new AtomicBoolean(true);
+    private final AtomicReference<PeerPhase> status = new AtomicReference<>(READY);
 
     private final Publisher<PeerStatus> onPeerStatus;
 
@@ -91,6 +92,13 @@ public class SignalingPeer implements Peer, AutoCloseable {
         close();
     }
 
+    public void connect() {
+        if (status.compareAndSet(READY, CONNECTED)) {
+            onPeerStatus.publish(new PeerStatus(READY, this));
+            onPeerStatus.publish(new PeerStatus(CONNECTED, this));
+        }
+    }
+
     @Override
     public String getProfileId() {
         return profileId;
@@ -99,7 +107,7 @@ public class SignalingPeer implements Peer, AutoCloseable {
     @Override
     public SendResult send(final ByteBuffer buffer) {
 
-        if (!open.get()) {
+        if (!CONNECTED.equals(status.get())) {
             return SendResult.TERMINATED;
         }
 
@@ -120,7 +128,7 @@ public class SignalingPeer implements Peer, AutoCloseable {
     @Override
     public SendResult send(final String string) {
 
-        if (!open.get()) {
+        if (!CONNECTED.equals(status.get())) {
             return SendResult.TERMINATED;
         }
 
@@ -152,10 +160,14 @@ public class SignalingPeer implements Peer, AutoCloseable {
 
     @Override
     public void close() {
-        if (open.compareAndExchange(true, false)) {
+
+        final var old = status.getAndSet(TERMINATED);
+
+        if (!TERMINATED.equals(old)) {
             subscription.unsubscribe();
-            onPeerStatus.publish(new PeerStatus(PeerPhase.TERMINATED, this));
+            onPeerStatus.publish(new PeerStatus(TERMINATED, this));
         }
+
     }
 
 }

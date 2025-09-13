@@ -51,12 +51,10 @@ public class MemoryMatchState {
         }
     }
 
-    public void send(
-            final Stream<String> profileIds,
-            final BroadcastSignal signal) {
+    public void send(final BroadcastSignal signal) {
         switch (signal.getLifecycle()) {
             case ONCE -> memoryMatchBacklog.publish(signal);
-            case SESSION, MATCH -> memoryMatchBacklog.publishAndPersist(profileIds, signal);
+            case SESSION, MATCH -> memoryMatchBacklog.publishAndPersist(signal);
             default -> throw new IllegalArgumentException("Unexpected value: " + signal.getLifecycle());
         }
     }
@@ -142,7 +140,7 @@ public class MemoryMatchState {
             }
         }
 
-        public void publishAndPersist(final Stream<String> profileIds, final BroadcastSignal signal) {
+        public void publishAndPersist(final BroadcastSignal signal) {
             try (var mon = Monitor.enter(write)) {
                 final var backlog = sessionStates.computeIfAbsent(signal.getProfileId(), SessionState::new);
                 backlog.append(signal);
