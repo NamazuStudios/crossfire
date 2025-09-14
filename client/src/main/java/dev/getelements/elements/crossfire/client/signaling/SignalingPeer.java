@@ -1,6 +1,7 @@
 package dev.getelements.elements.crossfire.client.signaling;
 
 import dev.getelements.elements.crossfire.client.*;
+import dev.getelements.elements.crossfire.model.Protocol;
 import dev.getelements.elements.crossfire.model.error.ProtocolError;
 import dev.getelements.elements.crossfire.model.signal.*;
 import dev.getelements.elements.sdk.Subscription;
@@ -13,6 +14,7 @@ import java.util.function.BiConsumer;
 
 import static dev.getelements.elements.crossfire.client.Peer.SendResult.SENT;
 import static dev.getelements.elements.crossfire.client.PeerPhase.*;
+import static dev.getelements.elements.crossfire.model.Protocol.SIGNALING;
 import static dev.getelements.elements.crossfire.model.signal.SignalLifecycle.ONCE;
 
 public class SignalingPeer implements Peer, AutoCloseable {
@@ -102,6 +104,16 @@ public class SignalingPeer implements Peer, AutoCloseable {
     @Override
     public String getProfileId() {
         return profileId;
+    }
+
+    @Override
+    public PeerPhase gePhase() {
+        return status.get();
+    }
+
+    @Override
+    public Protocol getProtocol() {
+        return SIGNALING;
     }
 
     @Override

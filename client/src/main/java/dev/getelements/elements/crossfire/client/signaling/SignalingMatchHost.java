@@ -1,9 +1,6 @@
 package dev.getelements.elements.crossfire.client.signaling;
 
-import dev.getelements.elements.crossfire.client.MatchHost;
-import dev.getelements.elements.crossfire.client.Peer;
-import dev.getelements.elements.crossfire.client.PeerStatus;
-import dev.getelements.elements.crossfire.client.SignalingClient;
+import dev.getelements.elements.crossfire.client.*;
 import dev.getelements.elements.crossfire.model.Protocol;
 import dev.getelements.elements.crossfire.model.error.ProtocolError;
 import dev.getelements.elements.crossfire.model.signal.ConnectBroadcastSignal;
@@ -20,6 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
+import java.util.stream.Stream;
 
 import static dev.getelements.elements.crossfire.client.PeerPhase.CONNECTED;
 import static dev.getelements.elements.crossfire.model.Protocol.SIGNALING;
@@ -111,6 +109,16 @@ public class SignalingMatchHost implements MatchHost {
     @Override
     public Protocol getProtocol() {
         return SIGNALING;
+    }
+
+    @Override
+    public Stream<Peer> knownPeers() {
+        return peers.values().stream().map(Peer.class::cast);
+    }
+
+    @Override
+    public PeerQueue newPeerQueue() {
+        return new StandardHostPeerQueue(signaling, this);
     }
 
     @Override

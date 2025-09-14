@@ -23,6 +23,12 @@ public interface MatchClient extends AutoCloseable {
     void connect();
 
     /**
+     * Gets the peer queue for this host. The peer queue allows waiting for all peers to reach a certain phase. This
+     * will open a new peer queue each time it is called, so be sure to close the queue when done.
+     */
+    PeerQueue newPeerQueue();
+
+    /**
      * Gets the {@link Peer} which can be used to communicate with the remote.
      *
      * @return the {@link Peer}

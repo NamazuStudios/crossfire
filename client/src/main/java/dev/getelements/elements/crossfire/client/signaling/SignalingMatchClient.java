@@ -1,9 +1,6 @@
 package dev.getelements.elements.crossfire.client.signaling;
 
-import dev.getelements.elements.crossfire.client.MatchClient;
-import dev.getelements.elements.crossfire.client.Peer;
-import dev.getelements.elements.crossfire.client.PeerStatus;
-import dev.getelements.elements.crossfire.client.SignalingClient;
+import dev.getelements.elements.crossfire.client.*;
 import dev.getelements.elements.crossfire.model.Protocol;
 import dev.getelements.elements.crossfire.model.error.ProtocolError;
 import dev.getelements.elements.crossfire.model.signal.DisconnectBroadcastSignal;
@@ -18,8 +15,6 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 
-import static dev.getelements.elements.crossfire.client.PeerPhase.CONNECTED;
-import static dev.getelements.elements.crossfire.client.PeerPhase.READY;
 import static dev.getelements.elements.crossfire.model.Protocol.SIGNALING;
 
 public class SignalingMatchClient implements MatchClient {
@@ -92,6 +87,11 @@ public class SignalingMatchClient implements MatchClient {
         } else {
             throw new IllegalStateException("Client is closed.");
         }
+    }
+
+    @Override
+    public PeerQueue newPeerQueue() {
+        return new StandardClientPeerQueue(this);
     }
 
     @Override

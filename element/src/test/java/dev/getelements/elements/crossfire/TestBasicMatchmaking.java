@@ -25,24 +25,27 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.TreeSet;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static dev.getelements.elements.crossfire.client.Crossfire.Mode.SIGNALING_CLIENT;
+import static dev.getelements.elements.crossfire.client.PeerPhase.READY;
 import static dev.getelements.elements.crossfire.client.SignalingClientPhase.CONNECTED;
 import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.MATCHED;
 import static dev.getelements.elements.sdk.model.user.User.Level.USER;
 import static java.lang.String.format;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 import static java.util.regex.Pattern.quote;
-import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.*;
 import static org.testng.AssertJUnit.assertNotNull;
 
 public class TestBasicMatchmaking {
@@ -228,12 +231,17 @@ public class TestBasicMatchmaking {
 
         }
 
-        final var expectedHostId = context
-                .signalingClient()
-                .getState()
-                .getHost();
+        final var state = context.signalingClient().getState();
 
+        final var expectedHostId = state.getHost();
         assertEquals(actualHostId, expectedHostId, "Host mismatch.");
+
+        if (state.getProfileId().equals(state.getHost())) {
+            assertTrue(state.isHost(), "Expected host flag set.");
+        } else {
+            assertFalse(state.isHost(), "Expected host flag set.");
+        }
+
         signals.forEach(s -> logger.info("Signal dequeued: {} from context {}.", s.getType(), context.profile().getId()));
 
     }
@@ -243,19 +251,81 @@ public class TestBasicMatchmaking {
           threadPoolSize = TEST_PLAYER_COUNT
     )
     public void testHostSendSignal(final TestContext context) {
+
         final var crossfire = context.crossfire();
 
         for (final var protocol : crossfire.getSupportedProtocols()) {
-            final var host = context.crossfire().findMatchHost(protocol);
 
+            final var hostOptional = context
+                    .crossfire()
+                    .findMatchHost(protocol);
+
+            assertTrue(hostOptional.isPresent(), "Expected host to be present for: " + protocol);
+
+            final List<Peer> peers;
+            final var host = hostOptional.get();
+
+            try (final var queue = host.newPeerQueue()) {
+                peers = queue.waitForAllPeers(READY).toList();
+                assertEquals(peers.size(), TEST_PLAYER_COUNT - 3);
+            } catch (final InterruptedException e) {
+                Thread.currentThread().interrupt();
+                fail("Interrupted waiting for peers.");
+                return;
+            }
+
+            for (final var peer : peers) {
+
+                final var message = new TestMessage(
+                        protocol,
+                        TestAction.HOST_SEND_MESSAGE,
+                        context.profile().getId(),
+                        peer.getProfileId()
+                );
+
+                peer.send(message.toString());
+                peer.send(message.toBinary());
+                logger.info("Host sent message to {}: {}", peer.getProfileId(), message);
+
+            }
         }
+
     }
 
     @Test(dataProvider = "host",
             dependsOnMethods = "testAllConnectedAndHostAssigned",
             threadPoolSize = TEST_PLAYER_COUNT
     )
-    public void testClientReplySignal(final TestContext context) {
+    public void testClientReplySignalBinary(final TestContext context) throws InterruptedException {
+
+        final var crossfire = context.crossfire();
+        final var signalingClientState = crossfire.getSignalingClient().getState();
+
+        final var protocols = new TreeSet<>(crossfire.getSupportedProtocols());
+
+        while (!protocols.isEmpty()) {
+
+            final var receivedMessage = context.messages().take();
+            final var receivedTestMessage = TestMessage.from(receivedMessage.data());
+            assertEquals(receivedTestMessage.action(), TestAction.HOST_SEND_MESSAGE);
+            assertEquals(receivedTestMessage.profileId(), signalingClientState.getHost());
+            assertEquals(receivedTestMessage.recipientProfileId(), signalingClientState.getProfileId());
+
+            final var clientOptional = crossfire.findMatchClient(receivedTestMessage.protocol());
+            assertTrue(clientOptional.isPresent(), "Expected client to be present for: " + receivedTestMessage.protocol());
+
+            final var client = clientOptional.get();
+            final var responseTestMessage = new TestMessage(
+                    receivedTestMessage.protocol(),
+                    TestAction.CLIENT_REPLY_MESSAGE,
+                    signalingClientState.getProfileId(),
+                    signalingClientState.getHost()
+            );
+
+            assertTrue(client.findPeer().isPresent(), "Expected client to be present for: " + receivedTestMessage.protocol());
+            client.findPeer().get().send(responseTestMessage.toString());
+
+        }
 
     }
 
@@ -300,7 +370,9 @@ public class TestBasicMatchmaking {
                     peerStatus.peer().onMessage(((s, m) -> messages.add(m)));
                     peerStatus.peer().onStringMessage(((s, m) -> stringMessages.add(m)));
                 }
-                case CONNECTED -> logger.info("Connected remote peer: {}", peerStatus.peer().getProfileId());
+                case CONNECTED -> {
+                    logger.info("Connected remote peer: {}", peerStatus.peer().getProfileId());
+                }
                 case TERMINATED -> peerSubscription.unsubscribe();
             }
         }
@@ -320,6 +392,11 @@ public class TestBasicMatchmaking {
             requireNonNull(protocol);
             requireNonNull(action);
             requireNonNull(profileId);
+        }
+
+        public static TestMessage from(final ByteBuffer buffer) {
+            final var string = UTF_8.decode(buffer).toString();
+            return from(string);
         }
 
         public static TestMessage from(final String string) {
@@ -355,10 +432,18 @@ public class TestBasicMatchmaking {
                     .collect(Collectors.joining(":"));
         }
 
+        public ByteBuffer toBinary() {
+            final var string = toString();
+            final var bytes = string.getBytes(UTF_8);
+            return ByteBuffer.wrap(bytes);
+        }
+
     }
 
+    /**
+     * Enumeration of test actions taken.
+     */
     private enum TestAction {
-        BROADCAST_MESSAGE,
         HOST_SEND_MESSAGE,
         CLIENT_REPLY_MESSAGE,
     }

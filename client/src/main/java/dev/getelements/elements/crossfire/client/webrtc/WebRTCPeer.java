@@ -3,6 +3,7 @@ package dev.getelements.elements.crossfire.client.webrtc;
 import dev.getelements.elements.crossfire.client.Peer;
 import dev.getelements.elements.crossfire.client.PeerPhase;
 import dev.getelements.elements.crossfire.client.PeerStatus;
+import dev.getelements.elements.crossfire.model.Protocol;
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.util.ConcurrentDequePublisher;
 import dev.getelements.elements.sdk.util.Publisher;
@@ -87,6 +88,22 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
     protected abstract Optional<RTCDataChannel> findDataChannel();
 
     @Override
+    public Protocol getProtocol() {
+        return Protocol.WEBRTC;
+    }
+
+    @Override
+    public PeerPhase gePhase() {
+        return findDataChannel()
+                .map(dc -> switch(dc.getState()){
+                    case CONNECTING -> READY;
+                    case OPEN -> CONNECTED;
+                    case CLOSED, CLOSING -> PeerPhase.TERMINATED;
+                })
+                .orElse(READY);
+    }
+
+    @Override
     public SendResult send(final ByteBuffer buffer) {
         return findDataChannel().map(dataChannel -> switch (dataChannel.getState()) {
             case CONNECTING -> NOT_READY;
@@ -105,20 +122,22 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
 
     @Override
     public SendResult send(final String string) {
-        return findDataChannel().map(dataChannel -> switch (dataChannel.getState()) {
-            case CONNECTING -> NOT_READY;
-            case CLOSED, CLOSING -> SendResult.TERMINATED;
-            case OPEN -> {
-                try {
-                    final var buffer = UTF_8.encode(string);
-                    dataChannel.send(new RTCDataChannelBuffer(buffer, false));
-                    yield SendResult.SENT;
-                } catch (final Exception e) {
-                    logger.error("Failed to send data channel.", e);
-                    yield SendResult.ERROR;
-                }
-            }
-        }).orElse(NOT_READY);
+        return findDataChannel()
+                .map(dataChannel -> switch (dataChannel.getState()) {
+                    case CONNECTING -> NOT_READY;
+                    case CLOSED, CLOSING -> SendResult.TERMINATED;
+                    case OPEN -> {
+                        try {
+                            final var buffer = UTF_8.encode(string);
+                            dataChannel.send(new RTCDataChannelBuffer(buffer, false));
+                            yield SendResult.SENT;
+                        } catch (final Exception e) {
+                            logger.error("Failed to send data channel.", e);
+                            yield SendResult.ERROR;
+                        }
+                    }
+                })
+                .orElse(NOT_READY);
     }
 
     @Override

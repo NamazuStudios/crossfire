@@ -1,5 +1,6 @@
 package dev.getelements.elements.crossfire.client;
 
+import dev.getelements.elements.crossfire.model.Protocol;
 import dev.getelements.elements.sdk.Subscription;
 
 import java.nio.ByteBuffer;
@@ -9,6 +10,20 @@ import java.util.function.BiConsumer;
  * Represents a connection to a peer.
  */
 public interface Peer {
+
+    /**
+     * Gets the {@link PeerPhase} of the peer.
+     *
+     * @return the peer
+     */
+    PeerPhase gePhase();
+
+    /**
+     * Gets the {@link Protocol} associated with this peer.
+     *
+     * @return the protocol
+     */
+    Protocol getProtocol();
 
     /**
      * Gets the profile id for the peer.

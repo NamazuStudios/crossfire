@@ -1,9 +1,6 @@
 package dev.getelements.elements.crossfire.client.webrtc;
 
-import dev.getelements.elements.crossfire.client.MatchClient;
-import dev.getelements.elements.crossfire.client.Peer;
-import dev.getelements.elements.crossfire.client.PeerStatus;
-import dev.getelements.elements.crossfire.client.SignalingClient;
+import dev.getelements.elements.crossfire.client.*;
 import dev.getelements.elements.crossfire.model.Protocol;
 import dev.getelements.elements.crossfire.model.error.ProtocolError;
 import dev.getelements.elements.crossfire.model.signal.Signal;
@@ -99,6 +96,11 @@ public class WebRTCMatchClient implements MatchClient {
     @Override
     public void connect() {
         this.peer.connect();
+    }
+
+    @Override
+    public PeerQueue newPeerQueue() {
+        return new StandardClientPeerQueue(this);
     }
 
     @Override

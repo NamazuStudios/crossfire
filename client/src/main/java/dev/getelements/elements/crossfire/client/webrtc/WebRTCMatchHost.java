@@ -1,9 +1,6 @@
 package dev.getelements.elements.crossfire.client.webrtc;
 
-import dev.getelements.elements.crossfire.client.MatchHost;
-import dev.getelements.elements.crossfire.client.Peer;
-import dev.getelements.elements.crossfire.client.PeerStatus;
-import dev.getelements.elements.crossfire.client.SignalingClient;
+import dev.getelements.elements.crossfire.client.*;
 import dev.getelements.elements.crossfire.model.Protocol;
 import dev.getelements.elements.crossfire.model.error.ProtocolError;
 import dev.getelements.elements.crossfire.model.signal.ConnectBroadcastSignal;
@@ -29,6 +26,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 import static dev.getelements.elements.crossfire.model.Protocol.WEBRTC;
 import static java.util.Objects.requireNonNull;
@@ -158,8 +156,18 @@ public class WebRTCMatchHost implements MatchHost {
     }
 
     @Override
+    public Stream<Peer> knownPeers() {
+        return Stream.empty();
+    }
+
+    @Override
     public void start() {
         this.signaling.getState().getProfiles().forEach(this::connect);
+    }
+
+    @Override
+    public PeerQueue newPeerQueue() {
+        return new StandardHostPeerQueue(signaling, this);
     }
 
     @Override
