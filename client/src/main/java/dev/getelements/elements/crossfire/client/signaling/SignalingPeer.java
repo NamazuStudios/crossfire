@@ -55,31 +55,18 @@ public class SignalingPeer implements Peer, AutoCloseable {
         switch (signal.getType()) {
             case ERROR -> onProtocolError(subscription, (ProtocolError) signal);
             case BINARY_RELAY -> onBinaryRelay(subscription, (BinaryRelayDirectSignal) signal);
-            case BINARY_BROADCAST -> onBinaryBroadcast(subscription, (BinaryBroadcastSignal) signal);
             case STRING_RELAY -> onStringRelay(subscription, (StringRelayDirectSignal) signal);
-            case STRING_BROADCAST -> onStringBroadcast(subscription, (StringBroadcastSignal) signal);
         }
     }
 
     private void onBinaryRelay(final Subscription subscription, final BinaryRelayDirectSignal signal) {
         final var buffer = ByteBuffer.wrap(signal.getPayload());
-        final var message = new Message(signal.getProfileId(), buffer);
-        onMessage.publish(message);
-    }
-
-    private void onBinaryBroadcast(final Subscription subscription, final BinaryBroadcastSignal signal) {
-        final var buffer = ByteBuffer.wrap(signal.getPayload());
-        final var message = new Message(signal.getProfileId(), buffer);
+        final var message = new Message(this, signal.getProfileId(), buffer);
         onMessage.publish(message);
     }
 
     private void onStringRelay(final Subscription subscription, final StringRelayDirectSignal signal) {
-        final var message = new StringMessage(signal.getProfileId(), signal.getPayload());
-        onStringMessage.publish(message);
-    }
-
-    private void onStringBroadcast(final Subscription subscription, final StringBroadcastSignal signal) {
-        final var message = new StringMessage(signal.getProfileId(), signal.getPayload());
+        final var message = new StringMessage(this, signal.getProfileId(), signal.getPayload());
         onStringMessage.publish(message);
     }
 

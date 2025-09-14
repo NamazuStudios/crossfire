@@ -118,7 +118,7 @@ public interface Peer {
      * @param profileId the profile id
      * @param data
      */
-    record Message(String profileId, ByteBuffer data) {}
+    record Message(Peer peer, String profileId, ByteBuffer data) {}
 
     /**
      * A message received from a client.
@@ -126,5 +126,5 @@ public interface Peer {
      * @param profileId the profile id
      * @param data
      */
-    record StringMessage(String profileId, String data) {}
+    record StringMessage(Peer peer, String profileId, String data) {}
 }

@@ -47,7 +47,7 @@ public class WebRTCMatchClient implements MatchClient {
         requireNonNull(signaling, "signaling");
         requireNonNull(peerConnectionFactory, "peerConnectionFactory");
         requireNonNull(peerConfigurationProvider, "peerConfigurationProvider");
-        requireNonNull(answerOptionsSupplier, "offerOptionsSupplier");
+        requireNonNull(answerOptionsSupplier, "answerOptionsSupplier");
 
         this.subscription = Subscription.begin()
                 .chain(signaling.onSignal(this::onSignal))
@@ -195,7 +195,7 @@ public class WebRTCMatchClient implements MatchClient {
          * @param answerOptionsSupplier the offer options supplier
          * @return this builder
          */
-        public Builder withOfferOptionsSupplier(final Supplier<RTCAnswerOptions> answerOptionsSupplier) {
+        public Builder withAnswerOptionsSupplier(final Supplier<RTCAnswerOptions> answerOptionsSupplier) {
             this.answerOptionsSupplier = answerOptionsSupplier;
             return this;
         }

@@ -250,7 +250,7 @@ public class TestBasicMatchmaking {
           dependsOnMethods = "testAllConnectedAndHostAssigned",
           threadPoolSize = TEST_PLAYER_COUNT
     )
-    public void testHostSendSignal(final TestContext context) {
+    public void testHostSendMessage(final TestContext context) {
 
         final var crossfire = context.crossfire();
 
@@ -296,7 +296,7 @@ public class TestBasicMatchmaking {
             dependsOnMethods = "testAllConnectedAndHostAssigned",
             threadPoolSize = TEST_PLAYER_COUNT
     )
-    public void testClientReplySignalBinary(final TestContext context) throws InterruptedException {
+    public void testClientReplyMessageBinary(final TestContext context) throws InterruptedException {
 
         final var crossfire = context.crossfire();
         final var signalingClientState = crossfire.getSignalingClient().getState();
@@ -323,10 +323,77 @@ public class TestBasicMatchmaking {
             );
 
             assertTrue(client.findPeer().isPresent(), "Expected client to be present for: " + receivedTestMessage.protocol());
+            client.findPeer().get().send(responseTestMessage.toBinary());
+
+        }
+
+    }
+
+    @Test(dataProvider = "client",
+            dependsOnMethods = "testAllConnectedAndHostAssigned",
+            threadPoolSize = TEST_PLAYER_COUNT
+    )
+    public void testClientReplyMessageString(final TestContext context) throws InterruptedException {
+
+        final var crossfire = context.crossfire();
+        final var signalingClientState = crossfire.getSignalingClient().getState();
+
+        final var protocols = new TreeSet<>(crossfire.getSupportedProtocols());
+
+        while (!protocols.isEmpty()) {
+
+            final var receivedMessage = context.stringMessages().take();
+            final var receivedTestMessage = TestMessage.from(receivedMessage.data());
+            assertEquals(receivedTestMessage.action(), TestAction.HOST_SEND_MESSAGE);
+            assertEquals(receivedTestMessage.profileId(), signalingClientState.getHost());
+            assertEquals(receivedTestMessage.recipientProfileId(), signalingClientState.getProfileId());
+
+            final var clientOptional = crossfire.findMatchClient(receivedTestMessage.protocol());
+            assertTrue(clientOptional.isPresent(), "Expected client to be present for: " + receivedTestMessage.protocol());
+
+            final var client = clientOptional.get();
+            final var responseTestMessage = new TestMessage(
+                    receivedTestMessage.protocol(),
+                    TestAction.CLIENT_REPLY_MESSAGE,
+                    signalingClientState.getProfileId(),
+                    signalingClientState.getHost()
+            );
+
+            assertTrue(client.findPeer().isPresent(), "Expected client to be present for: " + receivedTestMessage.protocol());
             client.findPeer().get().send(responseTestMessage.toString());
 
         }
 
+    }
+
+    @Test(dataProvider = "host",
+            dependsOnMethods = "testAllConnectedAndHostAssigned",
+            threadPoolSize = TEST_PLAYER_COUNT
+    )
+    public void testHostReceiveSignalBinary(final TestContext context) throws InterruptedException {
+        for (int i = 0; i < (TEST_PLAYER_COUNT * 2) - 2; ++i) {
+            final var msg = context.messages().take();
+            final var testMessage = TestMessage.from(msg.data());
+            assertEquals(testMessage.protocol(), msg.peer().getProtocol());
+            assertEquals(testMessage.action(), TestAction.CLIENT_REPLY_MESSAGE);
+            assertEquals(testMessage.profileId(), msg.peer().getProfileId());
+            assertEquals(testMessage.recipientProfileId(), context.signalingClient().getState().getHost());
+        }
+    }
+
+    @Test(dataProvider = "host",
+            dependsOnMethods = "testAllConnectedAndHostAssigned",
+            threadPoolSize = TEST_PLAYER_COUNT
+    )
+    public void testHostReceiveSignalString(final TestContext context) throws InterruptedException {
+        for (int i = 0; i < (TEST_PLAYER_COUNT * 2) - 2; ++i) {
+            final var msg = context.stringMessages().take();
+            final var testMessage = TestMessage.from(msg.data());
+            assertEquals(testMessage.protocol(), msg.peer().getProtocol());
+            assertEquals(testMessage.action(), TestAction.CLIENT_REPLY_MESSAGE);
+            assertEquals(testMessage.profileId(), msg.peer().getProfileId());
+            assertEquals(testMessage.recipientProfileId(), context.signalingClient().getState().getHost());
+        }
     }
 
     public record TestContext(
@@ -447,5 +514,7 @@ public class TestBasicMatchmaking {
         HOST_SEND_MESSAGE,
         CLIENT_REPLY_MESSAGE,
     }
+
+
 
 }
