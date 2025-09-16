@@ -17,6 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import static dev.getelements.elements.crossfire.client.PeerPhase.CONNECTED;
@@ -39,11 +40,17 @@ public class SignalingMatchHost implements MatchHost {
     private final Publisher<PeerStatus> onPeerStatus = new ConcurrentDequePublisher<>();
 
     public SignalingMatchHost(final SignalingClient signaling) {
+
         this.signaling = signaling;
-        this.profileId = signaling.getState().getProfileId();
+
+        this.profileId = signaling
+                .getState()
+                .getProfileId();
+
         this.subscription = Subscription.begin()
                 .chain(this.signaling.onSignal(this::onSignal))
                 .chain(this.signaling.onClientError(this::onClientError));
+
     }
 
     private void onSignal(final Subscription subscription,
@@ -72,6 +79,8 @@ public class SignalingMatchHost implements MatchHost {
         if (open.get()) {
             signaling.getState()
                     .getProfiles()
+                    .stream()
+                    .filter(Predicate.not(profileId::equals))
                     .forEach(this::connect);
         } else {
             throw new IllegalStateException("Cannot start match host. Closed.");

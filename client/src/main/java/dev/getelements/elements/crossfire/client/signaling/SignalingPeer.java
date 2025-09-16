@@ -21,7 +21,7 @@ public class SignalingPeer implements Peer, AutoCloseable {
 
     private final SignalingClient signaling;
 
-    private final String profileId;
+    private final String localProfileId;
 
     private final String remoteProfileId;
 
@@ -39,12 +39,12 @@ public class SignalingPeer implements Peer, AutoCloseable {
 
     public SignalingPeer(
             final SignalingClient signaling,
-            final String profileId,
+            final String localProfileId,
             final String remoteProfileId,
             final Publisher<PeerStatus> onPeerStatus) {
+        this.localProfileId = localProfileId;
         this.remoteProfileId = remoteProfileId;
         this.signaling = signaling;
-        this.profileId = profileId;
         this.onPeerStatus = onPeerStatus;
         this.subscription = Subscription.begin()
                 .chain(signaling.onSignal(this::onSignal))
@@ -90,7 +90,7 @@ public class SignalingPeer implements Peer, AutoCloseable {
 
     @Override
     public String getProfileId() {
-        return profileId;
+        return remoteProfileId;
     }
 
     @Override
@@ -116,7 +116,7 @@ public class SignalingPeer implements Peer, AutoCloseable {
         final var signal = new BinaryRelayDirectSignal();
         signal.setLifecycle(ONCE);
         signal.setPayload(array);
-        signal.setProfileId(profileId);
+        signal.setProfileId(localProfileId);
         signal.setRecipientProfileId(remoteProfileId);
         signaling.signal(signal);
 
@@ -134,7 +134,7 @@ public class SignalingPeer implements Peer, AutoCloseable {
         final var signal = new StringRelayDirectSignal();
         signal.setLifecycle(ONCE);
         signal.setPayload(string);
-        signal.setProfileId(profileId);
+        signal.setProfileId(localProfileId);
         signal.setRecipientProfileId(remoteProfileId);
         signaling.signal(signal);
 

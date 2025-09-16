@@ -242,7 +242,11 @@ public class TestBasicMatchmaking {
             assertFalse(state.isHost(), "Expected host flag set.");
         }
 
-        signals.forEach(s -> logger.info("Signal dequeued: {} from context {}.", s.getType(), context.profile().getId()));
+        signals.forEach(s -> logger.info(
+                "Signal dequeued: {} from context {}.",
+                s.getType(),
+                context.profile().getId())
+        );
 
     }
 
@@ -267,14 +271,22 @@ public class TestBasicMatchmaking {
 
             try (final var queue = host.newPeerQueue()) {
                 peers = queue.waitForAllPeers(READY).toList();
-                assertEquals(peers.size(), TEST_PLAYER_COUNT - 3);
+                assertEquals(peers.size(), TEST_PLAYER_COUNT - 1);
             } catch (final InterruptedException e) {
                 Thread.currentThread().interrupt();
                 fail("Interrupted waiting for peers.");
                 return;
             }
 
+            final var hostProfileId = context
+                    .crossfire()
+                    .getSignalingClient()
+                    .getState()
+                    .getHost();
+
             for (final var peer : peers) {
+
+                assertNotEquals(hostProfileId, peer.getProfileId());
 
                 final var message = new TestMessage(
                         protocol,
@@ -288,12 +300,13 @@ public class TestBasicMatchmaking {
                 logger.info("Host sent message to {}: {}", peer.getProfileId(), message);
 
             }
+
         }
 
     }
 
     @Test(dataProvider = "host",
-            dependsOnMethods = "testAllConnectedAndHostAssigned",
+            dependsOnMethods = "testHostSendMessage",
             threadPoolSize = TEST_PLAYER_COUNT
     )
     public void testClientReplyMessageBinary(final TestContext context) throws InterruptedException {
@@ -330,7 +343,7 @@ public class TestBasicMatchmaking {
     }
 
     @Test(dataProvider = "client",
-            dependsOnMethods = "testAllConnectedAndHostAssigned",
+            dependsOnMethods = "testHostSendMessage",
             threadPoolSize = TEST_PLAYER_COUNT
     )
     public void testClientReplyMessageString(final TestContext context) throws InterruptedException {
@@ -367,7 +380,7 @@ public class TestBasicMatchmaking {
     }
 
     @Test(dataProvider = "host",
-            dependsOnMethods = "testAllConnectedAndHostAssigned",
+            dependsOnMethods = {"testClientReplyMessageBinary", "testClientReplyMessageString"},
             threadPoolSize = TEST_PLAYER_COUNT
     )
     public void testHostReceiveSignalBinary(final TestContext context) throws InterruptedException {
@@ -382,7 +395,7 @@ public class TestBasicMatchmaking {
     }
 
     @Test(dataProvider = "host",
-            dependsOnMethods = "testAllConnectedAndHostAssigned",
+            dependsOnMethods = {"testClientReplyMessageBinary", "testClientReplyMessageString"},
             threadPoolSize = TEST_PLAYER_COUNT
     )
     public void testHostReceiveSignalString(final TestContext context) throws InterruptedException {
@@ -511,8 +524,17 @@ public class TestBasicMatchmaking {
      * Enumeration of test actions taken.
      */
     private enum TestAction {
+
+        /**
+         * Host sends a message to all clients.
+         */
         HOST_SEND_MESSAGE,
-        CLIENT_REPLY_MESSAGE,
+
+        /**
+         * Client replies to host message.
+         */
+        CLIENT_REPLY_MESSAGE
+
     }
 
 
