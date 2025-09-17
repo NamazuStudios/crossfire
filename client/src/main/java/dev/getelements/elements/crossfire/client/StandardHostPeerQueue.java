@@ -58,15 +58,11 @@ public class StandardHostPeerQueue implements PeerQueue {
                 .getState()
                 .getProfileId();
 
-        final var profiles =  signalingClient
+        return signalingClient
                 .getState()
                 .getProfiles()
                 .stream()
                 .filter(Predicate.not(hostProfileId::equals))
-                .toList();
-
-        return profiles
-                .stream()
                 .map(host::findPeer)
                 .allMatch(o -> o.map(p -> p.getPhase().equals(phase)).orElse(false));
 
