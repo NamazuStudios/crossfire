@@ -155,9 +155,10 @@ public class StandardCrossfire implements Crossfire {
 
         if (hosts == update.hosts()) {
             hosts.values()
-                    .stream()
-                    .peek(h -> onHostOpenStatus.publish(new OpenStatus<>(true, h)))
-                    .forEach(MatchHost::start);
+                 .forEach(host -> {
+                     onHostOpenStatus.publish(new OpenStatus<>(true, host));
+                     host.start();
+                });
         } else {
             hosts.values().forEach(MatchHost::close);
         }
@@ -305,15 +306,17 @@ public class StandardCrossfire implements Crossfire {
 
         state.hosts()
                 .values()
-                .stream()
-                .peek(h -> onHostOpenStatus.publish(new OpenStatus<>(false, h)))
-                .forEach(MatchHost::close);
+                .forEach(h -> {
+                    onHostOpenStatus.publish(new OpenStatus<>(false, h));
+                    h.close();
+                });
 
         state.clients()
                 .values()
-                .stream()
-                .peek(c -> onClientOpenStatus.publish(new OpenStatus<>(false, c)))
-                .forEach(MatchClient::close);
+                .forEach(c -> {
+                    onClientOpenStatus.publish(new OpenStatus<>(false, c));
+                    c.close();
+                });
 
     }
 

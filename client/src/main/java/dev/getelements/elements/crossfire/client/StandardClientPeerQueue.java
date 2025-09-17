@@ -35,7 +35,7 @@ public class StandardClientPeerQueue implements PeerQueue {
     public Stream<Peer> waitForAllPeers(final PeerPhase phase) throws InterruptedException {
         try (final var mon = Monitor.enter(lock)) {
 
-            while (open && client.findPeer().map(p -> p.gePhase().equals(phase)).orElse(false)) {
+            while (open && client.findPeer().map(p -> p.getPhase().equals(phase)).orElse(false)) {
                 condition.await();
             }
 

@@ -55,11 +55,11 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
         @Override
         public void onMessage(final RTCDataChannelBuffer buffer) {
             if (buffer.binary) {
-                final var message = new Message(WebRTCPeer.this, getProfileId(), buffer.data);
+                final var message = new Message(WebRTCPeer.this, buffer.data);
                 onMessage.publish(message);
             } else {
                 final var string = UTF_8.decode(buffer.data).toString();
-                final var message = new StringMessage(WebRTCPeer.this, getProfileId(), string);
+                final var message = new StringMessage(WebRTCPeer.this, string);
                 onStringMessage.publish(message);
             }
         }
@@ -93,7 +93,7 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
     }
 
     @Override
-    public PeerPhase gePhase() {
+    public PeerPhase getPhase() {
         return findDataChannel()
                 .map(dc -> switch(dc.getState()){
                     case CONNECTING -> READY;

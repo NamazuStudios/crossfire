@@ -3,9 +3,7 @@ package dev.getelements.elements.crossfire.client;
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.util.Monitor;
 
-import java.util.ArrayList;
 import java.util.Map;
-import java.util.Objects;
 import java.util.TreeMap;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
@@ -30,17 +28,9 @@ public class StandardHostPeerQueue implements PeerQueue {
     private final Map<String, Peer> peers = new TreeMap<>();
 
     public StandardHostPeerQueue(final SignalingClient signalingClient, final MatchHost host) {
-
         this.host = host;
         this.signalingClient = signalingClient;
-
-        try (final var mon = Monitor.enter(lock)) {
-            host.knownPeers().forEach(p -> peers.put(p.getProfileId(), p));
-        }
-
         this.subscription = host.onPeerStatus(this::updatePeerStatus);
-
-
     }
 
     private void updatePeerStatus(final Subscription subscription, final PeerStatus peerStatus) {
@@ -68,13 +58,17 @@ public class StandardHostPeerQueue implements PeerQueue {
                 .getState()
                 .getProfileId();
 
-        return signalingClient
+        final var profiles =  signalingClient
                 .getState()
                 .getProfiles()
                 .stream()
                 .filter(Predicate.not(hostProfileId::equals))
+                .toList();
+
+        return profiles
+                .stream()
                 .map(host::findPeer)
-                .allMatch(o -> o.map(p -> p.gePhase().equals(phase)).orElse(false));
+                .allMatch(o -> o.map(p -> p.getPhase().equals(phase)).orElse(false));
 
     }
 

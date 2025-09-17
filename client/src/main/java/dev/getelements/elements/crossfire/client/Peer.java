@@ -16,7 +16,7 @@ public interface Peer {
      *
      * @return the peer
      */
-    PeerPhase gePhase();
+    PeerPhase getPhase();
 
     /**
      * Gets the {@link Protocol} associated with this peer.
@@ -115,16 +115,14 @@ public interface Peer {
     /**
      * A message received from a client.
      *
-     * @param profileId the profile id
      * @param data
      */
-    record Message(Peer peer, String profileId, ByteBuffer data) {}
+    record Message(Peer peer, ByteBuffer data) {}
 
     /**
      * A message received from a client.
      *
-     * @param profileId the profile id
      * @param data
      */
-    record StringMessage(Peer peer, String profileId, String data) {}
+    record StringMessage(Peer peer, String data) {}
 }

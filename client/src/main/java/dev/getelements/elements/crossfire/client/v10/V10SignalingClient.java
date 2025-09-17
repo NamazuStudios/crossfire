@@ -106,7 +106,7 @@ public class V10SignalingClient implements SignalingClient {
     private void onMessageSignalingPhase(final V10SignalingClientState state, final ProtocolMessage message) throws IOException {
         switch (message.getType().getCategory()) {
             case ERROR -> onErrorMessage((ProtocolError) message);
-            case SIGNALING -> onSignalingMessage((Signal) message);
+            case SIGNALING, SIGNALING_DIRECT -> onSignalingMessage((Signal) message);
             default -> throw new UnexpectedMessageException("Unexpected message in phase " + state.phase());
         }
     }

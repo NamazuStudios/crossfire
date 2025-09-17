@@ -6,9 +6,7 @@ import dev.getelements.elements.crossfire.client.Peer.StringMessage;
 import dev.getelements.elements.crossfire.model.Protocol;
 import dev.getelements.elements.crossfire.model.Version;
 import dev.getelements.elements.crossfire.model.handshake.FindHandshakeRequest;
-import dev.getelements.elements.crossfire.model.signal.ConnectBroadcastSignal;
-import dev.getelements.elements.crossfire.model.signal.HostBroadcastSignal;
-import dev.getelements.elements.crossfire.model.signal.Signal;
+import dev.getelements.elements.crossfire.model.signal.*;
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.dao.ApplicationConfigurationDao;
 import dev.getelements.elements.sdk.model.application.MatchmakingApplicationConfiguration;
@@ -37,8 +35,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static dev.getelements.elements.crossfire.client.Crossfire.Mode.SIGNALING_CLIENT;
-import static dev.getelements.elements.crossfire.client.PeerPhase.READY;
-import static dev.getelements.elements.crossfire.client.SignalingClientPhase.CONNECTED;
+import static dev.getelements.elements.crossfire.client.Peer.SendResult.SENT;
 import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.MATCHED;
 import static dev.getelements.elements.sdk.model.user.User.Level.USER;
 import static java.lang.String.format;
@@ -159,12 +156,10 @@ public class TestBasicMatchmaking {
 
     }
 
-    @Test(dataProvider = "allContexts",
-          threadPoolSize = TEST_PLAYER_COUNT
-    )
+    @Test(dataProvider = "allContexts")
     public void testFindHandshake(final TestContext context) throws InterruptedException {
 
-        assertEquals(context.signalingClient().getPhase(), CONNECTED);
+        assertEquals(context.signalingClient().getPhase(), SignalingClientPhase.CONNECTED);
 
         final var request = new FindHandshakeRequest();
         request.setVersion(Version.V_1_0);
@@ -201,8 +196,7 @@ public class TestBasicMatchmaking {
     }
 
     @Test(dataProvider = "allContexts",
-          dependsOnMethods = "testTestAllJoinedSameMatch",
-          threadPoolSize = TEST_PLAYER_COUNT
+          dependsOnMethods = "testTestAllJoinedSameMatch"
     )
     public void testAllConnectedAndHostAssigned(final TestContext context) throws InterruptedException {
 
@@ -251,8 +245,7 @@ public class TestBasicMatchmaking {
     }
 
     @Test(dataProvider = "host",
-          dependsOnMethods = "testAllConnectedAndHostAssigned",
-          threadPoolSize = TEST_PLAYER_COUNT
+          dependsOnMethods = "testAllConnectedAndHostAssigned"
     )
     public void testHostSendMessage(final TestContext context) {
 
@@ -270,7 +263,7 @@ public class TestBasicMatchmaking {
             final var host = hostOptional.get();
 
             try (final var queue = host.newPeerQueue()) {
-                peers = queue.waitForAllPeers(READY).toList();
+                peers = queue.waitForAllPeers(PeerPhase.CONNECTED).toList();
                 assertEquals(peers.size(), TEST_PLAYER_COUNT - 1);
             } catch (final InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -295,8 +288,9 @@ public class TestBasicMatchmaking {
                         peer.getProfileId()
                 );
 
-                peer.send(message.toString());
-                peer.send(message.toBinary());
+                assertEquals(peer.send(message.toString()), SENT);
+                assertEquals(peer.send(message.toBinary()), SENT);
+
                 logger.info("Host sent message to {}: {}", peer.getProfileId(), message);
 
             }
@@ -305,9 +299,8 @@ public class TestBasicMatchmaking {
 
     }
 
-    @Test(dataProvider = "host",
-            dependsOnMethods = "testHostSendMessage",
-            threadPoolSize = TEST_PLAYER_COUNT
+    @Test(dataProvider = "client",
+          dependsOnMethods = "testHostSendMessage"
     )
     public void testClientReplyMessageBinary(final TestContext context) throws InterruptedException {
 
@@ -318,8 +311,15 @@ public class TestBasicMatchmaking {
 
         while (!protocols.isEmpty()) {
 
+            logger.info("Receiving binary messages for {} (from host {}).",
+                    signalingClientState.getProfileId(),
+                    signalingClientState.getHost()
+            );
+
             final var receivedMessage = context.messages().take();
             final var receivedTestMessage = TestMessage.from(receivedMessage.data());
+
+            assertTrue(protocols.remove(receivedTestMessage.protocol()));
             assertEquals(receivedTestMessage.action(), TestAction.HOST_SEND_MESSAGE);
             assertEquals(receivedTestMessage.profileId(), signalingClientState.getHost());
             assertEquals(receivedTestMessage.recipientProfileId(), signalingClientState.getProfileId());
@@ -336,15 +336,14 @@ public class TestBasicMatchmaking {
             );
 
             assertTrue(client.findPeer().isPresent(), "Expected client to be present for: " + receivedTestMessage.protocol());
-            client.findPeer().get().send(responseTestMessage.toBinary());
+            assertEquals(client.findPeer().get().send(responseTestMessage.toBinary()), SENT);
 
         }
 
     }
 
     @Test(dataProvider = "client",
-            dependsOnMethods = "testHostSendMessage",
-            threadPoolSize = TEST_PLAYER_COUNT
+          dependsOnMethods = "testHostSendMessage"
     )
     public void testClientReplyMessageString(final TestContext context) throws InterruptedException {
 
@@ -355,8 +354,15 @@ public class TestBasicMatchmaking {
 
         while (!protocols.isEmpty()) {
 
+            logger.info("Receiving string messages for {} (from host {}).",
+                    signalingClientState.getProfileId(),
+                    signalingClientState.getHost()
+            );
+
             final var receivedMessage = context.stringMessages().take();
             final var receivedTestMessage = TestMessage.from(receivedMessage.data());
+
+            assertTrue(protocols.remove(receivedTestMessage.protocol()));
             assertEquals(receivedTestMessage.action(), TestAction.HOST_SEND_MESSAGE);
             assertEquals(receivedTestMessage.profileId(), signalingClientState.getHost());
             assertEquals(receivedTestMessage.recipientProfileId(), signalingClientState.getProfileId());
@@ -380,11 +386,16 @@ public class TestBasicMatchmaking {
     }
 
     @Test(dataProvider = "host",
-            dependsOnMethods = {"testClientReplyMessageBinary", "testClientReplyMessageString"},
-            threadPoolSize = TEST_PLAYER_COUNT
+          dependsOnMethods = {"testClientReplyMessageBinary", "testClientReplyMessageString"}
     )
     public void testHostReceiveSignalBinary(final TestContext context) throws InterruptedException {
-        for (int i = 0; i < (TEST_PLAYER_COUNT * 2) - 2; ++i) {
+
+        final var count = (long) context
+                .crossfire()
+                .getSupportedProtocols()
+                .size() * (TEST_PLAYER_COUNT - 1);
+
+        for (int i = 0; i < count - 1; ++i) {
             final var msg = context.messages().take();
             final var testMessage = TestMessage.from(msg.data());
             assertEquals(testMessage.protocol(), msg.peer().getProtocol());
@@ -392,14 +403,20 @@ public class TestBasicMatchmaking {
             assertEquals(testMessage.profileId(), msg.peer().getProfileId());
             assertEquals(testMessage.recipientProfileId(), context.signalingClient().getState().getHost());
         }
+
     }
 
     @Test(dataProvider = "host",
-            dependsOnMethods = {"testClientReplyMessageBinary", "testClientReplyMessageString"},
-            threadPoolSize = TEST_PLAYER_COUNT
+            dependsOnMethods = {"testClientReplyMessageBinary", "testClientReplyMessageString"}
     )
     public void testHostReceiveSignalString(final TestContext context) throws InterruptedException {
-        for (int i = 0; i < (TEST_PLAYER_COUNT * 2) - 2; ++i) {
+
+        final var count = (long) context
+                .crossfire()
+                .getSupportedProtocols()
+                .size() * (TEST_PLAYER_COUNT - 1);
+
+        for (int i = 0; i < count; ++i) {
             final var msg = context.stringMessages().take();
             final var testMessage = TestMessage.from(msg.data());
             assertEquals(testMessage.protocol(), msg.peer().getProtocol());
@@ -407,6 +424,7 @@ public class TestBasicMatchmaking {
             assertEquals(testMessage.profileId(), msg.peer().getProfileId());
             assertEquals(testMessage.recipientProfileId(), context.signalingClient().getState().getHost());
         }
+
     }
 
     public record TestContext(
@@ -426,13 +444,35 @@ public class TestBasicMatchmaking {
                     .getSignalingClient()
                     .onSignal((sub, signal) -> {
                         signals().add(signal);
-                        logger.info("Received signal {} for profile {}.", signal.getType(), profile().getId());
+                        switch (signal.getType().getCategory()) {
+                            case SIGNALING -> logger.info("Received broadcast signal {} from {} for profile {}.",
+                                    signal.getType(),
+                                    ((BroadcastSignal) signal).getProfileId(),
+                                    profile().getId()
+                            );
+                            case SIGNALING_DIRECT -> logger.info("Received direct signal {} from {} addressed to {} for profile {}.",
+                                    signal.getType(),
+                                    ((DirectSignal) signal).getProfileId(),
+                                    ((DirectSignal) signal).getRecipientProfileId(),
+                                    profile().getId()
+                            );
+                        }
                     });
 
             subscription = Subscription.begin()
                     .chain(subscription)
+                    .chain(crossfire.onHostOpenStatus(this::onHostOpened))
                     .chain(crossfire.onClientOpenStatus(this::onClientOpened));
 
+        }
+
+        private void onHostOpened(final Subscription hostSubscription,
+                                    final Crossfire.OpenStatus<MatchHost> matchClient) {
+            if (matchClient.open()) {
+                matchClient.object().onPeerStatus(this::onPeerStatus);
+            } else {
+                hostSubscription.unsubscribe();
+            }
         }
 
         private void onClientOpened(final Subscription clientSubscription,
@@ -447,12 +487,38 @@ public class TestBasicMatchmaking {
         private void onPeerStatus(final Subscription peerSubscription, final PeerStatus peerStatus) {
             switch (peerStatus.phase()) {
                 case READY -> {
-                    peerStatus.peer().onMessage(((s, m) -> messages.add(m)));
-                    peerStatus.peer().onStringMessage(((s, m) -> stringMessages.add(m)));
+                    peerStatus.peer().onMessage(((s, m) -> {
+
+                        final var localProfileId = crossfire().getSignalingClient().getState().getProfileId();
+
+                        logger.info("Received binary message {} -> {}",
+                                m.peer().getProfileId(),
+                                localProfileId
+                        );
+
+                        if (messages.add(m))
+                            logger.info("Added message: {}", localProfileId);
+                        else
+                            logger.info("Failed to add message: {}", localProfileId);
+
+                    }));
+                    peerStatus.peer().onStringMessage(((s, m) -> {
+
+                        final var localProfileId = crossfire().getSignalingClient().getState().getProfileId();
+
+                        logger.info("Received string message {} -> {}",
+                                m.peer().getProfileId(),
+                                localProfileId
+                        );
+
+                        if (stringMessages.add(m))
+                            logger.info("Added string message: {}.", localProfileId);
+                        else
+                            logger.info("Failed string to add message: {}", localProfileId);
+
+                    }));
                 }
-                case CONNECTED -> {
-                    logger.info("Connected remote peer: {}", peerStatus.peer().getProfileId());
-                }
+                case CONNECTED -> logger.info("Connected remote peer: {}", peerStatus.peer().getProfileId());
                 case TERMINATED -> peerSubscription.unsubscribe();
             }
         }

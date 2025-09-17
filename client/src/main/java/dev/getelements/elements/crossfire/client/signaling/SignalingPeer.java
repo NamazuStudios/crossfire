@@ -9,6 +9,7 @@ import dev.getelements.elements.sdk.util.ConcurrentDequePublisher;
 import dev.getelements.elements.sdk.util.Publisher;
 
 import java.nio.ByteBuffer;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 
@@ -60,14 +61,24 @@ public class SignalingPeer implements Peer, AutoCloseable {
     }
 
     private void onBinaryRelay(final Subscription subscription, final BinaryRelayDirectSignal signal) {
+
         final var buffer = ByteBuffer.wrap(signal.getPayload());
-        final var message = new Message(this, signal.getProfileId(), buffer);
-        onMessage.publish(message);
+        final var message = new Message(this, buffer);
+
+        if (Objects.equals(getProfileId(), signal.getProfileId())) {
+            onMessage.publish(message);
+        }
+
     }
 
     private void onStringRelay(final Subscription subscription, final StringRelayDirectSignal signal) {
-        final var message = new StringMessage(this, signal.getProfileId(), signal.getPayload());
-        onStringMessage.publish(message);
+
+        final var message = new StringMessage(this, signal.getPayload());
+
+        if (Objects.equals(getProfileId(), signal.getProfileId())) {
+            onStringMessage.publish(message);
+        }
+
     }
 
     private void onClientError(final Subscription subscription, final Throwable throwable) {
@@ -94,7 +105,7 @@ public class SignalingPeer implements Peer, AutoCloseable {
     }
 
     @Override
-    public PeerPhase gePhase() {
+    public PeerPhase getPhase() {
         return status.get();
     }
 

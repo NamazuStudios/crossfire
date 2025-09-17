@@ -92,9 +92,9 @@ public class SignalingMatchHost implements MatchHost {
         final var peer = new SignalingPeer(signaling, profileId, remoteProfileId, onPeerStatus);
         final var existing = peers.putIfAbsent(remoteProfileId, peer);
 
-        onPeerStatus.publish(new PeerStatus(CONNECTED, peer));
-
-        if (existing != null)
+        if (existing == null)
+            peer.connect();
+        else
             peer.close();
 
     }
@@ -132,7 +132,8 @@ public class SignalingMatchHost implements MatchHost {
 
     @Override
     public Optional<Peer> findPeer(final String profileId) {
-        return Optional.ofNullable(peers.get(profileId));
+        final var result = Optional.ofNullable((Peer)peers.get(profileId));
+        return result;
     }
 
     @Override
