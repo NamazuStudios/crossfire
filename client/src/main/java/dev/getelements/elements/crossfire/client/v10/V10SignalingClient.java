@@ -130,7 +130,10 @@ public class V10SignalingClient implements SignalingClient {
         };
 
         switch (state.phase()) {
-            case SIGNALING -> onSignal.publish(message);
+            case SIGNALING -> onSignal.publish(message,
+                    m -> logger.debug("Delivered signaling message: {}", message),
+                    onClientError::publish
+            );
             case TERMINATED -> logger.debug("Dropping message in terminated phase: {}", message.getType());
             default -> throw new UnexpectedMessageException("Unexpected message in phase " + state.phase());
         }
@@ -151,8 +154,15 @@ public class V10SignalingClient implements SignalingClient {
 
             switch (state.phase()) {
                 case SIGNALING -> {
-                    onHandshake.publish(message);
+
+                    onHandshake.publish(
+                            message,
+                            m -> logger.debug("Delivered handshake response: {}", message),
+                            onClientError::publish
+                    );
+
                     logger.info("Handshake successful, matched with ID: {}", message.getMatchId());
+
                 }
                 case TERMINATED -> logger.info("Handshake successful, but session is terminated. Dropping.");
                 default -> throw new ProtocolStateException("Unexpected message in phase " + state.phase());

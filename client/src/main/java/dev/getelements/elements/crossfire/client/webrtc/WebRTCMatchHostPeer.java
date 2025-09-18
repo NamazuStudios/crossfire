@@ -8,7 +8,6 @@ import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.util.Publisher;
 import dev.getelements.elements.sdk.util.SimpleLazyValue;
 import dev.onvoid.webrtc.*;
-import dev.onvoid.webrtc.media.MediaStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,6 +41,7 @@ public class WebRTCMatchHostPeer extends WebRTCPeer {
             signal.setRecipientProfileId(peerRecord.remoteProfileId);
             signal.setMid(candidate.sdpMid);
             signal.setCandidate(candidate.sdp);
+            signal.setMidIndex(candidate.sdpMLineIndex);
             peerRecord.signaling.signal(signal);
         }
 
@@ -87,7 +87,7 @@ public class WebRTCMatchHostPeer extends WebRTCPeer {
     }
 
     public WebRTCMatchHostPeer(final Record peerRecord) {
-        super(peerRecord.onPeerStatus);
+        super(peerRecord.signaling, peerRecord.onPeerStatus);
         this.peerRecord = requireNonNull(peerRecord, "peerRecord");
         this.subscription = peerRecord.signaling.onSignal(this::onSignal);
     }
@@ -203,6 +203,11 @@ public class WebRTCMatchHostPeer extends WebRTCPeer {
     @Override
     protected Optional<RTCDataChannel> findDataChannel() {
         return peerConnectionState.get().findChannel();
+    }
+
+    @Override
+    protected Optional<RTCPeerConnection> findPeerConnection() {
+        return peerConnectionState.get().findConnection();
     }
 
     @Override

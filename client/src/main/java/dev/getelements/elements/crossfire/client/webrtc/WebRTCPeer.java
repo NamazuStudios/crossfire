@@ -3,19 +3,22 @@ package dev.getelements.elements.crossfire.client.webrtc;
 import dev.getelements.elements.crossfire.client.Peer;
 import dev.getelements.elements.crossfire.client.PeerPhase;
 import dev.getelements.elements.crossfire.client.PeerStatus;
+import dev.getelements.elements.crossfire.client.SignalingClient;
 import dev.getelements.elements.crossfire.model.Protocol;
+import dev.getelements.elements.crossfire.model.ProtocolMessage;
+import dev.getelements.elements.crossfire.model.signal.CandidateDirectSignal;
+import dev.getelements.elements.crossfire.model.signal.Signal;
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.util.ConcurrentDequePublisher;
 import dev.getelements.elements.sdk.util.Publisher;
-import dev.onvoid.webrtc.RTCDataChannel;
-import dev.onvoid.webrtc.RTCDataChannelBuffer;
-import dev.onvoid.webrtc.RTCDataChannelObserver;
+import dev.onvoid.webrtc.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.util.Optional;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 import static dev.getelements.elements.crossfire.client.Peer.SendResult.NOT_READY;
 import static dev.getelements.elements.crossfire.client.PeerPhase.CONNECTED;
@@ -26,6 +29,8 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(WebRTCPeer.class);
 
+    private Subscription subscription;
+
     private final Publisher<PeerStatus> onPeerStatus;
 
     protected final Publisher<Message> onMessage = new ConcurrentDequePublisher<>();
@@ -34,8 +39,31 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
 
     protected final Publisher<Throwable> onError = new ConcurrentDequePublisher<>();
 
-    public WebRTCPeer(final Publisher<PeerStatus> onPeerStatus) {
+    public WebRTCPeer(final SignalingClient signalingClient,
+                      final Publisher<PeerStatus> onPeerStatus) {
         this.onPeerStatus = onPeerStatus;
+        this.subscription = Subscription.begin()
+                .chain(signalingClient.onSignal(this::onSignal));
+    }
+
+    private void onSignal(final Subscription subscription, final Signal signal) {
+        switch (signal.getType()) {
+            case CANDIDATE -> onCandidateMessage(subscription, (CandidateDirectSignal) signal);
+        }
+    }
+
+    private void onCandidateMessage(final Subscription subscription, final CandidateDirectSignal candidate) {
+        findPeerConnection().ifPresent(connection -> {
+
+            final var rtcIceCandidate = new RTCIceCandidate(
+                    candidate.getMid(),
+                    candidate.getMidIndex(),
+                    candidate.getCandidate()
+            );
+
+            connection.addIceCandidate(rtcIceCandidate);
+
+        });
     }
 
     /**
@@ -51,6 +79,13 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
     protected abstract Optional<RTCDataChannel> findDataChannel();
 
     /**
+     * Finds the {@link RTCDataChannel} associated with the peer. If available, it will return the datachannel.
+     *
+     * @return the {@link Optional} containing the data channel
+     */
+    protected abstract Optional<RTCPeerConnection> findPeerConnection();
+
+    /**
      * Creates a new {@link RTCDataChannelObserver} for the given data channel. This will relay state changes
      * and messages to the observers of this peer.
      *
@@ -62,28 +97,46 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
 
             @Override
             public void onStateChange() {
-                switch (dataChannel.getState()) {
-                    case OPEN -> onPeerStatus.publish(new PeerStatus(CONNECTED, WebRTCPeer.this));
-                    case CONNECTING -> onPeerStatus.publish(new PeerStatus(READY, WebRTCPeer.this));
-                    case CLOSED -> onPeerStatus.publish(new PeerStatus(PeerPhase.TERMINATED, WebRTCPeer.this));
+
+                final var status = switch (dataChannel.getState()) {
+                    case OPEN -> new PeerStatus(CONNECTED, WebRTCPeer.this);
+                    case CONNECTING -> new PeerStatus(READY, WebRTCPeer.this);
+                    case CLOSED -> new PeerStatus(PeerPhase.TERMINATED, WebRTCPeer.this);
+                    default -> null;
+                };
+
+                if (status != null) {
+                    onPeerStatus.publish(status, s -> logger.debug("Updated status: {}", s), onError::publish);
                 }
+
             }
 
             @Override
             public void onMessage(final RTCDataChannelBuffer buffer) {
                 if (buffer.binary) {
                     final var message = new Message(WebRTCPeer.this, buffer.data);
-                    onMessage.publish(message);
+                    onMessage.publish(
+                            message,
+                            m -> logger.debug("Delivered binary message."),
+                            onError::publish
+                    );
                 } else {
                     final var string = UTF_8.decode(buffer.data).toString();
                     final var message = new StringMessage(WebRTCPeer.this, string);
-                    onStringMessage.publish(message);
+                    onStringMessage.publish(
+                            message,
+                            m -> logger.debug("Delivered string message."),
+                            onError::publish
+                    );
                 }
             }
 
             @Override
             public void onBufferedAmountChange(final long previousAmount) {
-                logger.debug("Data channel buffer size changed from {}", previousAmount);
+                logger.debug("Data channel buffer size changed from {} -> {}",
+                        previousAmount,
+                        dataChannel.getBufferedAmount()
+                );
             }
 
         };

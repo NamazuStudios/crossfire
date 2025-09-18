@@ -41,6 +41,7 @@ public class WebRTCMatchClientPeer extends WebRTCPeer {
             signal.setRecipientProfileId(peerRecord.remoteProfileId());
             signal.setMid(candidate.sdpMid);
             signal.setCandidate(candidate.sdp);
+            signal.setMidIndex(candidate.sdpMLineIndex);
             peerRecord.signaling().signal(signal);
         }
 
@@ -72,7 +73,7 @@ public class WebRTCMatchClientPeer extends WebRTCPeer {
     };
 
     public WebRTCMatchClientPeer(final Record peerRecord) {
-        super(peerRecord.onPeerStatus);
+        super(peerRecord.signaling, peerRecord.onPeerStatus);
         this.peerRecord = requireNonNull(peerRecord, "peerRecord");
         this.subscription = peerRecord.signaling.onSignal(this::onSignal);
     }
@@ -97,6 +98,11 @@ public class WebRTCMatchClientPeer extends WebRTCPeer {
     @Override
     protected Optional<RTCDataChannel> findDataChannel() {
         return peerConnectionState.get().findChannel();
+    }
+
+    @Override
+    protected Optional<RTCPeerConnection> findPeerConnection() {
+        return peerConnectionState.get().findConnection();
     }
 
     @Override

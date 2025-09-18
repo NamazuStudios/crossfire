@@ -1,5 +1,6 @@
 package dev.getelements.elements.crossfire.model.signal;
 
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
 import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.CANDIDATE;
@@ -17,6 +18,9 @@ public class CandidateDirectSignal implements DirectSignal {
 
     @NotNull
     private String candidate;
+
+    @Min(0)
+    private int midIndex;
 
     @Override
     public Type getType() {
@@ -62,4 +66,11 @@ public class CandidateDirectSignal implements DirectSignal {
         this.candidate = candidate;
     }
 
+    public int getMidIndex() {
+        return midIndex;
+    }
+
+    public void setMidIndex(int midIndex) {
+        this.midIndex = midIndex;
+    }
 }
