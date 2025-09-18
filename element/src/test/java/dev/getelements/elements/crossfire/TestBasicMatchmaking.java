@@ -13,6 +13,7 @@ import dev.getelements.elements.sdk.model.application.MatchmakingApplicationConf
 import dev.getelements.elements.sdk.model.profile.Profile;
 import dev.getelements.elements.sdk.model.session.SessionCreation;
 import dev.getelements.elements.sdk.model.user.User;
+import dev.onvoid.webrtc.logging.Logging;
 import jakarta.websocket.ContainerProvider;
 import jakarta.websocket.WebSocketContainer;
 import org.eclipse.jetty.util.BlockingArrayQueue;
@@ -34,7 +35,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static dev.getelements.elements.crossfire.client.Crossfire.Mode.SIGNALING_CLIENT;
+import static dev.getelements.elements.crossfire.client.Crossfire.Mode.WEBRTC_CLIENT;
+import static dev.getelements.elements.crossfire.client.Crossfire.Mode.WEBRTC_HOST;
 import static dev.getelements.elements.crossfire.client.Peer.SendResult.SENT;
 import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.MATCHED;
 import static dev.getelements.elements.sdk.model.user.User.Level.USER;
@@ -106,6 +108,14 @@ public class TestBasicMatchmaking {
     }
 
     @BeforeClass
+    public static void setupRTCLogging() {
+        Logging.addLogSink(Logging.Severity.VERBOSE, (s, m) -> logger.debug("WebRTC: {}", m));
+        Logging.addLogSink(Logging.Severity.INFO, (s, m) -> logger.info("WebRTC: {}", m));
+        Logging.addLogSink(Logging.Severity.WARNING, (s, m) -> logger.warn("WebRTC: {}", m));
+        Logging.addLogSink(Logging.Severity.ERROR, (s, m) -> logger.error("WebRTC: {}", m));
+    }
+
+    @BeforeClass
     public void setupContainer() {
         webSocketContainer = ContainerProvider.getWebSocketContainer();
     }
@@ -122,8 +132,8 @@ public class TestBasicMatchmaking {
                     final var crossfire = new StandardCrossfire.Builder()
                             .withDefaultUri(server.getTestTestServerWsUrl())
                             .withWebSocketContainer(webSocketContainer)
-                            .withDefaultProtocol(Protocol.SIGNALING)
-                            .withSupportedModes(Crossfire.Mode.SIGNALING_HOST, SIGNALING_CLIENT)
+                            .withDefaultProtocol(Protocol.WEBRTC)
+                            .withSupportedModes(WEBRTC_HOST, WEBRTC_CLIENT)
                             .build()
                             .connect();
 

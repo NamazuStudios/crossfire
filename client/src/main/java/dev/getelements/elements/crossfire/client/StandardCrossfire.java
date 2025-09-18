@@ -177,6 +177,7 @@ public class StandardCrossfire implements Crossfire {
         allModes.forEach(m -> {
             switch(m) {
                 case WEBRTC_CLIENT -> clients.put(m.getProtocol(), webrtcClientBuilder.get()
+                        .withRemoteProfileId(signal.getProfileId())
                         .withSignalingClient(signaling)
                         .build()
                 );

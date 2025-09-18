@@ -8,6 +8,7 @@ import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.util.Publisher;
 import dev.getelements.elements.sdk.util.SimpleLazyValue;
 import dev.onvoid.webrtc.*;
+import dev.onvoid.webrtc.media.MediaStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,7 +28,12 @@ public class WebRTCMatchHostPeer extends WebRTCPeer {
 
     private final AtomicReference<WebRTCPeerConnectionState> peerConnectionState = new AtomicReference<>(WebRTCPeerConnectionState.create());
 
-    private final PeerConnectionObserver peerConnectionObserver = new PeerConnectionObserver() {
+    private final PeerConnectionObserver peerConnectionObserver = new LoggingPeerConnectionObserver() {
+
+        @Override
+        public Logger getLogger() {
+            return logger;
+        }
 
         @Override
         public void onIceCandidate(final RTCIceCandidate candidate) {
@@ -50,11 +56,6 @@ public class WebRTCMatchHostPeer extends WebRTCPeer {
             onError.publish(new PeerException(event.getErrorText()));
             close();
 
-        }
-
-        @Override
-        public void onConnectionChange(final RTCPeerConnectionState state) {
-            logger.debug("Connection state {} for remote {}", state, peerRecord.remoteProfileId);
         }
 
     };
@@ -145,6 +146,7 @@ public class WebRTCMatchHostPeer extends WebRTCPeer {
                     peerRecord.dataChannelInit
             );
 
+            final var dataChannelObserver = newDataChannelObserver(dc);
             dc.registerObserver(dataChannelObserver);
 
             return dc;
@@ -158,12 +160,14 @@ public class WebRTCMatchHostPeer extends WebRTCPeer {
 
         // This should never happen. But if it does, we close the new connection to avoid leaks.
 
-        dataChannel.getOptional()
-                .filter(d -> result.channel() != null)
+        dataChannel
+                .getOptional()
+                .filter(d -> result.channel() != d)
                 .ifPresent(RTCDataChannel::close);
 
-        connection.getOptional()
-                .filter(c -> result.connection() != null)
+        connection
+                .getOptional()
+                .filter(c -> result.connection() != c)
                 .ifPresent(RTCPeerConnection::close);
 
         offer();
@@ -181,7 +185,7 @@ public class WebRTCMatchHostPeer extends WebRTCPeer {
 
                     @Override
                     public void onSuccess(final RTCSessionDescription description) {
-                        logger.debug("Received session descr`iption: {}", description);
+                        logger.debug("Received session description: {}", description);
                         setLocalDescription(description);
                     }
 

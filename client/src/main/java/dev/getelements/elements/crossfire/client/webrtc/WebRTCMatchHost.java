@@ -11,15 +11,14 @@ import dev.getelements.elements.sdk.util.ConcurrentDequePublisher;
 import dev.getelements.elements.sdk.util.LazyValue;
 import dev.getelements.elements.sdk.util.Publisher;
 import dev.getelements.elements.sdk.util.SimpleLazyValue;
-import dev.onvoid.webrtc.PeerConnectionFactory;
-import dev.onvoid.webrtc.RTCConfiguration;
-import dev.onvoid.webrtc.RTCDataChannelInit;
-import dev.onvoid.webrtc.RTCOfferOptions;
+import dev.onvoid.webrtc.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -198,11 +197,25 @@ public class WebRTCMatchHost implements MatchHost {
 
         private PeerConnectionFactory peerConnectionFactory;
 
+        private List<RTCIceServer> iceServers = List.of(GoogleICEServers.getDefault());
+
         private Supplier<RTCOfferOptions> offerOptionsSupplier = RTCOfferOptions::new;
 
         private Supplier<RTCDataChannelInit> dataChannelInitSupplier = RTCDataChannelInit::new;
 
         private Function<String, RTCConfiguration> peerConfigurationProvider = pid -> new RTCConfiguration();
+
+        /**
+         * Specifies the ICE servers to use when connecting matches. If not specified, the default value will be
+         * used.
+         *
+         * @param iceServers the ICE servers
+         * @return this instance
+         */
+        public Builder withIceServers(final List<RTCIceServer> iceServers) {
+            this.iceServers = iceServers == null ? List.of(GoogleICEServers.getDefault()) : iceServers;
+            return this;
+        }
 
         /**
          * Specifies the {@link SignalingClient} to use to connect matches.
@@ -290,7 +303,10 @@ public class WebRTCMatchHost implements MatchHost {
                     pcf,
                     offerOptionsSupplier,
                     dataChannelInitSupplier,
-                    peerConfigurationProvider
+                    peerConfigurationProvider.andThen(peerConfiguration -> {
+                        peerConfiguration.iceServers = iceServers;
+                        return peerConfiguration;
+                    })
             );
 
         }

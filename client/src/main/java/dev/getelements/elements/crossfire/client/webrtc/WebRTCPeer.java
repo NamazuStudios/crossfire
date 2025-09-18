@@ -34,43 +34,6 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
 
     protected final Publisher<Throwable> onError = new ConcurrentDequePublisher<>();
 
-    protected final RTCDataChannelObserver dataChannelObserver = new RTCDataChannelObserver() {
-
-        @Override
-        public void onStateChange() {
-            findDataChannel().ifPresentOrElse(
-                    this::onPeerStatus,
-                    () -> logger.warn("Received data channel state change, but no data channel is present.")
-            );
-        }
-
-        private void onPeerStatus(final RTCDataChannel dataChannel) {
-            switch (dataChannel.getState()) {
-                case OPEN -> onPeerStatus.publish(new PeerStatus(CONNECTED, WebRTCPeer.this));
-                case CONNECTING -> onPeerStatus.publish(new PeerStatus(READY, WebRTCPeer.this));
-                case CLOSED -> onPeerStatus.publish(new PeerStatus(PeerPhase.TERMINATED, WebRTCPeer.this));
-            }
-        }
-
-        @Override
-        public void onMessage(final RTCDataChannelBuffer buffer) {
-            if (buffer.binary) {
-                final var message = new Message(WebRTCPeer.this, buffer.data);
-                onMessage.publish(message);
-            } else {
-                final var string = UTF_8.decode(buffer.data).toString();
-                final var message = new StringMessage(WebRTCPeer.this, string);
-                onStringMessage.publish(message);
-            }
-        }
-
-        @Override
-        public void onBufferedAmountChange(final long previousAmount) {
-            logger.debug("Data channel buffer size changed from {}", previousAmount);
-        }
-
-    };
-
     public WebRTCPeer(final Publisher<PeerStatus> onPeerStatus) {
         this.onPeerStatus = onPeerStatus;
     }
@@ -86,6 +49,46 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
      * @return the {@link Optional} containing the data channel
      */
     protected abstract Optional<RTCDataChannel> findDataChannel();
+
+    /**
+     * Creates a new {@link RTCDataChannelObserver} for the given data channel. This will relay state changes
+     * and messages to the observers of this peer.
+     *
+     * @param dataChannel the data channel
+     * @return the newly created observer
+     */
+    protected RTCDataChannelObserver newDataChannelObserver(final RTCDataChannel dataChannel) {
+        return new RTCDataChannelObserver() {
+
+            @Override
+            public void onStateChange() {
+                switch (dataChannel.getState()) {
+                    case OPEN -> onPeerStatus.publish(new PeerStatus(CONNECTED, WebRTCPeer.this));
+                    case CONNECTING -> onPeerStatus.publish(new PeerStatus(READY, WebRTCPeer.this));
+                    case CLOSED -> onPeerStatus.publish(new PeerStatus(PeerPhase.TERMINATED, WebRTCPeer.this));
+                }
+            }
+
+            @Override
+            public void onMessage(final RTCDataChannelBuffer buffer) {
+                if (buffer.binary) {
+                    final var message = new Message(WebRTCPeer.this, buffer.data);
+                    onMessage.publish(message);
+                } else {
+                    final var string = UTF_8.decode(buffer.data).toString();
+                    final var message = new StringMessage(WebRTCPeer.this, string);
+                    onStringMessage.publish(message);
+                }
+            }
+
+            @Override
+            public void onBufferedAmountChange(final long previousAmount) {
+                logger.debug("Data channel buffer size changed from {}", previousAmount);
+            }
+
+        };
+
+    }
 
     @Override
     public Protocol getProtocol() {

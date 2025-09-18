@@ -27,7 +27,12 @@ public class WebRTCMatchClientPeer extends WebRTCPeer {
 
     private final AtomicReference<WebRTCPeerConnectionState> peerConnectionState = new AtomicReference<>(WebRTCPeerConnectionState.create());
 
-    private final PeerConnectionObserver peerConnectionObserver = new PeerConnectionObserver() {
+    private final PeerConnectionObserver peerConnectionObserver = new LoggingPeerConnectionObserver() {
+
+        @Override
+        public Logger getLogger() {
+            return logger;
+        }
 
         @Override
         public void onIceCandidate(final RTCIceCandidate candidate) {
@@ -59,6 +64,8 @@ public class WebRTCMatchClientPeer extends WebRTCPeer {
 
         @Override
         public void onDataChannel(final RTCDataChannel dataChannel) {
+            final var dataChannelObserver = newDataChannelObserver(dataChannel);
+            dataChannel.registerObserver(dataChannelObserver);
             peerConnectionState.updateAndGet(s -> s.channel(dataChannel));
         }
 

@@ -10,9 +10,11 @@ import dev.getelements.elements.sdk.util.Publisher;
 import dev.onvoid.webrtc.PeerConnectionFactory;
 import dev.onvoid.webrtc.RTCAnswerOptions;
 import dev.onvoid.webrtc.RTCConfiguration;
+import dev.onvoid.webrtc.RTCIceServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
@@ -123,26 +125,27 @@ public class WebRTCMatchClient implements MatchClient {
 
     public static class Builder {
 
-        private String profileId;
-
         private String remoteProfileId;
 
         private SignalingClient signaling;
 
         private PeerConnectionFactory peerConnectionFactory;
 
+        private List<RTCIceServer> iceServers = List.of(GoogleICEServers.getDefault());
+
         private Supplier<RTCAnswerOptions> answerOptionsSupplier = RTCAnswerOptions::new;
 
         private Function<String, RTCConfiguration> peerConfigurationProvider = pid -> new RTCConfiguration();
 
         /**
-         * Sets the profile id of this client.
+         * Specifies the ICE servers to use when connecting matches. If not specified, the default value will be
+         * used.
          *
-         * @param profileId the profile id
-         * @return this builder
+         * @param iceServers the ICE servers
+         * @return this instance
          */
-        public Builder withProfileId(final String profileId) {
-            this.profileId = profileId;
+        public Builder withIceServers(final List<RTCIceServer> iceServers) {
+            this.iceServers = iceServers == null ? List.of(GoogleICEServers.getDefault()) : iceServers;
             return this;
         }
 
@@ -218,7 +221,10 @@ public class WebRTCMatchClient implements MatchClient {
                     remoteProfileId,
                     signaling,
                     pcf,
-                    peerConfigurationProvider,
+                    peerConfigurationProvider.andThen(peerConfiguration -> {
+                        peerConfiguration.iceServers = iceServers;
+                        return peerConfiguration;
+                    }),
                     answerOptionsSupplier
             );
 
