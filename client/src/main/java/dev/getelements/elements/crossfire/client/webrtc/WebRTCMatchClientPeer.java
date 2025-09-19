@@ -89,10 +89,8 @@ public class WebRTCMatchClientPeer extends WebRTCPeer {
                 : existing
         );
 
-        // This should never happen. But if it does, we close the new connection to avoid leaks.
-
         connection.getOptional()
-                .filter(c -> result.connection() != null)
+                .filter(c -> result.connection() != c)
                 .ifPresent(RTCPeerConnection::close);
 
         processSignalBacklog();
@@ -126,11 +124,22 @@ public class WebRTCMatchClientPeer extends WebRTCPeer {
         }
     }
 
-    private void onSignalOffer(final SdpOfferDirectSignal signal) {
+    private void onSignalOffer(final SdpOfferDirectSignal offer) {
+
+        // Ignore signals from peers that aren't relevant to this particular peer connection.
+
+        if (!getProfileId().equals(offer.getProfileId())) {
+            return;
+        }
 
         peerConnectionState.get().findConnection().ifPresent(connection -> {
 
-            final var description = new RTCSessionDescription(RTCSdpType.OFFER, signal.getPeerSdp());
+            final var description = new RTCSessionDescription(RTCSdpType.OFFER, offer.getPeerSdp());
+
+            logger.debug("Got SDP OFFER From {}\n{}",
+                    offer.getProfileId(),
+                    offer.getPeerSdp()
+            );
 
             connection.setRemoteDescription(description, new SetSessionDescriptionObserver() {
 
@@ -153,25 +162,30 @@ public class WebRTCMatchClientPeer extends WebRTCPeer {
     }
 
     private void createAnswer() {
-        peerConnectionState.get().findConnection().ifPresent(connection ->
-                connection.createAnswer(peerRecord.answerOptions, new CreateSessionDescriptionObserver() {
+        peerConnectionState
+                .get()
+                .findConnection()
+                .ifPresent(connection ->
+                    connection.createAnswer(peerRecord.answerOptions, new CreateSessionDescriptionObserver() {
 
-                    @Override
-                    public void onSuccess(final RTCSessionDescription description) {
-                        final var signal = new SdpAnswerDirectSignal();
-                        signal.setPeerSdp(description.sdp);
-                        signal.setProfileId(peerRecord.profileId());
-                        signal.setRecipientProfileId(peerRecord.remoteProfileId());
-                        peerRecord.signaling.signal(signal);
-                    }
+                        @Override
+                        public void onSuccess(final RTCSessionDescription description) {
+                            final var signal = new SdpAnswerDirectSignal();
+                            signal.setPeerSdp(description.sdp);
+                            signal.setProfileId(peerRecord.profileId());
+                            signal.setRecipientProfileId(peerRecord.remoteProfileId());
+                            peerRecord.signaling.signal(signal);
+                        }
 
-                    @Override
-                    public void onFailure(final String error) {
-                        logger.error("Failed to create answer: {}. Closing connection.", error);
-                        close();
-                    }
+                        @Override
+                        public void onFailure(final String error) {
+                            logger.error("Failed to create answer: {}. Closing connection.", error);
+                            close();
+                        }
 
-                }));
+                    })
+
+                );
     }
 
     private void onSignalDisconnect(final DisconnectBroadcastSignal signal) {

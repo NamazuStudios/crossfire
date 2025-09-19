@@ -68,6 +68,13 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
     }
 
     private void onCandidateMessage(final CandidateDirectSignal candidate) {
+
+        // Ignore signals from peers that aren't relevant to this particular peer connection.
+
+        if (!getProfileId().equals(candidate.getProfileId())) {
+            return;
+        }
+
         findPeerConnection().ifPresentOrElse(connection -> {
 
             final var rtcIceCandidate = new RTCIceCandidate(
@@ -76,9 +83,15 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
                     candidate.getCandidate()
             );
 
+            logger.debug("Adding ICE Candidate {} for peer from {}",
+                    candidate.getCandidate(),
+                    candidate.getProfileId()
+            );
+
             connection.addIceCandidate(rtcIceCandidate);
 
         }, () -> logger.warn("No peer connection available to add ICE candidate."));
+
     }
 
     /**

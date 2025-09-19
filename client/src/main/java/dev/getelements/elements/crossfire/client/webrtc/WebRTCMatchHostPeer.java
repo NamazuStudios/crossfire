@@ -101,11 +101,22 @@ public class WebRTCMatchHostPeer extends WebRTCPeer {
         }
     }
 
-    private void onSignalAnswer(final SdpAnswerDirectSignal signal) {
+    private void onSignalAnswer(final SdpAnswerDirectSignal answer) {
+
+        // Ignore signals from peers that aren't relevant to this particular peer connection.
+
+        if (!getProfileId().equals(answer.getProfileId())) {
+            return;
+        }
+
+        logger.debug("Got SDP ANSWER From {}\n{}",
+                answer.getProfileId(),
+                answer.getPeerSdp()
+        );
 
         peerConnectionState.get().findConnection().ifPresent(connection -> {
 
-            final var description = new RTCSessionDescription(RTCSdpType.ANSWER, signal.getPeerSdp());
+            final var description = new RTCSessionDescription(RTCSdpType.ANSWER, answer.getPeerSdp());
 
             connection.setRemoteDescription(description, new SetSessionDescriptionObserver() {
 
@@ -127,7 +138,7 @@ public class WebRTCMatchHostPeer extends WebRTCPeer {
     }
 
     private void onSignalDisconnect(final DisconnectBroadcastSignal signal) {
-        if (signal.getProfileId().equals(peerRecord.remoteProfileId)) {
+        if (signal.getProfileId().equals(getProfileId())) {
             close();
         }
     }
