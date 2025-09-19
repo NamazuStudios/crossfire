@@ -35,8 +35,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static dev.getelements.elements.crossfire.client.Crossfire.Mode.WEBRTC_CLIENT;
-import static dev.getelements.elements.crossfire.client.Crossfire.Mode.WEBRTC_HOST;
+import static dev.getelements.elements.crossfire.client.Crossfire.Mode.*;
 import static dev.getelements.elements.crossfire.client.Peer.SendResult.SENT;
 import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.MATCHED;
 import static dev.getelements.elements.sdk.model.user.User.Level.USER;

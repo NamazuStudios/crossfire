@@ -11,6 +11,7 @@ import dev.getelements.elements.crossfire.model.error.UnexpectedMessageException
 import dev.getelements.elements.crossfire.model.handshake.HandshakeRequest;
 import dev.getelements.elements.crossfire.model.handshake.HandshakeResponse;
 import dev.getelements.elements.crossfire.model.signal.ConnectBroadcastSignal;
+import dev.getelements.elements.crossfire.model.signal.DisconnectBroadcastSignal;
 import dev.getelements.elements.crossfire.model.signal.HostBroadcastSignal;
 import dev.getelements.elements.crossfire.model.signal.Signal;
 import dev.getelements.elements.sdk.Subscription;
@@ -21,9 +22,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Deque;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
+import java.util.stream.Stream;
 
 import static dev.getelements.elements.crossfire.client.SignalingClientPhase.HANDSHAKING;
 import static dev.getelements.elements.crossfire.client.SignalingClientPhase.TERMINATED;
@@ -37,6 +41,8 @@ import static java.util.Objects.requireNonNull;
 public class V10SignalingClient implements SignalingClient {
 
     private static final Logger logger = LoggerFactory.getLogger(V10SignalingClient.class);
+
+    private final Deque <Signal> backlog = new ConcurrentLinkedDeque<>();
 
     private final Publisher<Signal> onSignal = new ConcurrentDequePublisher<>();
 
@@ -59,6 +65,11 @@ public class V10SignalingClient implements SignalingClient {
     @Override
     public Optional<HandshakeResponse> findHandshakeResponse() {
         return Optional.ofNullable(state.get().handshake());
+    }
+
+    @Override
+    public Stream<Signal> backlog() {
+        return backlog.stream();
     }
 
     @Override
@@ -116,17 +127,17 @@ public class V10SignalingClient implements SignalingClient {
         final var state = switch (message.getType()) {
             case HOST -> {
                 final var host = (HostBroadcastSignal) message;
-                yield this.state.updateAndGet(s -> s.host(host.getProfileId()));
+                yield this.state.updateAndGet(s -> s.host(host));
             }
             case CONNECT -> {
                 final var connect = (ConnectBroadcastSignal) message;
-                yield this.state.updateAndGet(s -> s.connect(connect.getProfileId()));
+                yield this.state.updateAndGet(s -> s.connect(connect));
             }
             case DISCONNECT -> {
-                final var disconnect = (ConnectBroadcastSignal) message;
-                yield this.state.updateAndGet(s -> s.disconnect(disconnect.getProfileId()));
+                final var disconnect = (DisconnectBroadcastSignal) message;
+                yield this.state.updateAndGet(s -> s.disconnect(disconnect));
             }
-            default -> this.state.get();
+            default -> this.state.updateAndGet(s -> s.signal(message));
         };
 
         switch (state.phase()) {

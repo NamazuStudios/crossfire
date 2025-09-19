@@ -89,18 +89,19 @@ public class WebRTCMatchHostPeer extends WebRTCPeer {
     public WebRTCMatchHostPeer(final Record peerRecord) {
         super(peerRecord.signaling, peerRecord.onPeerStatus);
         this.peerRecord = requireNonNull(peerRecord, "peerRecord");
-        this.subscription = peerRecord.signaling.onSignal(this::onSignal);
+        this.subscription = peerRecord.signaling
+                .onSignal((s, signal) -> onSignal(signal))
+                .chain(super.subscription);
     }
 
-    private void onSignal(final Subscription subscription, final Signal signal) {
+    private void onSignal(final Signal signal) {
         switch (signal.getType()) {
-            case SDP_ANSWER -> onSignalAnswer(subscription, (SdpAnswerDirectSignal) signal);
-            case DISCONNECT -> onSignalDisconnect(subscription, (DisconnectBroadcastSignal) signal);
+            case SDP_ANSWER -> onSignalAnswer((SdpAnswerDirectSignal) signal);
+            case DISCONNECT -> onSignalDisconnect((DisconnectBroadcastSignal) signal);
         }
     }
 
-    private void onSignalAnswer(final Subscription subscription,
-                                final SdpAnswerDirectSignal signal) {
+    private void onSignalAnswer(final SdpAnswerDirectSignal signal) {
 
         peerConnectionState.get().findConnection().ifPresent(connection -> {
 
@@ -125,8 +126,7 @@ public class WebRTCMatchHostPeer extends WebRTCPeer {
 
     }
 
-    private void onSignalDisconnect(final Subscription subscription,
-                                    final DisconnectBroadcastSignal signal) {
+    private void onSignalDisconnect(final DisconnectBroadcastSignal signal) {
         if (signal.getProfileId().equals(peerRecord.remoteProfileId)) {
             close();
         }
@@ -171,6 +171,13 @@ public class WebRTCMatchHostPeer extends WebRTCPeer {
                 .ifPresent(RTCPeerConnection::close);
 
         offer();
+
+        processSignalBacklog();
+
+        peerRecord
+                .signaling()
+                .backlog()
+                .forEach(this::onSignal);
 
     }
 

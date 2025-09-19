@@ -29,31 +29,46 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(WebRTCPeer.class);
 
-    private Subscription subscription;
+    private final SignalingClient signaling;
 
     private final Publisher<PeerStatus> onPeerStatus;
 
+    /**
+     * The subscription which will manage the lifecycle of this peer. This must be closed
+     * when the peer closes.
+     */
+    protected final Subscription subscription;
+
+    /**
+     * The message publisher which will relay binary messages received from the data channel.
+     */
     protected final Publisher<Message> onMessage = new ConcurrentDequePublisher<>();
 
+    /**
+     * The message publisher which will relay string messages received from the data channel.
+     */
     protected final Publisher<StringMessage> onStringMessage = new ConcurrentDequePublisher<>();
 
+    /**
+     * The error publisher which will relay any errors encountered during the lifecycle of this peer.
+     */
     protected final Publisher<Throwable> onError = new ConcurrentDequePublisher<>();
 
-    public WebRTCPeer(final SignalingClient signalingClient,
+    public WebRTCPeer(final SignalingClient signaling,
                       final Publisher<PeerStatus> onPeerStatus) {
+        this.signaling = signaling;
         this.onPeerStatus = onPeerStatus;
-        this.subscription = Subscription.begin()
-                .chain(signalingClient.onSignal(this::onSignal));
+        this.subscription = signaling.onSignal((s, signal) -> this.onBaseSignal(signal));
     }
 
-    private void onSignal(final Subscription subscription, final Signal signal) {
+    private void onBaseSignal(final Signal signal) {
         switch (signal.getType()) {
-            case CANDIDATE -> onCandidateMessage(subscription, (CandidateDirectSignal) signal);
+            case CANDIDATE -> onCandidateMessage((CandidateDirectSignal) signal);
         }
     }
 
-    private void onCandidateMessage(final Subscription subscription, final CandidateDirectSignal candidate) {
-        findPeerConnection().ifPresent(connection -> {
+    private void onCandidateMessage(final CandidateDirectSignal candidate) {
+        findPeerConnection().ifPresentOrElse(connection -> {
 
             final var rtcIceCandidate = new RTCIceCandidate(
                     candidate.getMid(),
@@ -63,7 +78,7 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
 
             connection.addIceCandidate(rtcIceCandidate);
 
-        });
+        }, () -> logger.warn("No peer connection available to add ICE candidate."));
     }
 
     /**
@@ -84,6 +99,14 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
      * @return the {@link Optional} containing the data channel
      */
     protected abstract Optional<RTCPeerConnection> findPeerConnection();
+
+    /**
+     * Processes any backlog of signals which may have been received before the peer connection was established.
+     * This method should be called after the peer connection has been created.
+     */
+    protected void processSignalBacklog() {
+        signaling.backlog().forEach(this::onBaseSignal);
+    }
 
     /**
      * Creates a new {@link RTCDataChannelObserver} for the given data channel. This will relay state changes

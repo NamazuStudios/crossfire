@@ -7,6 +7,8 @@ import dev.getelements.elements.crossfire.model.signal.*;
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.util.ConcurrentDequePublisher;
 import dev.getelements.elements.sdk.util.Publisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.util.Objects;
@@ -19,6 +21,8 @@ import static dev.getelements.elements.crossfire.model.Protocol.SIGNALING;
 import static dev.getelements.elements.crossfire.model.signal.SignalLifecycle.ONCE;
 
 public class SignalingPeer implements Peer, AutoCloseable {
+
+    private final Logger logger = LoggerFactory.getLogger(SignalingPeer.class);
 
     private final SignalingClient signaling;
 
@@ -66,7 +70,11 @@ public class SignalingPeer implements Peer, AutoCloseable {
         final var message = new Message(this, buffer);
 
         if (Objects.equals(getProfileId(), signal.getProfileId())) {
-            onMessage.publish(message);
+            onMessage.publish(
+                    message,
+                    m -> logger.info("Published binary message to peer: {}", m),
+                    onError::publish
+            );
         }
 
     }
@@ -76,7 +84,11 @@ public class SignalingPeer implements Peer, AutoCloseable {
         final var message = new StringMessage(this, signal.getPayload());
 
         if (Objects.equals(getProfileId(), signal.getProfileId())) {
-            onStringMessage.publish(message);
+            onStringMessage.publish(
+                    message,
+                    m -> logger.info("Published string message to peer: {}", m),
+                    onError::publish
+            );
         }
 
     }

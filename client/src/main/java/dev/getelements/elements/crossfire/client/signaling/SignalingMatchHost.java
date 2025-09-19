@@ -20,7 +20,6 @@ import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-import static dev.getelements.elements.crossfire.client.PeerPhase.CONNECTED;
 import static dev.getelements.elements.crossfire.model.Protocol.SIGNALING;
 
 public class SignalingMatchHost implements MatchHost {
@@ -132,8 +131,7 @@ public class SignalingMatchHost implements MatchHost {
 
     @Override
     public Optional<Peer> findPeer(final String profileId) {
-        final var result = Optional.ofNullable((Peer)peers.get(profileId));
-        return result;
+        return Optional.ofNullable(peers.get(profileId));
     }
 
     @Override

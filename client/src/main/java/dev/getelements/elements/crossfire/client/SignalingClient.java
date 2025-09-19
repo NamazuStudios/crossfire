@@ -5,6 +5,7 @@ import dev.getelements.elements.crossfire.model.error.TimeoutException;
 import dev.getelements.elements.crossfire.model.handshake.HandshakeRequest;
 import dev.getelements.elements.crossfire.model.handshake.HandshakeResponse;
 import dev.getelements.elements.crossfire.model.signal.Signal;
+import dev.getelements.elements.crossfire.model.signal.SignalLifecycle;
 import dev.getelements.elements.sdk.Subscription;
 
 import java.util.List;
@@ -16,6 +17,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 /**
  * The Client interface to the Crossfire server. Crossfire handles the signaling and relay of data.
@@ -35,6 +37,16 @@ public interface SignalingClient extends AutoCloseable {
      * @return the state of the match
      */
     MatchState getState();
+
+    /**
+     * Returns a stream of all backlog signals that have been sent to the client since it connected. Backlogged signals
+     * are those that have a lifecycle of {@link SignalLifecycle#SESSION} or {@link SignalLifecycle#MATCH}. When
+     * the associated player disconnects from the match, all {@link SignalLifecycle#SESSION} signals are removed from
+     * the backlog automatically.
+     *
+     * @return the backlog signals
+     */
+    Stream<Signal> backlog();
 
     /**
      * Returns the current phase of the client.

@@ -75,7 +75,9 @@ public class WebRTCMatchClientPeer extends WebRTCPeer {
     public WebRTCMatchClientPeer(final Record peerRecord) {
         super(peerRecord.signaling, peerRecord.onPeerStatus);
         this.peerRecord = requireNonNull(peerRecord, "peerRecord");
-        this.subscription = peerRecord.signaling.onSignal(this::onSignal);
+        this.subscription = peerRecord.signaling
+                .onSignal((s, signal) -> onSignal(signal))
+                .chain(super.subscription);
     }
 
     public void connect() {
@@ -92,6 +94,13 @@ public class WebRTCMatchClientPeer extends WebRTCPeer {
         connection.getOptional()
                 .filter(c -> result.connection() != null)
                 .ifPresent(RTCPeerConnection::close);
+
+        processSignalBacklog();
+
+        peerRecord
+                .signaling()
+                .backlog()
+                .forEach(this::onSignal);
 
     }
 
@@ -110,15 +119,14 @@ public class WebRTCMatchClientPeer extends WebRTCPeer {
         return peerRecord.remoteProfileId;
     }
 
-    private void onSignal(final Subscription subscription, final Signal signal) {
+    private void onSignal(final Signal signal) {
         switch (signal.getType()) {
-            case SDP_OFFER -> onSignalOffer(subscription, (SdpOfferDirectSignal) signal);
-            case DISCONNECT -> onSignalDisconnect(subscription, (DisconnectBroadcastSignal) signal);
+            case SDP_OFFER -> onSignalOffer((SdpOfferDirectSignal) signal);
+            case DISCONNECT -> onSignalDisconnect((DisconnectBroadcastSignal) signal);
         }
     }
 
-    private void onSignalOffer(final Subscription subscription,
-                               final SdpOfferDirectSignal signal) {
+    private void onSignalOffer(final SdpOfferDirectSignal signal) {
 
         peerConnectionState.get().findConnection().ifPresent(connection -> {
 
@@ -166,8 +174,7 @@ public class WebRTCMatchClientPeer extends WebRTCPeer {
                 }));
     }
 
-    private void onSignalDisconnect(final Subscription subscription,
-                                    final DisconnectBroadcastSignal signal) {
+    private void onSignalDisconnect(final DisconnectBroadcastSignal signal) {
 
         final var profileId = signal.getProfileId();
 
