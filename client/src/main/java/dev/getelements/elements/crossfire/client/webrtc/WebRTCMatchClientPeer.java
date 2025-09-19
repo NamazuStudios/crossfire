@@ -170,11 +170,8 @@ public class WebRTCMatchClientPeer extends WebRTCPeer {
 
                         @Override
                         public void onSuccess(final RTCSessionDescription description) {
-                            final var signal = new SdpAnswerDirectSignal();
-                            signal.setPeerSdp(description.sdp);
-                            signal.setProfileId(peerRecord.profileId());
-                            signal.setRecipientProfileId(peerRecord.remoteProfileId());
-                            peerRecord.signaling.signal(signal);
+                            logger.info("Setting local session description for peer {}", peerRecord.remoteProfileId);
+                            setLocalDescription(description);
                         }
 
                         @Override
@@ -185,6 +182,31 @@ public class WebRTCMatchClientPeer extends WebRTCPeer {
 
                     })
 
+                );
+    }
+
+    private void setLocalDescription(final RTCSessionDescription description) {
+        peerConnectionState
+                .get()
+                .findConnection()
+                .ifPresent(connection ->
+                    connection.setLocalDescription(description, new SetSessionDescriptionObserver() {
+                        @Override
+                        public void onSuccess() {
+                            final var signal = new SdpAnswerDirectSignal();
+                            signal.setPeerSdp(description.sdp);
+                            signal.setProfileId(peerRecord.profileId());
+                            signal.setRecipientProfileId(peerRecord.remoteProfileId());
+                            peerRecord.signaling.signal(signal);
+                        }
+
+                        @Override
+                        public void onFailure(String error) {
+                            logger.error("Failed to set description: {}. Closing connection.", error);
+                            onError.publish(new PeerException(error));
+                            close();
+                        }
+                    })
                 );
     }
 
