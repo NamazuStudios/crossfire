@@ -2,6 +2,7 @@ package dev.getelements.elements.crossfire.protocol.v10;
 
 import dev.getelements.elements.crossfire.api.MatchHandle;
 import dev.getelements.elements.crossfire.api.MatchmakingAlgorithm;
+import dev.getelements.elements.crossfire.model.error.MultiMatchConfigurationNotFoundException;
 import dev.getelements.elements.crossfire.model.error.ProtocolStateException;
 import dev.getelements.elements.crossfire.model.error.UnexpectedMessageException;
 import dev.getelements.elements.crossfire.model.handshake.FindHandshakeRequest;
@@ -95,11 +96,17 @@ public class V10HandshakeHandler implements HandshakeHandler {
 
             final var application = auth.profile().getApplication();
 
-            final var applicationConfiguration = getApplicationConfigurationDao().getApplicationConfiguration(
+            final var applicationConfigurationOptional = getApplicationConfigurationDao().findApplicationConfiguration(
                     MatchmakingApplicationConfiguration.class,
                     application.getId(),
                     request.getConfiguration()
             );
+
+            if(applicationConfigurationOptional.isEmpty()) {
+                throw new MultiMatchConfigurationNotFoundException("Matchmaking Configuration with name " + request.getConfiguration() + " not found.");
+            }
+
+            final var applicationConfiguration = applicationConfigurationOptional.get();
 
             final var matchRequest = new V10MatchRequest<>(
                     handler,
