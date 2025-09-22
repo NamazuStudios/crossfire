@@ -52,7 +52,7 @@ public class WebRTCMatchHost implements MatchHost {
 
     private final Publisher<PeerStatus> onPeerStatus = new ConcurrentDequePublisher<>();
 
-    private final ConcurrentMap<String, WebRTCMatchHostPeer> connections = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, WebRTCOfferingPeer> connections = new ConcurrentHashMap<>();
 
     public WebRTCMatchHost(final SignalingClient signalingClient,
                            final PeerConnectionFactory peerConnectionFactory,
@@ -111,8 +111,8 @@ public class WebRTCMatchHost implements MatchHost {
 
         final var profileId = signaling.getState().getProfileId();
 
-        final LazyValue<WebRTCMatchHostPeer> peer = new SimpleLazyValue<>(() -> new WebRTCMatchHostPeer(
-                new WebRTCMatchHostPeer.Record(
+        final LazyValue<WebRTCOfferingPeer> peer = new SimpleLazyValue<>(() -> new WebRTCOfferingPeer(
+                new WebRTCOfferingPeer.Record(
                         remoteProfileId,
                         signaling,
                         "data-channel-" + profileId + "-" + remoteProfileId,
@@ -134,7 +134,7 @@ public class WebRTCMatchHost implements MatchHost {
 
         peer.getOptional()
             .filter(p -> p == connected)
-            .ifPresent(WebRTCMatchHostPeer::connect);
+            .ifPresent(WebRTCOfferingPeer::connect);
 
         // Close any peer that was created but not used. This shouldn't happen but this is safeguard
         // as the underlying host contains a handle to native resources which must be closed.
@@ -182,7 +182,7 @@ public class WebRTCMatchHost implements MatchHost {
     public void close() {
         if (open.compareAndExchange(true, false)) {
             subscription.unsubscribe();
-            connections.values().forEach(WebRTCMatchHostPeer::close);
+            connections.values().forEach(WebRTCOfferingPeer::close);
             connections.clear();
         }
     }

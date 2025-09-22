@@ -35,7 +35,7 @@ public class WebRTCMatchClient implements MatchClient {
 
     private final AtomicBoolean open = new AtomicBoolean(true);
 
-    private final WebRTCMatchClientPeer peer;
+    private final WebRTCAnsweringPeer peer;
 
     private final Publisher<PeerStatus> onPeerStatus = new ConcurrentDequePublisher<>();
 
@@ -55,7 +55,7 @@ public class WebRTCMatchClient implements MatchClient {
                 .chain(signaling.onSignal(this::onSignal))
                 .chain(signaling.onClientError(this::onClientError));
 
-        this.peer = new WebRTCMatchClientPeer(new WebRTCMatchClientPeer.Record(
+        this.peer = new WebRTCAnsweringPeer(new WebRTCAnsweringPeer.Record(
                 remoteProfileId,
                 signaling,
                 answerOptionsSupplier.get(),

@@ -5,9 +5,7 @@ import dev.getelements.elements.crossfire.client.PeerPhase;
 import dev.getelements.elements.crossfire.client.PeerStatus;
 import dev.getelements.elements.crossfire.client.SignalingClient;
 import dev.getelements.elements.crossfire.model.Protocol;
-import dev.getelements.elements.crossfire.model.ProtocolMessage;
 import dev.getelements.elements.crossfire.model.signal.CandidateDirectSignal;
-import dev.getelements.elements.crossfire.model.signal.Signal;
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.util.ConcurrentDequePublisher;
 import dev.getelements.elements.sdk.util.Publisher;
@@ -16,82 +14,67 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
+import java.util.function.UnaryOperator;
 
 import static dev.getelements.elements.crossfire.client.Peer.SendResult.NOT_READY;
 import static dev.getelements.elements.crossfire.client.PeerPhase.CONNECTED;
 import static dev.getelements.elements.crossfire.client.PeerPhase.READY;
+import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 public abstract class WebRTCPeer implements Peer, AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(WebRTCPeer.class);
 
+    protected static final Logger loggerICE = LoggerFactory.getLogger(format("%s.ICE", WebRTCPeer.class.getName()));
+
+    /**
+     * Converts a {@link CandidateDirectSignal} to an {@link RTCIceCandidate}.
+     *
+     * @param signal the candidate signal
+     * @return the RTC ICE candidate
+     */
+    public static RTCIceCandidate fromCandidateSignal(final CandidateDirectSignal signal) {
+        return new RTCIceCandidate(
+                signal.getMid(),
+                signal.getMidIndex(),
+                signal.getCandidate()
+        );
+    }
+
     private final SignalingClient signaling;
 
     private final Publisher<PeerStatus> onPeerStatus;
 
     /**
-     * The subscription which will manage the lifecycle of this peer. This must be closed
-     * when the peer closes.
-     */
-    protected final Subscription subscription;
-
-    /**
      * The message publisher which will relay binary messages received from the data channel.
      */
-    protected final Publisher<Message> onMessage = new ConcurrentDequePublisher<>();
+    private final Publisher<Message> onMessage = new ConcurrentDequePublisher<>();
 
     /**
      * The message publisher which will relay string messages received from the data channel.
      */
-    protected final Publisher<StringMessage> onStringMessage = new ConcurrentDequePublisher<>();
+    private final Publisher<StringMessage> onStringMessage = new ConcurrentDequePublisher<>();
 
     /**
      * The error publisher which will relay any errors encountered during the lifecycle of this peer.
      */
     protected final Publisher<Throwable> onError = new ConcurrentDequePublisher<>();
 
-    public WebRTCPeer(final SignalingClient signaling,
-                      final Publisher<PeerStatus> onPeerStatus) {
+    /**
+     * The current state of the peer connection.
+     */
+    protected final AtomicReference<WebRTCPeerConnectionState> peerConnectionState = new AtomicReference<>(WebRTCPeerConnectionState.create());
+
+    public WebRTCPeer(
+            final SignalingClient signaling,
+            final Publisher<PeerStatus> onPeerStatus) {
         this.signaling = signaling;
         this.onPeerStatus = onPeerStatus;
-        this.subscription = signaling.onSignal((s, signal) -> this.onBaseSignal(signal));
-    }
-
-    private void onBaseSignal(final Signal signal) {
-        switch (signal.getType()) {
-            case CANDIDATE -> onCandidateMessage((CandidateDirectSignal) signal);
-        }
-    }
-
-    private void onCandidateMessage(final CandidateDirectSignal candidate) {
-
-        // Ignore signals from peers that aren't relevant to this particular peer connection.
-
-        if (!getProfileId().equals(candidate.getProfileId())) {
-            return;
-        }
-
-        findPeerConnection().ifPresentOrElse(connection -> {
-
-            final var rtcIceCandidate = new RTCIceCandidate(
-                    candidate.getMid(),
-                    candidate.getMidIndex(),
-                    candidate.getCandidate()
-            );
-
-            logger.debug("Adding ICE Candidate {} for peer from {}",
-                    candidate.getCandidate(),
-                    candidate.getProfileId()
-            );
-
-            connection.addIceCandidate(rtcIceCandidate);
-
-        }, () -> logger.warn("No peer connection available to add ICE candidate."));
-
     }
 
     /**
@@ -107,19 +90,65 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
     protected abstract Optional<RTCDataChannel> findDataChannel();
 
     /**
-     * Finds the {@link RTCDataChannel} associated with the peer. If available, it will return the datachannel.
+     * Called when the {@link WebRTCPeerConnectionState} has changed. This can be used to perform any necessary
+     * changes to the peer after the successful atomic state change happens. The base implementation will check
+     * check that both
      *
-     * @return the {@link Optional} containing the data channel
+     * @param existing the old or existing state
+     * @param replacement the updated or replacement state
      */
-    protected abstract Optional<RTCPeerConnection> findPeerConnection();
+    protected void onStateChange(final WebRTCPeerConnectionState existing,
+                                 final WebRTCPeerConnectionState replacement) {
+
+        boolean start = true;
+
+        if (!replacement.open()) {
+            start = false;
+            loggerICE.debug("Not starting ICE: Closed.");
+        }
+
+        if (replacement.candidate() == null) {
+            start = false;
+            loggerICE.debug("Not starting ICE: No candidate.");
+        }
+
+        if (replacement.description() == null) {
+            start = false;
+            loggerICE.debug("Not starting ICE: No session description.");
+        }
+
+        if (!start) {
+            return;
+        }
+
+        loggerICE.debug("Starting ICE.");
+
+        final var connection = replacement.connection();
+        final var replaceCandidate = !Objects.equals(existing.candidate(), replacement.candidate());
+
+        if (existing.candidate() != null && replaceCandidate) {
+            final var candidates = new RTCIceCandidate[] { existing.candidate() };
+            connection.removeIceCandidates(candidates);
+        }
+
+        loggerICE.debug("Setting remote session description for peer {} to {} {}",
+                getProfileId(),
+                replacement.description().sdpType,
+                replacement.description().sdp
+        );
+
+        startICE(replacement);
+
+    }
 
     /**
-     * Processes any backlog of signals which may have been received before the peer connection was established.
-     * This method should be called after the peer connection has been created.
+     * Starts ICE (Internet Connectivity Establishment) for the peer connection. This will typically involve creating
+     * an offer or answer and setting the local description along with all applicable ICE candidates. Intended to be
+     * called by {@link #update(UnaryOperator)}.
+     *
+     * @param state the peer connection state
      */
-    protected void processSignalBacklog() {
-        signaling.backlog().forEach(this::onBaseSignal);
-    }
+    protected abstract void startICE(WebRTCPeerConnectionState state);
 
     /**
      * Creates a new {@link RTCDataChannelObserver} for the given data channel. This will relay state changes
@@ -176,6 +205,82 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
             }
 
         };
+
+    }
+
+    /**
+     * Sends a signal to the other peer with the given ICE candidate.
+     *
+     * @param candidate the ICE candidate
+     * @param localProfileId the local profile id
+     * @param remoteProfileId the remote profile id
+     */
+    protected void signalCandidate(
+            final RTCIceCandidate candidate,
+            final String localProfileId,
+            final String remoteProfileId) {
+
+        final var signal = new CandidateDirectSignal();
+        signal.setProfileId(localProfileId);
+        signal.setRecipientProfileId(remoteProfileId);
+        signal.setMid(candidate.sdpMid);
+        signal.setCandidate(candidate.sdp);
+        signal.setMidIndex(candidate.sdpMLineIndex);
+
+        loggerICE.debug("Sent {} ICE CANDIDATE {} -> {}:\n{}",
+                getClass().getSimpleName(),
+                signal.getProfileId(),
+                signal.getRecipientProfileId(),
+                signal.getCandidate()
+        );
+
+        signaling.signal(signal);
+
+    }
+
+    /**
+     * Called to handle the remote signal received from the {@link SignalingClient}.
+     *
+     * @param signal the signal
+     */
+    protected void onSignalCandidate(final CandidateDirectSignal signal) {
+        if (getProfileId().equals(signal.getProfileId())) {
+
+            loggerICE.debug("Got {} CANDIDATE From {}\n{}",
+                    getClass().getSimpleName(),
+                    signal.getProfileId(),
+                    signal.getCandidate()
+            );
+
+            final var description = fromCandidateSignal(signal);
+            update(s -> s.candidate(description));
+
+        } else {
+            loggerICE.debug("Dropping CANDIDATE from {} intended for {} (not relevant to this peer {}).",
+                    signal.getProfileId(),
+                    signal.getRecipientProfileId(),
+                    getProfileId()
+            );
+        }
+    }
+
+    /**
+     * Updates the current {@link WebRTCPeerConnectionState} using the given operation. This will also apply any
+     * necessary changes to the underlying {@link RTCPeerConnection}.
+     *
+     * @param operation the operation to apply
+     */
+    protected void update(final UnaryOperator<WebRTCPeerConnectionState> operation) {
+
+        WebRTCPeerConnectionState existing;
+        WebRTCPeerConnectionState replacement;
+
+        do {
+            existing = peerConnectionState.get();
+            replacement = operation.apply(existing);
+        } while (!peerConnectionState.compareAndSet(existing, replacement));
+
+        onStateChange(existing, replacement);
 
     }
 

@@ -12,20 +12,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
 import static java.util.Objects.requireNonNull;
 
-public class WebRTCMatchClientPeer extends WebRTCPeer {
+public class WebRTCAnsweringPeer extends WebRTCPeer {
 
-    private static final Logger logger = LoggerFactory.getLogger(WebRTCMatchClientPeer.class);
+    private static final Logger logger = LoggerFactory.getLogger(WebRTCAnsweringPeer.class);
 
     private final Record peerRecord;
 
     private final Subscription subscription;
-
-    private final AtomicReference<WebRTCPeerConnectionState> peerConnectionState = new AtomicReference<>(WebRTCPeerConnectionState.create());
 
     private final PeerConnectionObserver peerConnectionObserver = new LoggingPeerConnectionObserver() {
 
@@ -36,19 +33,13 @@ public class WebRTCMatchClientPeer extends WebRTCPeer {
 
         @Override
         public void onIceCandidate(final RTCIceCandidate candidate) {
-            final var signal = new CandidateDirectSignal();
-            signal.setProfileId(peerRecord.profileId());
-            signal.setRecipientProfileId(peerRecord.remoteProfileId());
-            signal.setMid(candidate.sdpMid);
-            signal.setCandidate(candidate.sdp);
-            signal.setMidIndex(candidate.sdpMLineIndex);
-            peerRecord.signaling().signal(signal);
+            signalCandidate(candidate, peerRecord.localProfileId(), peerRecord.remoteProfileId());
         }
 
         @Override
         public void onIceCandidateError(final RTCPeerConnectionIceErrorEvent event) {
 
-            logger.error("ICE candidate error: {} for remote {}",
+            loggerICE.error("ICE candidate error: {} for remote {}",
                     event.getErrorText(),
                     peerRecord.remoteProfileId
             );
@@ -72,12 +63,11 @@ public class WebRTCMatchClientPeer extends WebRTCPeer {
 
     };
 
-    public WebRTCMatchClientPeer(final Record peerRecord) {
+    public WebRTCAnsweringPeer(final Record peerRecord) {
         super(peerRecord.signaling, peerRecord.onPeerStatus);
         this.peerRecord = requireNonNull(peerRecord, "peerRecord");
         this.subscription = peerRecord.signaling
-                .onSignal((s, signal) -> onSignal(signal))
-                .chain(super.subscription);
+                .onSignal((s, signal) -> onSignal(signal));
     }
 
     public void connect() {
@@ -93,8 +83,6 @@ public class WebRTCMatchClientPeer extends WebRTCPeer {
                 .filter(c -> result.connection() != c)
                 .ifPresent(RTCPeerConnection::close);
 
-        processSignalBacklog();
-
         peerRecord
                 .signaling()
                 .backlog()
@@ -108,115 +96,129 @@ public class WebRTCMatchClientPeer extends WebRTCPeer {
     }
 
     @Override
-    protected Optional<RTCPeerConnection> findPeerConnection() {
-        return peerConnectionState.get().findConnection();
-    }
-
-    @Override
     public String getProfileId() {
         return peerRecord.remoteProfileId;
     }
 
     private void onSignal(final Signal signal) {
         switch (signal.getType()) {
+            case CANDIDATE -> onSignalCandidate((CandidateDirectSignal) signal);
             case SDP_OFFER -> onSignalOffer((SdpOfferDirectSignal) signal);
             case DISCONNECT -> onSignalDisconnect((DisconnectBroadcastSignal) signal);
         }
     }
 
     private void onSignalOffer(final SdpOfferDirectSignal offer) {
+        if (getProfileId().equals(offer.getProfileId())) {
 
-        // Ignore signals from peers that aren't relevant to this particular peer connection.
-
-        if (!getProfileId().equals(offer.getProfileId())) {
-            return;
-        }
-
-        peerConnectionState.get().findConnection().ifPresent(connection -> {
-
-            final var description = new RTCSessionDescription(RTCSdpType.OFFER, offer.getPeerSdp());
-
-            logger.debug("Got SDP OFFER From {}\n{}",
+            loggerICE.debug("Got SDP OFFER {} -> {}\n{}",
                     offer.getProfileId(),
+                    offer.getRecipientProfileId(),
                     offer.getPeerSdp()
             );
 
-            connection.setRemoteDescription(description, new SetSessionDescriptionObserver() {
+            final var description = new RTCSessionDescription(RTCSdpType.OFFER, offer.getPeerSdp());
+            update(s -> s.description(description));
 
-                @Override
-                public void onSuccess() {
-                    logger.info("Set remote session description for peer {}", peerRecord.remoteProfileId);
-                    createAnswer();
-                }
-
-                @Override
-                public void onFailure(final String error) {
-                    logger.error("Failed to get answer: {}. Closing connection.", error);
-                    close();
-                }
-
-            });
-
-        });
-
-    }
-
-    private void createAnswer() {
-        peerConnectionState
-                .get()
-                .findConnection()
-                .ifPresent(connection ->
-                    connection.createAnswer(peerRecord.answerOptions, new CreateSessionDescriptionObserver() {
-
-                        @Override
-                        public void onSuccess(final RTCSessionDescription description) {
-                            logger.info("Setting local session description for peer {}", peerRecord.remoteProfileId);
-                            setLocalDescription(description);
-                        }
-
-                        @Override
-                        public void onFailure(final String error) {
-                            logger.error("Failed to create answer: {}. Closing connection.", error);
-                            close();
-                        }
-
-                    })
-
-                );
-    }
-
-    private void setLocalDescription(final RTCSessionDescription description) {
-        peerConnectionState
-                .get()
-                .findConnection()
-                .ifPresent(connection ->
-                    connection.setLocalDescription(description, new SetSessionDescriptionObserver() {
-                        @Override
-                        public void onSuccess() {
-                            final var signal = new SdpAnswerDirectSignal();
-                            signal.setPeerSdp(description.sdp);
-                            signal.setProfileId(peerRecord.profileId());
-                            signal.setRecipientProfileId(peerRecord.remoteProfileId());
-                            peerRecord.signaling.signal(signal);
-                        }
-
-                        @Override
-                        public void onFailure(String error) {
-                            logger.error("Failed to set description: {}. Closing connection.", error);
-                            onError.publish(new PeerException(error));
-                            close();
-                        }
-                    })
-                );
+        } else {
+            loggerICE.debug("Dropping SDP OFFER from {} intended for {} (not relevant to this peer {}).",
+                    offer.getProfileId(),
+                    offer.getRecipientProfileId(),
+                    getProfileId()
+            );
+        }
     }
 
     private void onSignalDisconnect(final DisconnectBroadcastSignal signal) {
 
         final var profileId = signal.getProfileId();
 
-        if (profileId.equals(peerRecord.profileId()) || profileId.equals(peerRecord.remoteProfileId())) {
+        if (profileId.equals(peerRecord.localProfileId()) || profileId.equals(peerRecord.remoteProfileId())) {
             close();
         }
+
+    }
+
+    @Override
+    protected void startICE(final WebRTCPeerConnectionState replacement) {
+        replacement.connection().setRemoteDescription(replacement.description(), new SetSessionDescriptionObserver() {
+            @Override
+            public void onSuccess() {
+                logger.info("Set remote session description for answering peer {}", peerRecord.remoteProfileId);
+                createAnswer(replacement);
+            }
+
+            @Override
+            public void onFailure(String error) {
+                logger.error("Failed to set remote description for answering peer: {}. Closing connection.", error);
+                onError.publish(new PeerException(error));
+                close();
+            }
+        });
+    }
+
+    private void createAnswer(final WebRTCPeerConnectionState state) {
+            state.connection().createAnswer(peerRecord.answerOptions, new CreateSessionDescriptionObserver() {
+
+                @Override
+                public void onSuccess(final RTCSessionDescription description) {
+                    logger.info("Successfully set local session description for answering peer {}", getProfileId());
+                    setLocalDescription(description, state);
+                }
+
+                @Override
+                public void onFailure(final String error) {
+                    logger.error("Failed to create answer: {}. Closing connection.", error);
+                    onError.publish(new PeerException(error));
+                    close();
+                }
+
+            });
+    }
+
+    private void setLocalDescription(final RTCSessionDescription description,
+                                     final WebRTCPeerConnectionState state) {
+
+        loggerICE.debug("Setting local description {} for answering peer {}.",
+                description,
+                getProfileId()
+        );
+
+        final var connection = state.connection();
+
+        connection.setLocalDescription(description, new SetSessionDescriptionObserver() {
+            @Override
+            public void onSuccess() {
+
+                final var signal = new SdpAnswerDirectSignal();
+                signal.setPeerSdp(description.sdp);
+                signal.setProfileId(peerRecord.localProfileId());
+                signal.setRecipientProfileId(peerRecord.remoteProfileId());
+
+                loggerICE.debug("Signaling answer to offerer: {} -> {}\n{}",
+                        signal.getProfileId(),
+                        signal.getRecipientProfileId(),
+                        signal.getPeerSdp()
+                );
+
+                peerRecord.signaling.signal(signal);
+
+                loggerICE.debug("Setting canddiate {} for peer {}",
+                        state.candidate(),
+                        getProfileId()
+                );
+
+                connection.addIceCandidate(state.candidate());
+
+            }
+
+            @Override
+            public void onFailure(String error) {
+                logger.error("Failed to set description: {}. Closing connection.", error);
+                onError.publish(new PeerException(error));
+                close();
+            }
+        });
 
     }
 
@@ -248,7 +250,7 @@ public class WebRTCMatchClientPeer extends WebRTCPeer {
             requireNonNull(onPeerStatus, "onPeerStatus must not be null");
         }
 
-        public String profileId() {
+        public String localProfileId() {
             return signaling.getState().getProfileId();
         }
 
