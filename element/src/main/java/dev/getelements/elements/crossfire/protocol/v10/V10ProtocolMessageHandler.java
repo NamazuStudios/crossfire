@@ -354,7 +354,7 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
         logger.debug("{}: Authenticated session {} for {}",
                 update.phase(),
                 update.sessionId(),
-                authRecord.session().getProfile().getId()
+                authRecord.profile().getId()
         );
 
         if (SIGNALING.equals(update.phase())) {
