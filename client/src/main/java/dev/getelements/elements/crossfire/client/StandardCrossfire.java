@@ -73,9 +73,11 @@ public class StandardCrossfire implements Crossfire {
         this.webSocketContainer = requireNonNull(webSocketContainer, "webSocketContainer");
 
         if (supportedModes.stream().map(Mode::getProtocol).anyMatch(p -> p.equals(defaultProtocol))) {
+
             this.subscription = Subscription.begin()
                     .chain(signaling.onSignal(this::onSignal))
                     .chain(signaling.onClientError(this::onClientError));
+
         } else {
             throw new IllegalArgumentException("defaultProtocol must be supported by at least one mode");
         }

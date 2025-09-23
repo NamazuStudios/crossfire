@@ -111,14 +111,6 @@ public class TestBasicMatchmaking {
     }
 
     @BeforeClass
-    public static void setupRTCLogging() {
-        Logging.addLogSink(Logging.Severity.VERBOSE, (s, m) -> logger.debug("WebRTC: {}", m));
-        Logging.addLogSink(Logging.Severity.INFO, (s, m) -> logger.info("WebRTC: {}", m));
-        Logging.addLogSink(Logging.Severity.WARNING, (s, m) -> logger.warn("WebRTC: {}", m));
-        Logging.addLogSink(Logging.Severity.ERROR, (s, m) -> logger.error("WebRTC: {}", m));
-    }
-
-    @BeforeClass
     public void setupContainer() {
         webSocketContainer = ContainerProvider.getWebSocketContainer();
     }

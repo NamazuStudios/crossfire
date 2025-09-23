@@ -16,6 +16,10 @@ public record WebRTCPeerConnectionState(
         RTCSessionDescription description,
         RTCDataChannel channel) {
 
+    static {
+        WebRTC.load();
+    }
+
     public static WebRTCPeerConnectionState create() {
         return new WebRTCPeerConnectionState(true, null, List.of(), null, null);
     }

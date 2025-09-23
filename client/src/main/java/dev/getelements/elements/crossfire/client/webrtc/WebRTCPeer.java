@@ -1,9 +1,6 @@
 package dev.getelements.elements.crossfire.client.webrtc;
 
-import dev.getelements.elements.crossfire.client.Peer;
-import dev.getelements.elements.crossfire.client.PeerPhase;
-import dev.getelements.elements.crossfire.client.PeerStatus;
-import dev.getelements.elements.crossfire.client.SignalingClient;
+import dev.getelements.elements.crossfire.client.*;
 import dev.getelements.elements.crossfire.model.Protocol;
 import dev.getelements.elements.crossfire.model.signal.CandidateDirectSignal;
 import dev.getelements.elements.sdk.Subscription;
@@ -28,6 +25,10 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 public abstract class WebRTCPeer implements Peer, AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(WebRTCPeer.class);
+
+    static {
+        WebRTC.load();
+    }
 
     /**
      * Converts a {@link CandidateDirectSignal} to an {@link RTCIceCandidate}.
@@ -78,6 +79,13 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
      * Closes this peer and releases any resources associated with it.
      */
     public abstract void close();
+
+    /**
+     * Gets the local profile id of this peer.
+     *
+     * @return the local profile id
+     */
+    protected abstract String getLocalProfileId();
 
     /**
      * Finds the {@link RTCDataChannel} associated with the peer. If available, it will return the datachannel.
@@ -172,15 +180,22 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
             @Override
             public void onStateChange() {
 
-                final var status = switch (dataChannel.getState()) {
+                final var state = dataChannel.getState();
+
+                final var status = switch (state) {
+                    // We don't handle the READY state here because the peer will be ready before the data connection
+                    // is ready. We consider it ready as soon as ICE starts for the sake of WEB RTC, we we just look
+                    // for either CONNECTING or OPEN.
                     case OPEN -> new PeerStatus(CONNECTED, WebRTCPeer.this);
-                    case CONNECTING -> new PeerStatus(READY, WebRTCPeer.this);
                     case CLOSED -> new PeerStatus(PeerPhase.TERMINATED, WebRTCPeer.this);
                     default -> null;
                 };
 
-                if (status != null) {
-                    logger.debug("Data channel state changed: {}", status);
+                logger.debug("Data channel state changed {}: {}", state, status);
+
+                if (status == null) {
+                    logger.debug("State change does not require status change: {}", state);
+                } else {
                     onPeerStatus.publish(status, s -> logger.debug("Updated status: {}", s), onError::publish);
                 }
 
@@ -362,6 +377,50 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
     @Override
     public Subscription onStringMessage(BiConsumer<Subscription, StringMessage> onMessage) {
         return this.onStringMessage.subscribe(onMessage);
+    }
+
+    protected class ConnectionObserver implements LoggingPeerConnectionObserver {
+
+        private final Logger logger;
+
+        public ConnectionObserver(final Class<? extends WebRTCPeer> peerClass) {
+            this.logger = LoggerFactory.getLogger(peerClass);
+        }
+
+        @Override
+        public Logger getLogger() {
+            return logger;
+        }
+
+        @Override
+        public void onIceCandidate(final RTCIceCandidate candidate) {
+            signalCandidate(candidate, getLocalProfileId(), getProfileId());
+        }
+
+        @Override
+        public void onIceCandidateError(final RTCPeerConnectionIceErrorEvent event) {
+
+            logger.error("ICE candidate error: {} for remote {}",
+                    event.getErrorText(),
+                    getProfileId()
+            );
+
+            onError.publish(new PeerException(event.getErrorText()));
+            close();
+
+        }
+
+        @Override
+        public void onSignalingChange(final RTCSignalingState state) {
+
+            getLogger().debug("Peer signaling state changed {} for {}", state, getProfileId());
+
+            switch (state) {
+                case STABLE -> onPeerStatus.publish(new PeerStatus(READY, WebRTCPeer.this));
+            }
+
+        }
+
     }
 
 }

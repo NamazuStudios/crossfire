@@ -31,6 +31,10 @@ public class WebRTCMatchClient implements MatchClient {
 
     private static final Logger logger = LoggerFactory.getLogger(WebRTCMatchClient.class);
 
+    static {
+        WebRTC.load();
+    }
+
     private final Subscription subscription;
 
     private final AtomicBoolean open = new AtomicBoolean(true);
@@ -45,6 +49,8 @@ public class WebRTCMatchClient implements MatchClient {
             final PeerConnectionFactory peerConnectionFactory,
             final Function<String, RTCConfiguration> peerConfigurationProvider,
             final Supplier<RTCAnswerOptions> answerOptionsSupplier) {
+
+        logger.debug("Creating match client for profile id {}", signaling.getState().getProfileId());
 
         requireNonNull(signaling, "signaling");
         requireNonNull(peerConnectionFactory, "peerConnectionFactory");

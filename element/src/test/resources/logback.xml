@@ -31,4 +31,8 @@
         <appender-ref ref="ICE_FILE" />
     </logger>
 
+    <logger name="dev.getelements.elements.crossfire.client.webrtc.WebRTC" level="WARN" additivity="false">
+        <appender-ref ref="ICE_FILE" />
+    </logger>
+
 </configuration>

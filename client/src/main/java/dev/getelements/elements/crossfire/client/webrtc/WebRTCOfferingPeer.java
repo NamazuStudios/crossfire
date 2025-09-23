@@ -20,36 +20,15 @@ public class WebRTCOfferingPeer extends WebRTCPeer {
 
     private static final Logger logger = LoggerFactory.getLogger(WebRTCOfferingPeer.class);
 
+    static {
+        WebRTC.load();
+    }
+
     private final Record peerRecord;
 
     private final Subscription subscription;
 
-    private final PeerConnectionObserver peerConnectionObserver = new LoggingPeerConnectionObserver() {
-
-        @Override
-        public Logger getLogger() {
-            return logger;
-        }
-
-        @Override
-        public void onIceCandidate(final RTCIceCandidate candidate) {
-            signalCandidate(candidate, peerRecord.localProfileId(), peerRecord.remoteProfileId());
-        }
-
-        @Override
-        public void onIceCandidateError(final RTCPeerConnectionIceErrorEvent event) {
-
-            logger.error("ICE candidate error: {} for remote {}",
-                    event.getErrorText(),
-                    peerRecord.remoteProfileId
-            );
-
-            onError.publish(new PeerException(event.getErrorText()));
-            close();
-
-        }
-
-    };
+    private final PeerConnectionObserver peerConnectionObserver = new WebRTCPeer.ConnectionObserver(WebRTCAnsweringPeer.class);
 
     public WebRTCOfferingPeer(final Record peerRecord) {
         super(peerRecord.signaling, peerRecord.onPeerStatus);
@@ -284,6 +263,11 @@ public class WebRTCOfferingPeer extends WebRTCPeer {
     @Override
     public String getProfileId() {
         return peerRecord.remoteProfileId();
+    }
+
+    @Override
+    protected String getLocalProfileId() {
+        return peerRecord.localProfileId();
     }
 
     public void close() {

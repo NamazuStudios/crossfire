@@ -40,12 +40,22 @@ public class StandardHostPeerQueue implements PeerQueue {
 
     private void updatePeerStatus(final Subscription subscription, final PeerStatus peerStatus) {
         try (final var mon = Monitor.enter(lock)) {
+
+            log.debug("Update peer status for {}: {}",
+                    peerStatus.peer().getProfileId(),
+                    peerStatus.phase()
+            );
+
             condition.signalAll();
+
         }
     }
 
     @Override
     public Stream<Peer> waitForAllPeers(final PeerPhase peerPhase) throws InterruptedException {
+
+        log.debug("Waiting for {} peers", peerPhase);
+
         try (var mon = Monitor.enter(lock)) {
 
             while (open && !areAllPeersReady(peerPhase)) {
@@ -57,6 +67,7 @@ public class StandardHostPeerQueue implements PeerQueue {
             return open ? host.knownPeers() : Stream.empty();
 
         }
+
     }
 
     private boolean areAllPeersReady(final PeerPhase phase) {
@@ -69,8 +80,17 @@ public class StandardHostPeerQueue implements PeerQueue {
                 .getState()
                 .getProfiles()
                 .stream()
+                .peek(pid -> log.debug("Checking peer profile id {}", pid))
+                .peek(pid -> host.findPeer(pid).ifPresentOrElse(
+                        p -> log.debug("Peer {} found in phase {}", pid, p.getPhase()),
+                        () -> log.debug("Peer {} not found", pid)
+                ))
                 .filter(Predicate.not(hostProfileId::equals))
                 .map(host::findPeer)
+                .peek(o -> o.ifPresent(p -> log.debug("Found peer {} in phase {}",
+                        p.getProfileId(),
+                        p.getPhase())
+                ))
                 .allMatch(o -> o.map(p -> p.getPhase().equals(phase)).orElse(false));
 
     }

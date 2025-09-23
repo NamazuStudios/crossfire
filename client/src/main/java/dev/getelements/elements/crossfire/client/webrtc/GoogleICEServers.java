@@ -10,6 +10,10 @@ import java.util.Set;
  */
 public class GoogleICEServers {
 
+    static {
+        WebRTC.load();
+    }
+
     /**
      * The lsit of Google's managed ICE servers.
      */

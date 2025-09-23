@@ -8,6 +8,10 @@ import dev.onvoid.webrtc.PeerConnectionFactory;
  */
 public class SharedPeerConnectionFactory {
 
+    static {
+        WebRTC.load();
+    }
+
     private static final ShutdownHooks shutdown = new ShutdownHooks(SharedPeerConnectionFactory.class);
 
     private static final PeerConnectionFactory instance = new PeerConnectionFactory();

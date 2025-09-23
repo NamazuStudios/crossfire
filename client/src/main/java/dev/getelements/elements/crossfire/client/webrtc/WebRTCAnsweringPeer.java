@@ -20,44 +20,15 @@ public class WebRTCAnsweringPeer extends WebRTCPeer {
 
     private static final Logger logger = LoggerFactory.getLogger(WebRTCAnsweringPeer.class);
 
+    static {
+        WebRTC.load();
+    }
+
     private final Record peerRecord;
 
     private final Subscription subscription;
 
-    private final PeerConnectionObserver peerConnectionObserver = new LoggingPeerConnectionObserver() {
-
-        @Override
-        public Logger getLogger() {
-            return logger;
-        }
-
-        @Override
-        public void onIceCandidate(final RTCIceCandidate candidate) {
-            signalCandidate(candidate, peerRecord.localProfileId(), peerRecord.remoteProfileId());
-        }
-
-        @Override
-        public void onIceConnectionChange(final RTCIceConnectionState state) {
-
-        }
-
-        @Override
-        public void onIceCandidateError(final RTCPeerConnectionIceErrorEvent event) {
-
-            logger.error("ICE candidate error: {} for remote {}",
-                    event.getErrorText(),
-                    peerRecord.remoteProfileId
-            );
-
-            onError.publish(new PeerException(event.getErrorText()));
-            close();
-
-        }
-
-        @Override
-        public void onConnectionChange(final RTCPeerConnectionState state) {
-            logger.debug("Connection state {} for remote {}", state, peerRecord.remoteProfileId);
-        }
+    private final PeerConnectionObserver peerConnectionObserver = new WebRTCPeer.ConnectionObserver(WebRTCAnsweringPeer.class) {
 
         @Override
         public void onDataChannel(final RTCDataChannel dataChannel) {
@@ -109,7 +80,12 @@ public class WebRTCAnsweringPeer extends WebRTCPeer {
 
     @Override
     public String getProfileId() {
-        return peerRecord.remoteProfileId;
+        return peerRecord.remoteProfileId();
+    }
+
+    @Override
+    protected String getLocalProfileId() {
+        return peerRecord.localProfileId();
     }
 
     private void onSignal(final Signal signal) {

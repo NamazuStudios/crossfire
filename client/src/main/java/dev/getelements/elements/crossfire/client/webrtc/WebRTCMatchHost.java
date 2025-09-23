@@ -36,6 +36,10 @@ public class WebRTCMatchHost implements MatchHost {
 
     private static final Logger logger = LoggerFactory.getLogger(WebRTCMatchHost.class);
 
+    static {
+        WebRTC.load();
+    }
+
     private final SignalingClient signaling;
 
     private final PeerConnectionFactory peerConnectionFactory;
@@ -59,6 +63,7 @@ public class WebRTCMatchHost implements MatchHost {
                            final Supplier<RTCOfferOptions> offerOptionsSupplier,
                            final Supplier<RTCDataChannelInit> dataChannelInitSupplier,
                            final Function<String, RTCConfiguration> peerConfigurationProvider) {
+        logger.debug("Creating match host for profile id {}", signalingClient.getState().getProfileId());
         this.signaling = requireNonNull(signalingClient, "signalingClient");
         this.peerConnectionFactory = requireNonNull(peerConnectionFactory, "peerConnectionFactory");
         this.offerOptionsSupplier = requireNonNull(offerOptionsSupplier, "offerOptionsSupplier");
@@ -109,13 +114,13 @@ public class WebRTCMatchHost implements MatchHost {
         if (Objects.equals(remoteProfileId, signaling.getState().getProfileId()))
             return;
 
-        final var profileId = signaling.getState().getProfileId();
+        final var localProfileId = signaling.getState().getProfileId();
 
         final LazyValue<WebRTCOfferingPeer> peer = new SimpleLazyValue<>(() -> new WebRTCOfferingPeer(
                 new WebRTCOfferingPeer.Record(
                         remoteProfileId,
                         signaling,
-                        "data-channel-" + profileId + "-" + remoteProfileId,
+                        "data-channel-" + localProfileId + "-" + remoteProfileId,
                         offerOptionsSupplier.get(),
                         dataChannelInitSupplier.get(),
                         onPeerStatus,
@@ -128,7 +133,7 @@ public class WebRTCMatchHost implements MatchHost {
         );
 
         // Compute the connection if absent.
-        final var connected = connections.computeIfAbsent(profileId, id -> peer.get());
+        final var connected = connections.computeIfAbsent(remoteProfileId, id -> peer.get());
 
         // Connect any peer that was actually used and put in the map
 

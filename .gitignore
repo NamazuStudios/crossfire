@@ -12,6 +12,7 @@ node_modules
 .DS_Store
 ice.log
 webrtc-test.log
+integration-test.log
 hs_err_pid*.log
 
 #IntelliJ Configurations (except shared run configurations
