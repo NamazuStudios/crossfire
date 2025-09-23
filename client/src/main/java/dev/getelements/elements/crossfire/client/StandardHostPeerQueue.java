@@ -2,6 +2,8 @@ package dev.getelements.elements.crossfire.client;
 
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.util.Monitor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.TreeMap;
@@ -11,8 +13,11 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
+
 public class StandardHostPeerQueue implements PeerQueue {
 
+    private static final Logger log = LoggerFactory.getLogger(StandardHostPeerQueue.class);
     private final Lock lock = new ReentrantLock();
 
     private final Condition condition = lock.newCondition();
@@ -44,7 +49,9 @@ public class StandardHostPeerQueue implements PeerQueue {
         try (var mon = Monitor.enter(lock)) {
 
             while (open && !areAllPeersReady(peerPhase)) {
-                condition.await();
+                while (!condition.await(1, SECONDS)) {
+                    log.debug("Still waiting for all peers to be in phase {}", peerPhase);
+                }
             }
 
             return open ? host.knownPeers() : Stream.empty();

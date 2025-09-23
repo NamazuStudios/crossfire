@@ -34,4 +34,11 @@ public class ConnectBroadcastSignal implements BroadcastSignal {
         return true;
     }
 
+    @Override
+    public String toString() {
+        return "ConnectBroadcastSignal{" +
+                "profileId='" + profileId + '\'' +
+                '}';
+    }
+
 }

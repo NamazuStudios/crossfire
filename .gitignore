@@ -10,7 +10,9 @@ buildNumber.properties
 test-repositories
 node_modules
 .DS_Store
-*/ice.log
+ice.log
+webrtc-test.log
+hs_err_pid*.log
 
 #IntelliJ Configurations (except shared run configurations
 .idea/jarRepositories.xml

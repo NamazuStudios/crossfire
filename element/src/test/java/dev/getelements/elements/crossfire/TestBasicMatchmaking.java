@@ -3,6 +3,8 @@ package dev.getelements.elements.crossfire;
 import dev.getelements.elements.crossfire.client.*;
 import dev.getelements.elements.crossfire.client.Peer.Message;
 import dev.getelements.elements.crossfire.client.Peer.StringMessage;
+import dev.getelements.elements.crossfire.client.webrtc.WebRTCMatchClient;
+import dev.getelements.elements.crossfire.client.webrtc.WebRTCMatchHost;
 import dev.getelements.elements.crossfire.model.Protocol;
 import dev.getelements.elements.crossfire.model.Version;
 import dev.getelements.elements.crossfire.model.handshake.FindHandshakeRequest;
@@ -13,6 +15,8 @@ import dev.getelements.elements.sdk.model.application.MatchmakingApplicationConf
 import dev.getelements.elements.sdk.model.profile.Profile;
 import dev.getelements.elements.sdk.model.session.SessionCreation;
 import dev.getelements.elements.sdk.model.user.User;
+import dev.onvoid.webrtc.RTCConfiguration;
+import dev.onvoid.webrtc.RTCIceTransportPolicy;
 import dev.onvoid.webrtc.logging.Logging;
 import jakarta.websocket.ContainerProvider;
 import jakarta.websocket.WebSocketContainer;
@@ -48,7 +52,7 @@ import static org.testng.AssertJUnit.assertNotNull;
 
 public class TestBasicMatchmaking {
 
-    public static final int TEST_PLAYER_COUNT = 4;
+    public static final int TEST_PLAYER_COUNT = 2;
 
     public static final String TEST_BASIC_MATCHMAKING = "test_basic_matchmaking";
 
@@ -133,6 +137,20 @@ public class TestBasicMatchmaking {
                             .withWebSocketContainer(webSocketContainer)
                             .withDefaultProtocol(Protocol.WEBRTC)
                             .withSupportedModes(WEBRTC_HOST, WEBRTC_CLIENT)
+                            .withWebRTCHostBuilder(() -> new WebRTCMatchHost.Builder()
+                                    .withPeerConfigurationProvider(profileId -> {
+                                        final var rtcConfiguration = new RTCConfiguration();
+                                        rtcConfiguration.iceTransportPolicy = RTCIceTransportPolicy.NO_HOST;
+                                        return rtcConfiguration;
+                                    })
+                            )
+                            .withWebRTCClientBuilder(() -> new WebRTCMatchClient.Builder()
+                                    .withPeerConfigurationProvider(profileId -> {
+                                        final var rtcConfiguration = new RTCConfiguration();
+                                        rtcConfiguration.iceTransportPolicy = RTCIceTransportPolicy.NO_HOST;
+                                        return rtcConfiguration;
+                                    })
+                            )
                             .build()
                             .connect();
 

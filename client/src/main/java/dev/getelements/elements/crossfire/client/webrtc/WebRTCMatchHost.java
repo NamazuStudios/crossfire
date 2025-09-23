@@ -78,7 +78,7 @@ public class WebRTCMatchHost implements MatchHost {
     }
 
     private void onSignalConnect(final ConnectBroadcastSignal signal) {
-        logger.debug("Received connection signal: {}", signal);
+        logger.debug("Received connection signal from peer {}. Connecting.", signal.getProfileId());
         connect(signal.getProfileId());
     }
 
@@ -99,7 +99,7 @@ public class WebRTCMatchHost implements MatchHost {
     }
 
     private void onClientError(final Subscription subscription, final Throwable throwable) {
-        logger.error("Client error. Terminating host.");
+        logger.error("Client error. Terminating host.", throwable);
         close();
     }
 
@@ -155,7 +155,7 @@ public class WebRTCMatchHost implements MatchHost {
 
     @Override
     public Stream<Peer> knownPeers() {
-        return Stream.empty();
+        return connections.values().stream().map(Peer.class::cast);
     }
 
     @Override

@@ -37,9 +37,14 @@ public class WebRTCAnsweringPeer extends WebRTCPeer {
         }
 
         @Override
+        public void onIceConnectionChange(final RTCIceConnectionState state) {
+
+        }
+
+        @Override
         public void onIceCandidateError(final RTCPeerConnectionIceErrorEvent event) {
 
-            loggerICE.error("ICE candidate error: {} for remote {}",
+            logger.error("ICE candidate error: {} for remote {}",
                     event.getErrorText(),
                     peerRecord.remoteProfileId
             );
@@ -65,9 +70,16 @@ public class WebRTCAnsweringPeer extends WebRTCPeer {
 
     public WebRTCAnsweringPeer(final Record peerRecord) {
         super(peerRecord.signaling, peerRecord.onPeerStatus);
+
+        logger.debug("Creating answering peer for {} -> {}",
+                peerRecord.localProfileId(),
+                peerRecord.remoteProfileId()
+        );
+
         this.peerRecord = requireNonNull(peerRecord, "peerRecord");
         this.subscription = peerRecord.signaling
                 .onSignal((s, signal) -> onSignal(signal));
+
     }
 
     public void connect() {
@@ -111,17 +123,17 @@ public class WebRTCAnsweringPeer extends WebRTCPeer {
     private void onSignalOffer(final SdpOfferDirectSignal offer) {
         if (getProfileId().equals(offer.getProfileId())) {
 
-            loggerICE.debug("Got SDP OFFER {} -> {}\n{}",
+            logger.debug("Got SDP OFFER {} -> {}\n{}",
                     offer.getProfileId(),
                     offer.getRecipientProfileId(),
                     offer.getPeerSdp()
             );
 
             final var description = new RTCSessionDescription(RTCSdpType.OFFER, offer.getPeerSdp());
-            update(s -> s.description(description));
+            updateAndGet(s -> s.description(description));
 
         } else {
-            loggerICE.debug("Dropping SDP OFFER from {} intended for {} (not relevant to this peer {}).",
+            logger.warn("Dropping SDP OFFER from {} intended for {} (not relevant to this peer {}).",
                     offer.getProfileId(),
                     offer.getRecipientProfileId(),
                     getProfileId()
@@ -140,30 +152,81 @@ public class WebRTCAnsweringPeer extends WebRTCPeer {
     }
 
     @Override
-    protected void startICE(final WebRTCPeerConnectionState replacement) {
-        replacement.connection().setRemoteDescription(replacement.description(), new SetSessionDescriptionObserver() {
+    protected void startICE(final WebRTCPeerConnectionState state) {
+
+        final var description = state.description();
+
+        logger.debug("Setting {}'s remote {} description for {}:\n{}",
+                WebRTCAnsweringPeer.this.getClass().getSimpleName(),
+                description.sdpType,
+                getProfileId(),
+                description.sdp
+        );
+
+        final var connection = state.connection();
+
+        connection.setRemoteDescription(state.description(), new SetSessionDescriptionObserver() {
+
             @Override
             public void onSuccess() {
-                logger.info("Set remote session description for answering peer {}", peerRecord.remoteProfileId);
-                createAnswer(replacement);
+
+                logger.debug("Successfully set {}'s remote session description for {}",
+                        WebRTCAnsweringPeer.this.getClass().getSimpleName(),
+                        getProfileId()
+                );
+
+                createAnswer(state);
+
             }
 
             @Override
             public void onFailure(String error) {
-                logger.error("Failed to set remote description for answering peer: {}. Closing connection.", error);
+
+                logger.error("Failed to set {}'s remote description for {}: {}. Closing connection.",
+                        WebRTCAnsweringPeer.this.getClass().getSimpleName(),
+                        getProfileId(),
+                        error
+                );
+
                 onError.publish(new PeerException(error));
                 close();
+
             }
+
         });
+
+        state.candidates().forEach(candidate -> {
+
+            logger.debug("Adding the candidates for remote peer {}:\n{}",
+                    getProfileId(),
+                    candidate
+            );
+
+            connection.addIceCandidate(candidate);
+
+        });
+
     }
 
     private void createAnswer(final WebRTCPeerConnectionState state) {
-            state.connection().createAnswer(peerRecord.answerOptions, new CreateSessionDescriptionObserver() {
+
+        logger.debug("Creating {}'s answer session description for {}.",
+                WebRTCAnsweringPeer.this.getClass().getSimpleName(),
+                getProfileId()
+        );
+
+        state.connection().createAnswer(peerRecord.answerOptions, new CreateSessionDescriptionObserver() {
 
                 @Override
                 public void onSuccess(final RTCSessionDescription description) {
-                    logger.info("Successfully set local session description for answering peer {}", getProfileId());
+
+                    logger.debug("Successfully {}'s set local session description for {}.",
+                            WebRTCAnsweringPeer.this.getClass().getSimpleName(),
+                            getProfileId()
+                    );
+
                     setLocalDescription(description, state);
+
                 }
 
                 @Override
@@ -179,9 +242,10 @@ public class WebRTCAnsweringPeer extends WebRTCPeer {
     private void setLocalDescription(final RTCSessionDescription description,
                                      final WebRTCPeerConnectionState state) {
 
-        loggerICE.debug("Setting local description {} for answering peer {}.",
-                description,
-                getProfileId()
+        logger.debug("Setting {}'s local description for remote peer {}:\n{}",
+                WebRTCAnsweringPeer.this.getClass().getSimpleName(),
+                getProfileId(),
+                description.sdp
         );
 
         final var connection = state.connection();
@@ -195,7 +259,8 @@ public class WebRTCAnsweringPeer extends WebRTCPeer {
                 signal.setProfileId(peerRecord.localProfileId());
                 signal.setRecipientProfileId(peerRecord.remoteProfileId());
 
-                loggerICE.debug("Signaling answer to offerer: {} -> {}\n{}",
+                logger.debug("Signaling {}'s answer to offerer: {} -> {}\n{}",
+                        WebRTCAnsweringPeer.this.getClass().getSimpleName(),
                         signal.getProfileId(),
                         signal.getRecipientProfileId(),
                         signal.getPeerSdp()
@@ -203,21 +268,20 @@ public class WebRTCAnsweringPeer extends WebRTCPeer {
 
                 peerRecord.signaling.signal(signal);
 
-                loggerICE.debug("Setting canddiate {} for peer {}",
-                        state.candidate(),
-                        getProfileId()
-                );
-
-                connection.addIceCandidate(state.candidate());
-
             }
 
             @Override
             public void onFailure(String error) {
-                logger.error("Failed to set description: {}. Closing connection.", error);
+
+                logger.error("Failed to set {}'s description: {}. Closing connection.",
+                        WebRTCAnsweringPeer.this.getClass().getSimpleName(),
+                        error
+                );
+
                 onError.publish(new PeerException(error));
                 close();
             }
+
         });
 
     }
@@ -229,8 +293,8 @@ public class WebRTCAnsweringPeer extends WebRTCPeer {
 
         if (old.open()) {
             subscription.unsubscribe();
-            old.findChannel().ifPresent(RTCDataChannel::close);
-            old.findConnection().ifPresent(RTCPeerConnection::close);
+//            old.findChannel().ifPresent(RTCDataChannel::close);
+//            old.findConnection().ifPresent(RTCPeerConnection::close);
         }
 
     }

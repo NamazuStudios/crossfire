@@ -35,7 +35,7 @@ public interface LoggingPeerConnectionObserver extends PeerConnectionObserver {
     }
 
     @Override
-    default void onStandardizedIceConnectionChange(RTCIceConnectionState state) {
+    default void onStandardizedIceConnectionChange(final RTCIceConnectionState state) {
         getLogger().debug("Standardized ICE Connection State: {}", state);
     }
 

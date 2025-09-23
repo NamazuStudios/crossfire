@@ -2,8 +2,6 @@ package dev.getelements.elements.crossfire.client.webrtc;
 
 import dev.getelements.elements.sdk.util.ShutdownHooks;
 import dev.onvoid.webrtc.PeerConnectionFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A singleton class that provides a shared instance of PeerConnectionFactory.
