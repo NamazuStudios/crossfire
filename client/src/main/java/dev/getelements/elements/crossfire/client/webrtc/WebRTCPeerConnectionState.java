@@ -64,9 +64,9 @@ public record WebRTCPeerConnectionState(
 
         final var candidates = new ArrayList<>(candidates()) {{ add(candidate); }};
 
-//        if (connection() == null) {
-//            throw new IllegalStateException("No connection.");
-//        }
+        if (connection() == null) {
+            throw new IllegalStateException("No connection.");
+        }
 
         return open
                 ? new WebRTCPeerConnectionState(true, connection(), candidates, description(), channel())
@@ -76,9 +76,9 @@ public record WebRTCPeerConnectionState(
 
     public WebRTCPeerConnectionState description(final RTCSessionDescription description) {
 
-//        if (connection() == null) {
-//            throw new IllegalStateException("No connection.");
-//        }
+        if (connection() == null) {
+            throw new IllegalStateException("No connection.");
+        }
 
         return open
                 ? new WebRTCPeerConnectionState(true, connection(), candidates(), description, channel())

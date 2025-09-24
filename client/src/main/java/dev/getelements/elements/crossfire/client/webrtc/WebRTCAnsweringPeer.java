@@ -263,16 +263,8 @@ public class WebRTCAnsweringPeer extends WebRTCPeer {
     }
 
     @Override
-    public void close() {
-
-        final var old = peerConnectionState.getAndUpdate(WebRTCPeerConnectionState::close);
-
-        if (old.open()) {
-            subscription.unsubscribe();
-//            old.findChannel().ifPresent(RTCDataChannel::close);
-//            old.findConnection().ifPresent(RTCPeerConnection::close);
-        }
-
+    protected void close(final WebRTCPeerConnectionState state) {
+        subscription.unsubscribe();
     }
 
     public record Record(

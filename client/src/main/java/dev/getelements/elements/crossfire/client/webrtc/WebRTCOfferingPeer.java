@@ -166,6 +166,11 @@ public class WebRTCOfferingPeer extends WebRTCPeer {
 
     }
 
+    @Override
+    protected void close(final WebRTCPeerConnectionState state) {
+        subscription.unsubscribe();
+    }
+
     private void setLocalDescription(final RTCPeerConnection connection,
                                      final RTCSessionDescription description) {
         connection.setLocalDescription(description, new SetSessionDescriptionObserver() {
@@ -268,18 +273,6 @@ public class WebRTCOfferingPeer extends WebRTCPeer {
     @Override
     protected String getLocalProfileId() {
         return peerRecord.localProfileId();
-    }
-
-    public void close() {
-
-        final var old = peerConnectionState.getAndUpdate(WebRTCPeerConnectionState::close);
-
-        if (old.open()) {
-            subscription.unsubscribe();
-//            old.findChannel().ifPresent(RTCDataChannel::close);
-//            old.findConnection().ifPresent(RTCPeerConnection::close);
-        }
-
     }
 
     public record Record(

@@ -78,7 +78,39 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
     /**
      * Closes this peer and releases any resources associated with it.
      */
-    public abstract void close();
+    @Override
+    public void close() {
+
+        final var old = peerConnectionState.getAndUpdate(WebRTCPeerConnectionState::close);
+
+        if (old.open()) {
+
+            close(old);
+            logger.debug("Releasing native resources for peer {}", getProfileId());
+
+            old.findChannel().ifPresentOrElse(
+                    RTCDataChannel::close,
+                    () -> logger.debug("No data channel to close for peer {}", getProfileId())
+            );
+
+            old.findConnection().ifPresentOrElse(
+                    RTCPeerConnection::close,
+                    () -> logger.debug("No peer connection to close for peer {}", getProfileId())
+            );
+
+        } else {
+            logger.debug("Peer already closed {}", getProfileId());
+        }
+
+    }
+
+    /**
+     * Closes the peer from the supplied state. This is called by {@link #close()} after the state has been
+     * atomically updated to closed. It will only be called once.
+     *
+     * @param state the state
+     */
+    protected abstract void close(final WebRTCPeerConnectionState state);
 
     /**
      * Gets the local profile id of this peer.
@@ -213,6 +245,15 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
                 } else {
                     final var string = UTF_8.decode(buffer.data).toString();
                     final var message = new StringMessage(WebRTCPeer.this, string);
+
+                    logger.debug("recv: bin={}, pos={}, lim={}, cap={}, rem={}",
+                            buffer.binary,
+                            buffer.data.position(),
+                            buffer.data.limit(),
+                            buffer.data.capacity(),
+                            buffer.data.remaining()
+                    );
+
                     onStringMessage.publish(
                             message,
                             m -> logger.debug("Delivered string message."),
@@ -334,8 +375,15 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
             case CLOSED, CLOSING -> SendResult.TERMINATED;
             case OPEN -> {
                 try {
-                    dataChannel.send(new RTCDataChannelBuffer(buffer, true));
+
+                    final var array = new byte[buffer.remaining()];
+                    buffer.duplicate().get(array);
+
+                    final var wrapped = ByteBuffer.wrap(array);
+                    dataChannel.send(new RTCDataChannelBuffer(wrapped, true));
+
                     yield SendResult.SENT;
+
                 } catch (final Exception e) {
                     logger.error("Failed to send data channel.", e);
                     yield SendResult.ERROR;
@@ -352,7 +400,7 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
                     case CLOSED, CLOSING -> SendResult.TERMINATED;
                     case OPEN -> {
                         try {
-                            final var buffer = UTF_8.encode(string);
+                            final var buffer = ByteBuffer.wrap(string.getBytes(UTF_8));
                             dataChannel.send(new RTCDataChannelBuffer(buffer, false));
                             yield SendResult.SENT;
                         } catch (final Exception e) {
