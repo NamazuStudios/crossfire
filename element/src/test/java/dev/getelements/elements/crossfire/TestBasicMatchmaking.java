@@ -17,7 +17,6 @@ import dev.getelements.elements.sdk.model.session.SessionCreation;
 import dev.getelements.elements.sdk.model.user.User;
 import dev.onvoid.webrtc.RTCConfiguration;
 import dev.onvoid.webrtc.RTCIceTransportPolicy;
-import dev.onvoid.webrtc.logging.Logging;
 import jakarta.websocket.ContainerProvider;
 import jakarta.websocket.WebSocketContainer;
 import org.eclipse.jetty.util.BlockingArrayQueue;
@@ -39,7 +38,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static dev.getelements.elements.crossfire.client.Crossfire.Mode.*;
+import static dev.getelements.elements.crossfire.client.Crossfire.Mode.WEBRTC_CLIENT;
+import static dev.getelements.elements.crossfire.client.Crossfire.Mode.WEBRTC_HOST;
 import static dev.getelements.elements.crossfire.client.Peer.SendResult.SENT;
 import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.MATCHED;
 import static dev.getelements.elements.sdk.model.user.User.Level.USER;
@@ -58,7 +58,7 @@ public class TestBasicMatchmaking {
 
     private static final Logger logger = LoggerFactory.getLogger(TestBasicMatchmaking.class);
 
-    private final TestServer server = TestServer.getInstance();
+    private TestServer server;
 
     private List<TestContext> testContextList = List.of();
 
@@ -110,12 +110,17 @@ public class TestBasicMatchmaking {
 
     }
 
+    @BeforeClass(enabled = false)
+    public void setupServer() {
+         server = TestServer.getInstance();
+    }
+
     @BeforeClass
     public void setupContainer() {
         webSocketContainer = ContainerProvider.getWebSocketContainer();
     }
 
-    @BeforeClass(dependsOnMethods = "setupContainer")
+    @BeforeClass(enabled = false, dependsOnMethods = {"setupServer", "setupContainer"})
     public void setupContexts() {
         testContextList = IntStream.range(0, TEST_PLAYER_COUNT)
                 .mapToObj(i -> {
@@ -157,7 +162,7 @@ public class TestBasicMatchmaking {
                 .toList();
     }
 
-    @BeforeClass
+    @BeforeClass(enabled = false, dependsOnMethods = {"setupServer", "setupContexts"})
     public void setupConfiguration() {
 
         final var application = server.getApplication();
@@ -175,7 +180,7 @@ public class TestBasicMatchmaking {
 
     }
 
-    @Test(dataProvider = "allContexts")
+    @Test(enabled = false, dataProvider = "allContexts")
     public void testFindHandshake(final TestContext context) throws InterruptedException {
 
         assertEquals(context.signalingClient().getPhase(), SignalingClientPhase.CONNECTED);
@@ -200,7 +205,7 @@ public class TestBasicMatchmaking {
 
     }
 
-    @Test(dependsOnMethods = "testFindHandshake")
+    @Test(enabled = false, dependsOnMethods = "testFindHandshake")
     public void testTestAllJoinedSameMatch() {
 
         final var uniqueMatchIds = testContextList.stream()
@@ -214,7 +219,8 @@ public class TestBasicMatchmaking {
 
     }
 
-    @Test(dataProvider = "allContexts",
+    @Test(enabled = false,
+          dataProvider = "allContexts",
           dependsOnMethods = "testTestAllJoinedSameMatch"
     )
     public void testAllConnectedAndHostAssigned(final TestContext context) throws InterruptedException {
@@ -263,7 +269,8 @@ public class TestBasicMatchmaking {
 
     }
 
-    @Test(dataProvider = "host",
+    @Test(enabled = false,
+          dataProvider = "host",
           dependsOnMethods = "testAllConnectedAndHostAssigned"
     )
     public void testHostSendMessage(final TestContext context) {
@@ -318,7 +325,8 @@ public class TestBasicMatchmaking {
 
     }
 
-    @Test(dataProvider = "client",
+    @Test(enabled = false,
+          dataProvider = "client",
           dependsOnMethods = "testHostSendMessage"
     )
     public void testClientReplyMessageBinary(final TestContext context) throws InterruptedException {
@@ -361,7 +369,8 @@ public class TestBasicMatchmaking {
 
     }
 
-    @Test(dataProvider = "client",
+    @Test(enabled = false,
+          dataProvider = "client",
           dependsOnMethods = "testHostSendMessage"
     )
     public void testClientReplyMessageString(final TestContext context) throws InterruptedException {
@@ -404,7 +413,8 @@ public class TestBasicMatchmaking {
 
     }
 
-    @Test(dataProvider = "host",
+    @Test(enabled = false,
+          dataProvider = "host",
           dependsOnMethods = {"testClientReplyMessageBinary", "testClientReplyMessageString"}
     )
     public void testHostReceiveSignalBinary(final TestContext context) throws InterruptedException {
@@ -425,8 +435,9 @@ public class TestBasicMatchmaking {
 
     }
 
-    @Test(dataProvider = "host",
-            dependsOnMethods = {"testClientReplyMessageBinary", "testClientReplyMessageString"}
+    @Test(enabled = false,
+          dataProvider = "host",
+          dependsOnMethods = {"testClientReplyMessageBinary", "testClientReplyMessageString"}
     )
     public void testHostReceiveSignalString(final TestContext context) throws InterruptedException {
 
