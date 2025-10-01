@@ -62,4 +62,4 @@ jobs:
 
       - name: Build and publish snapshot
         if: endsWith(steps.ver.outputs.version, '-SNAPSHOT')
-        run: mvn -B clean deploy
+        run: mvn --settings settings.xml -B clean deploy
