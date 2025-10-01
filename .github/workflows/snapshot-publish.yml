@@ -49,4 +49,4 @@ jobs:
           mvn -B -q versions:set -DnewVersion="$VERSION" -DgenerateBackupPoms=false
 
       - name: Build and publish
-        run: mvn -B clean deploy
+        run: mvn -B -Pcentral-publish clean deploy
