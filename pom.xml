@@ -195,7 +195,7 @@
     <build>
         <pluginManagement>
             <plugins>
-
+                <!-- Complier Plugin -->
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>
@@ -205,6 +205,7 @@
                     </configuration>
                 </plugin>
 
+                <!-- Enables Integration/Unit Testing -->
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
@@ -263,34 +264,18 @@
                         </execution>
                     </executions>
                 </plugin>
+
             </plugins>
         </pluginManagement>
     </build>
 
     <profiles>
-        <profile>
-            <id>github-publish</id>
-            <distributionManagement>
-                <repository>
-                    <id>github-release</id>
-                    <url>https://maven.pkg.github.com/Elemental-Computing/elements</url>
-                    <snapshots>
-                        <enabled>false</enabled>
-                    </snapshots>
-                </repository>
-                <snapshotRepository>
-                    <id>github-snapshot</id>
-                    <url>https://maven.pkg.github.com/Elemental-Computing/elements</url>
-                    <snapshots>
-                        <enabled>true</enabled>
-                    </snapshots>
-                </snapshotRepository>
-            </distributionManagement>
-        </profile>
+        <!-- Enables Publishing to Maven Central -->
         <profile>
             <id>central-publish</id>
             <build>
                 <plugins>
+
                     <!-- Source Jars -->
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
@@ -307,6 +292,7 @@
                             </execution>
                         </executions>
                     </plugin>
+
                     <!-- Javadocs -->
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
@@ -323,6 +309,8 @@
                             </execution>
                         </executions>
                     </plugin>
+
+                    <!-- Maven Central Publishing Plugin -->
                     <plugin>
                         <groupId>org.sonatype.central</groupId>
                         <artifactId>central-publishing-maven-plugin</artifactId>
@@ -334,6 +322,8 @@
                             <publishingServerId>central</publishingServerId>
                         </configuration>
                     </plugin>
+
+                    <!-- GPG And Code-Signing -->
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
@@ -356,6 +346,7 @@
                             </execution>
                         </executions>
                     </plugin>
+
                 </plugins>
             </build>
         </profile>
