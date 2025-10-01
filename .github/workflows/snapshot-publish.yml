@@ -1,46 +1,36 @@
-name: Publish Snapshot to Sonatype
+name: Publish Release to Sonatype
 
 on:
-  push:
-    branches: [ main ]
+  release:
+    types: [ published ]
 
 jobs:
-  snapshot:
+  publish:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-
     env:
       MAVEN_GPG_PASSPHRASE: ${{ secrets.SIGNING_KEY_PASSPHRASE }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up JDK 21
+      - name: Set up JDK 21 + Maven server creds
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "21"
           cache: maven
+          server-id: central
+          server-username: ${{ secrets.SONATYPE_USERNAME }}
+          server-password: ${{ secrets.SONATYPE_PASSWORD }}
 
-      - name: Configure Maven settings for Sonatype Central
-        uses: whelk-io/maven-settings-xml-action@v22
-        with:
-          servers: |
-            [
-              {
-                "id": "central",
-                "username": "${{ secrets.SONATYPE_USERNAME }}",
-                "password": "${{ secrets.SONATYPE_PASSWORD }}"
-              }
-            ]
-
-      - name: Import GPG private key (manual, from base64)
+      - name: Import GPG private key from base64
         shell: bash
         env:
           SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
         run: |
+          set -euo pipefail
           mkdir -p ~/.gnupg
           chmod 700 ~/.gnupg
           echo "pinentry-mode loopback" > ~/.gnupg/gpg.conf
@@ -48,18 +38,15 @@ jobs:
           gpgconf --kill gpg-agent || true
           echo "$SIGNING_KEY" | base64 --decode > /tmp/private.key.asc
           gpg --batch --yes --import /tmp/private.key.asc
-          gpg -K || true
+          gpg --list-secret-keys --keyid-format=long || true
 
-      - name: Verify version is a SNAPSHOT
-        id: ver
+      - name: Set release version from tag
+        shell: bash
         run: |
-          VER=$(mvn -q -Dexec.executable=echo -Dexec.args='${project.version}' --non-recursive exec:exec)
-          echo "version=$VER" >> $GITHUB_OUTPUT
-          if [[ "$VER" != *-SNAPSHOT ]]; then
-            echo "Current version is '$VER' which is not a SNAPSHOT. Skipping deploy."
-            exit 0
-          fi
+          VERSION="${GITHUB_REF_NAME#v}"
+          [[ "$VERSION" == "$GITHUB_REF_NAME" || -z "$VERSION" ]] && { echo "Tag must start with v"; exit 1; }
+          [[ "$VERSION" == *-SNAPSHOT ]] && { echo "Release tag cannot be SNAPSHOT"; exit 1; }
+          mvn -B -q versions:set -DnewVersion="$VERSION" -DgenerateBackupPoms=false
 
-      - name: Build and publish snapshot
-        if: endsWith(steps.ver.outputs.version, '-SNAPSHOT')
-        run: mvn --settings settings.xml -B clean deploy
+      - name: Build and publish
+        run: mvn -B clean deploy
