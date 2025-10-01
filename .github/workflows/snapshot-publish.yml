@@ -1,11 +1,11 @@
-name: Publish Release to Sonatype
+name: Publish Snapshot to Sonatype
 
 on:
-  release:
-    types: [ published ]
+  push:
+    branches: [ main ]
 
 jobs:
-  publish:
+  snapshot:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up JDK 21 + Maven server creds
+      - name: Set up JDK 21 and Maven server creds
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -40,13 +40,16 @@ jobs:
           gpg --batch --yes --import /tmp/private.key.asc
           gpg --list-secret-keys --keyid-format=long || true
 
-      - name: Set release version from tag
-        shell: bash
+      - name: Ensure version is SNAPSHOT
+        id: ver
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          [[ "$VERSION" == "$GITHUB_REF_NAME" || -z "$VERSION" ]] && { echo "Tag must start with v"; exit 1; }
-          [[ "$VERSION" == *-SNAPSHOT ]] && { echo "Release tag cannot be SNAPSHOT"; exit 1; }
-          mvn -B -q versions:set -DnewVersion="$VERSION" -DgenerateBackupPoms=false
+          VER=$(mvn -q -Dexec.executable=echo -Dexec.args='${project.version}' --non-recursive exec:exec)
+          echo "version=$VER" >> $GITHUB_OUTPUT
+          if [[ "$VER" != *-SNAPSHOT ]]; then
+            echo "Not a SNAPSHOT version. Skipping deploy."
+            echo "skip=true" >> $GITHUB_OUTPUT
+          fi
 
-      - name: Build and publish
+      - name: Build and publish snapshot
+        if: steps.ver.outputs.skip != 'true'
         run: mvn -B -Pcentral-publish clean deploy
