@@ -9,6 +9,28 @@
     <packaging>pom</packaging>
 
     <name>Namazu Elements Crossfire</name>
+    <description>Real-time networking (Crossfire) for Elements-based games</description>
+    <url>https://github.com/NamazuStudios/crossfire</url>
+
+    <scm>
+        <url>https://github.com/NamazuStudios/crossfire</url>
+        <connection>scm:git:https://github.com/NamazuStudios/crossfire.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/NamazuStudios/crossfire.git</developerConnection>
+        <tag>HEAD</tag>
+    </scm>
+
+    <developers>
+        <developer>
+            <name>Keith Hudnall</name>
+            <email>keithh+oss@getelements.dev</email>
+            <organization>Elemental Computing Inc.</organization>
+        </developer>
+        <developer>
+            <name>Patrick Twohig</name>
+            <email>patrickt+oss@getelements.dev</email>
+            <organization>Elemental Computing Inc.</organization>
+        </developer>
+    </developers>
 
     <licenses>
         <license>
@@ -270,13 +292,10 @@
     </build>
 
     <profiles>
-        <!-- Enables Publishing to Maven Central -->
         <profile>
             <id>central-publish</id>
             <build>
                 <plugins>
-
-                    <!-- Source Jars -->
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-source-plugin</artifactId>
@@ -285,68 +304,53 @@
                             <execution>
                                 <id>attach-sources</id>
                                 <phase>prepare-package</phase>
-                                <!-- Correct phase -->
-                                <goals>
-                                    <goal>jar</goal>
-                                </goals>
+                                <goals><goal>jar</goal></goals>
                             </execution>
                         </executions>
                     </plugin>
 
-                    <!-- Javadocs -->
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-javadoc-plugin</artifactId>
-                        <version>3.4.1</version>
+                        <version>3.6.3</version>
                         <executions>
                             <execution>
                                 <id>attach-javadocs</id>
                                 <phase>prepare-package</phase>
-                                <!-- Change to prepare-package -->
-                                <goals>
-                                    <goal>jar</goal>
-                                </goals>
+                                <goals><goal>jar</goal></goals>
                             </execution>
                         </executions>
                     </plugin>
 
-                    <!-- Maven Central Publishing Plugin -->
                     <plugin>
                         <groupId>org.sonatype.central</groupId>
                         <artifactId>central-publishing-maven-plugin</artifactId>
-                        <version>0.7.0</version>
+                        <version>0.9.0</version>
                         <extensions>true</extensions>
                         <configuration>
-                            <autoPublish>true</autoPublish>
-                            <waitUntil>validated</waitUntil>
                             <publishingServerId>central</publishingServerId>
+                            <autoPublish>true</autoPublish>
+                            <waitUntil>published</waitUntil>
                         </configuration>
                     </plugin>
 
-                    <!-- GPG And Code-Signing -->
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
-                        <version>1.5</version>
+                        <version>3.2.4</version>
                         <executions>
                             <execution>
                                 <id>sign-artifacts</id>
                                 <phase>verify</phase>
-                                <goals>
-                                    <goal>sign</goal>
-                                </goals>
+                                <goals><goal>sign</goal></goals>
                                 <configuration>
-                                    <keyname>${gpg.keyname}</keyname>
-                                    <passphrase>${gpg.passphrase}</passphrase>
                                     <gpgArguments>
-                                        <arg>--pinentry-mode</arg>
-                                        <arg>loopback</arg>
+                                        <arg>--pinentry-mode</arg><arg>loopback</arg>
                                     </gpgArguments>
                                 </configuration>
                             </execution>
                         </executions>
                     </plugin>
-
                 </plugins>
             </build>
         </profile>
