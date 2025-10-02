@@ -31,14 +31,7 @@ jobs:
           SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
         run: |
           set -euo pipefail
-          mkdir -p ~/.gnupg
-          chmod 700 ~/.gnupg
-          echo "pinentry-mode loopback" > ~/.gnupg/gpg.conf
-          echo "allow-loopback-pinentry" > ~/.gnupg/gpg-agent.conf
-          gpgconf --kill gpg-agent || true
-          echo "$SIGNING_KEY" | base64 --decode > /tmp/private.key.asc
-          gpg --batch --yes --import /tmp/private.key.asc
-          gpg --list-secret-keys --keyid-format=long || true
+          echo "$SIGNING_KEY" | base64 --decode | gpg --batch --import
 
       - name: Ensure version is SNAPSHOT
         id: ver
@@ -50,6 +43,6 @@ jobs:
             echo "skip=true" >> $GITHUB_OUTPUT
           fi
 
-      - name: Build and publish snapshot
-        if: steps.ver.outputs.skip != 'true'
-        run: mvn -B -Pcentral-publish clean deploy
+#      - name: Build and publish snapshot
+#        if: steps.ver.outputs.skip != 'true'
+#        run: mvn -B -Pcentral-publish clean deploy
