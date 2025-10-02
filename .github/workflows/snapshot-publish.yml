@@ -5,12 +5,11 @@ on:
     branches: [ main ]
 
 jobs:
+
   snapshot:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    env:
-      MAVEN_GPG_PASSPHRASE: ${{ secrets.SIGNING_KEY_PASSPHRASE }}
 
     steps:
       - uses: actions/checkout@v4
@@ -26,6 +25,9 @@ jobs:
           gpg-passphrase: ${{ secrets.SIGNING_KEY_PASSPHRASE }}
           server-username: ${{ secrets.SONATYPE_USERNAME }}
           server-password: ${{ secrets.SONATYPE_PASSWORD }}
+
+      - name: Show imported secret keys
+        run: gpg --list-secret-keys --keyid-format=long
 
 #      - name: Import GPG private key from base64
 #        shell: bash
