@@ -22,27 +22,29 @@ jobs:
           java-version: "21"
           cache: maven
           server-id: central
+          gpg-private-key: ${{ secrets.SIGNING_KEY }}
+          gpg-passphrase: ${{ secrets.SIGNING_KEY_PASSPHRASE }}
           server-username: ${{ secrets.SONATYPE_USERNAME }}
           server-password: ${{ secrets.SONATYPE_PASSWORD }}
 
-      - name: Import GPG private key from base64
-        shell: bash
-        env:
-          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
-        run: |
-          set -euo pipefail
-          echo "$SIGNING_KEY" | base64 --decode | gpg --batch --import
+#      - name: Import GPG private key from base64
+#        shell: bash
+#        env:
+#          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+#        run: |
+#          set -euo pipefail
+#          echo "$SIGNING_KEY" | base64 --decode | gpg --batch --import
 
-      - name: Ensure version is SNAPSHOT
-        id: ver
-        run: |
-          VER=$(mvn -q -Dexec.executable=echo -Dexec.args='${project.version}' --non-recursive exec:exec)
-          echo "version=$VER" >> $GITHUB_OUTPUT
-          if [[ "$VER" != *-SNAPSHOT ]]; then
-            echo "Not a SNAPSHOT version. Skipping deploy."
-            echo "skip=true" >> $GITHUB_OUTPUT
-          fi
+#      - name: Ensure version is SNAPSHOT
+#        id: ver
+#        run: |
+#          VER=$(mvn -q -Dexec.executable=echo -Dexec.args='${project.version}' --non-recursive exec:exec)
+#          echo "version=$VER" >> $GITHUB_OUTPUT
+#          if [[ "$VER" != *-SNAPSHOT ]]; then
+#            echo "Not a SNAPSHOT version. Skipping deploy."
+#            echo "skip=true" >> $GITHUB_OUTPUT
+#          fi
 
-#      - name: Build and publish snapshot
-#        if: steps.ver.outputs.skip != 'true'
-#        run: mvn -B -Pcentral-publish clean deploy
+      - name: Build and publish snapshot
+        if: steps.ver.outputs.skip != 'true'
+        run: mvn -B -Pcentral-publish clean deploy
