@@ -75,7 +75,7 @@
         <dependencies>
             <dependency>
                 <groupId>dev.getelements.elements.crossfire</groupId>
-                <artifactId>commmon</artifactId>
+                <artifactId>common</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -343,11 +343,11 @@
                                 <id>sign-artifacts</id>
                                 <phase>verify</phase>
                                 <goals><goal>sign</goal></goals>
-<!--                                <configuration>-->
-<!--                                    <gpgArguments>-->
-<!--                                        <arg>&#45;&#45;pinentry-mode</arg><arg>loopback</arg>-->
-<!--                                    </gpgArguments>-->
-<!--                                </configuration>-->
+                                <configuration>
+                                    <gpgArguments>
+                                        <arg>--pinentry-mode</arg><arg>loopback</arg>
+                                    </gpgArguments>
+                                </configuration>
                             </execution>
                         </executions>
                     </plugin>

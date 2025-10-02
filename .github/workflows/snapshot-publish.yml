@@ -27,8 +27,8 @@ jobs:
           server-username: ${{ secrets.SONATYPE_USERNAME }}
           server-password: ${{ secrets.SONATYPE_PASSWORD }}
 
-      - name: Show imported secret keys
-        run: gpg --list-secret-keys --keyid-format=long
+#      - name: Show imported secret keys
+#        run: gpg --list-secret-keys --keyid-format=long
 
 #      - name: Import GPG private key from base64
 #        shell: bash
