@@ -10,6 +10,8 @@ import java.util.Optional;
  * Represents a handle for a matchmaking process, allowing you to start, leave, and retrieve the result of the match.
  * Consider this the live connection to the match which must be closed out when the connection fails or the match is no
  * longer needed.
+ *
+ * @param <RequestT> the type of handshake request used to initiate the matchmaking process
  */
 public interface MatchHandle<RequestT extends HandshakeRequest> {
 

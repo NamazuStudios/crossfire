@@ -24,13 +24,12 @@ public interface Pinger {
     void stop();
 
     /**
-     * Indictes that a pong message has been received from the remote endpoint. This method is called when a pong
+     * Indicates that a pong message has been received from the remote endpoint. This method is called when a pong
      * message is received in response to a ping. It can be used to reset any timeout or keep-alive mechanisms that are
      * in place.
      *
      * @param session the session that received the pong message
      * @param message the pong message received from the remote endpoint
-     * @throws IOException if there is an error processing the pong message
      */
     void onPong(Session session, PongMessage message);
 

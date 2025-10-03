@@ -20,6 +20,7 @@ public interface MatchmakingAlgorithm {
      * write to the database or perform any blocking operations.
      *
      * @param request the matchmaking request
+     * @return the match handle
      */
     MatchHandle<FindHandshakeRequest> find(MatchmakingRequest<FindHandshakeRequest> request);
 
@@ -28,6 +29,7 @@ public interface MatchmakingAlgorithm {
      * write to the database or perform any blocking operations.
      *
      * @param request the matchmaking request
+     * @return the match handle
      */
     MatchHandle<JoinHandshakeRequest> join(MatchmakingRequest<JoinHandshakeRequest> request);
 

@@ -11,6 +11,11 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static dev.getelements.elements.crossfire.api.CancelableMatchStateRecord.create;
 
+/**
+ * Abstract implementation of a {@link MatchHandle}.
+ *
+ * @param <RequestT> the type of handshake request
+ */
 public abstract class AbstractMatchHandle<RequestT extends HandshakeRequest> implements MatchHandle<RequestT> {
 
     private static final Logger logger = LoggerFactory.getLogger(AbstractMatchHandle.class);

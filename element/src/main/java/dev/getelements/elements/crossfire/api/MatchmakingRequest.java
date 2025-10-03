@@ -7,6 +7,8 @@ import dev.getelements.elements.sdk.model.profile.Profile;
 
 /**
  * Starts the matchmaking algorithm with the given request.
+ *
+ * @param <MessageT> the type of handshake request used to initiate the matchmaking process
  */
 public interface MatchmakingRequest<MessageT extends HandshakeRequest> {
 

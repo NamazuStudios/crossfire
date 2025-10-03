@@ -131,7 +131,7 @@ public interface ProtocolMessageHandler {
 
     /**
      * Atomically and in a thread safe manner authenticates the session. This will switch the connection phase to
-     * SIGNALING if this method and the call to {@link #matched(MultiMatch)} also succeeds.
+     * SIGNALING if this method and the call to {@link #matched(MultiMatchRecord)} also succeeds.
      *
      * @param authRecord the connection phase
      * @throws ProtocolStateException in the event that the connection phase is not HANDSHAKE
@@ -155,8 +155,8 @@ public interface ProtocolMessageHandler {
      * Represents an authentication record.
      * Contains the profile and the session.
      *
-     * @param profile
-     * @param session
+     * @param profile the {@link Profile} that was authenticated
+     * @param session the {@link dev.getelements.elements.sdk.model.session.Session} that was created
      */
     record AuthRecord(
             Profile profile,

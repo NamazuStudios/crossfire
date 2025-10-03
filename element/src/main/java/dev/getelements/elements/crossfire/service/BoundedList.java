@@ -4,6 +4,12 @@ import java.util.*;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
+/**
+ * A List wrapper that enforces a maximum size. Attempts to add elements that would exceed the maximum size
+ * will result in an exception being thrown.
+ *
+ * @param <E> the type of elements in the list
+ */
 public final class BoundedList<E> implements List<E> {
 
     private final int maxSize;
@@ -81,7 +87,10 @@ public final class BoundedList<E> implements List<E> {
 
     @Override public String toString() { return delegate.toString(); }
 
-    // --- Builder ---
+    /**
+     * Builder for BoundedList
+     * @param <E> the type of elements in the list
+     */
     public static class Builder<E> {
 
         private int maxSize = Integer.MAX_VALUE;
