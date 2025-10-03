@@ -28,30 +28,6 @@ jobs:
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg-passphrase: GPG_PASSPHRASE
 
-#      - name: Show imported secret keys
-#        run: gpg --list-secret-keys --keyid-format=long
-
-#      - name: Import GPG private key from base64
-#        shell: bash
-#        env:
-#          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
-#        run: |
-#          set -euo pipefail
-#          echo "$SIGNING_KEY" | base64 --decode | gpg --batch --import
-
-#      - name: Ensure version is SNAPSHOT
-#        id: ver
-#        run: |
-#
-#          VER=$(mvn -q -Dexec.executable=echo -Dexec.args='${project.version}' --non-recursive exec:exec)
-#
-#          echo "version=$VER" >> $GITHUB_OUTPUT
-#
-#          if [[ "$VER" != *-SNAPSHOT ]]; then
-#            echo "Not a SNAPSHOT version. Skipping deploy."
-#            echo "skip=true" >> $GITHUB_OUTPUT
-#          fi
-
       - name: Build and Publish Snapshot
         run: mvn -B -Pcentral-publish clean deploy
         env:
