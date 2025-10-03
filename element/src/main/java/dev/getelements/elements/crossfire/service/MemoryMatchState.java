@@ -277,7 +277,6 @@ public class MemoryMatchState {
 
                 // Generates and buffers the signal in the appropriate outbox
                 final var signal = new HostBroadcastSignal();
-                signal.setLifecycle(SESSION);
                 signal.setProfileId(profileId);
                 append(signal);
 

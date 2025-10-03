@@ -1,4 +1,4 @@
-# Crossfire Pre-Release
+# Namazu Crossfire
 
 This is a pre-release version of CrossFire which is an extension of Elements
 to enable CrossPlay games. Crossfire consists of two major components:

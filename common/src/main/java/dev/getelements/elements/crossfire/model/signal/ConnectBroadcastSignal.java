@@ -4,7 +4,13 @@ import jakarta.validation.constraints.NotNull;
 
 import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.CONNECT;
 import static dev.getelements.elements.crossfire.model.signal.SignalLifecycle.MATCH;
+import static dev.getelements.elements.crossfire.model.signal.SignalLifecycle.SESSION;
 
+/**
+ * A signal indicating that a participant has connected to the match. This signal is sent by the server to all
+ * participants in the match. It is server-only and has a lifecycle of SESSION, meaning it is relevant for the duration
+ * of the connected session.
+ */
 public class ConnectBroadcastSignal implements BroadcastSignal {
 
     @NotNull
@@ -26,7 +32,7 @@ public class ConnectBroadcastSignal implements BroadcastSignal {
 
     @Override
     public SignalLifecycle getLifecycle() {
-        return MATCH;
+        return SESSION;
     }
 
     @Override

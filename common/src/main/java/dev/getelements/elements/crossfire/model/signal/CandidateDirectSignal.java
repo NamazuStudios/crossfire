@@ -5,6 +5,12 @@ import jakarta.validation.constraints.NotNull;
 
 import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.CANDIDATE;
 
+/**
+ * A direct signal that contains a candidate for establishing a peer-to-peer connection. The candidate is typically an
+ * SDP message for ICE candidates used in WebRTC connections. This signal is sent from one participant to another
+ * to establish a direct connection. The mid and midIndex help identify the media stream the candidate is associated
+ * with in scenarios with multiple media streams.
+ */
 public class CandidateDirectSignal implements DirectSignal {
 
     @NotNull

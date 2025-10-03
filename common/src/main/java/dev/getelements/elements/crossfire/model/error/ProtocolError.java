@@ -4,7 +4,11 @@ import dev.getelements.elements.crossfire.model.ProtocolMessage;
 import dev.getelements.elements.sdk.annotation.ElementPublic;
 
 /**
- * Represents a protocol error in the Crossfire system.
+ * Represents a protocol error in the Crossfire system. The server will respond with a protocol error message when it
+ * detects an error condition, such as an invalid message format or a timeout. The error message includes an error code
+ * and a human-readable message describing the error condition. Clients should handle protocol error messages
+ * appropriately. Typically, this involves logging the error and potentially notifying the user. Once sending an error
+ * the server will immediately close the connection and disconnect the participant from the match.
  */
 @ElementPublic
 public interface ProtocolError extends ProtocolMessage {

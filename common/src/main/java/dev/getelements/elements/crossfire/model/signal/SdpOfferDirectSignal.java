@@ -5,6 +5,11 @@ import jakarta.validation.constraints.NotNull;
 import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.SDP_OFFER;
 import static dev.getelements.elements.crossfire.model.signal.SignalLifecycle.SESSION;
 
+/**
+ * Represents an SDP answer signal in the Crossfire signaling system. This signal is used to send an SDP answer from one
+ * peer to another during the WebRTC signaling process. The signal includes the profile ID of the sender, the profile ID
+ * of the recipient, and the SDP answer itself.
+ */
 public class SdpOfferDirectSignal implements DirectSignal {
 
     @NotNull

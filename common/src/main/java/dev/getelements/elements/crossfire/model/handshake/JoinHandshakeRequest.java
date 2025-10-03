@@ -7,6 +7,14 @@ import jakarta.validation.constraints.Pattern;
 
 import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.JOIN;
 
+/**
+ * Requets to join an existing match in the Elements Crossfire protocol. This is used when the player already has
+ * a match ID and wishes to join that specific match. They will need to provide the match ID along with their
+ * session key and optionally their profile ID.
+ *
+ * Typically, this is used to re-join a match they were previously part of in case of a disconnection or network
+ * interruption.
+ */
 @ElementPublic
 public class JoinHandshakeRequest implements HandshakeRequest {
 

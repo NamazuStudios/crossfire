@@ -5,6 +5,12 @@ import jakarta.validation.constraints.NotNull;
 import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.STRING_RELAY;
 import static dev.getelements.elements.crossfire.model.signal.SignalLifecycle.ONCE;
 
+/**
+ * A simple implementation of a direct signal that carries a string payload. This signal can be used to send text data
+ * to a specific participant in a match. It includes the profile ID of the sender, the profile ID of the recipient,
+ * the lifecycle of the signal, and the string payload itself. The originator of the signal can define the lifecycle
+ * based on the intended duration of relevance for the signal.
+ */
 public class StringRelayDirectSignal implements DirectSignal {
 
     @NotNull

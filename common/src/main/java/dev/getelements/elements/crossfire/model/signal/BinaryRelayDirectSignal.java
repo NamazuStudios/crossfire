@@ -4,6 +4,11 @@ import jakarta.validation.constraints.NotNull;
 
 import static dev.getelements.elements.crossfire.model.signal.SignalLifecycle.ONCE;
 
+/**
+ * A direct signal that contains binary payload data. This signal type is used to send binary data to a specific
+ * recipient in the match. The lifecycle of the signal determines how it is cached and delivered by the server and
+ * can be set by the originator of the signal. On the wire-the binary payload is base64 encoded.
+ */
 public class BinaryRelayDirectSignal implements DirectSignal {
 
     @NotNull
