@@ -132,9 +132,7 @@ public class TestBasicMatchmaking {
                     final var crossfire = new StandardCrossfire.Builder()
                             .withDefaultUri(server.getTestTestServerWsUrl())
                             .withWebSocketContainer(webSocketContainer)
-                            .withDefaultProtocol(Protocol.WEBRTC)
-                            // RIght now the WebbRTC Tests are Disabled. This ensures signaling works for now
-                            // WebRTC Has issues with native code and will cause crashes in test fixtures.
+                            .withDefaultProtocol(Protocol.SIGNALING)
                             .withSupportedModes(SIGNALING_HOST, SIGNALING_CLIENT)
                             .withWebRTCHostBuilder(() -> new WebRTCMatchHost.Builder()
                                     .withPeerConfigurationProvider(profileId -> {
