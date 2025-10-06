@@ -2,7 +2,7 @@
 
 The Crossfire protocol is a WebSocket driven protocol to enable signaling and data exchange to establish cross-platform matchmaking among various gaming platforms. It is designed to be extensible, secure, and efficient.
 
-It provides a set of messages and operations which can be used to facilitate matchmaking, game session management, and player communication. For Peer to Peer communication, we use WebRTC as the wire protocol as well as a JSON based signaling protocol for establishing connections. The signaling protocol can also be used to exchange and relay real time game data.
+It provides a set of messages and operations which can be used to facilitate matchmaking, game session management, and participant communication. For Peer to Peer communication, we use WebRTC as the wire protocol as well as a JSON based signaling protocol for establishing connections. The signaling protocol can also be used to exchange and relay real time game data.
 
 **Note:** At the time of this writing, the only supported protocol version is 1.0. The server uses the literal string `V_1_0` to indicate this version. See [Version.java](common/src/main/java/dev/getelements/elements/crossfire/model/Version.java)
 
@@ -103,6 +103,10 @@ All signals contain a lifecycle which indicates long the server should retain th
 
 **Sources**: [SignalingLifecycle.java](common/src/main/java/dev/getelements/elements/crossfire/model/signal/SignalLifecycle.java)
 
+### `JOIN` (Server Only)
+
+The `JOIN` signal is used to notify participants in a match that a new participant has joined the match. The server MUST send a `JOIN` signal to all participants in the match except the originator when a new participant joins the match. The `JOIN` signal contains the base broadcast signal fields indicating the player has joined.
+
 ### `CONNECT` (Server Only)
 
 The `CONNECT` signal is used to notify participants in a match that a new participant has connected to the match. The server MUST send a `CONNECT` signal to all participants in the match except the originator when a new participant joins the match when the participant establishes a connection and successful `HANDSHAKE`.
@@ -111,7 +115,7 @@ The `CONNECT` signal is used to notify participants in a match that a new partic
 
 ### `DISCONNECT` (Server Only)
 
-The `DISCONNECT` signal is used to notify participants in a match that a participant has disconnected from the match. The server MUST send a `DISCONNECT` signal to all participants in the match except the originator when a participant disconnects from the match. Note, that a `DISCONNECT` does not indicate that the player has been removed but rather they have just lost connection to the match. The player may reconnect to the match (eg using a `JOIN` message) and continue. The server MUST NOT remove the participant from the match until they leave the match or the match ends.
+The `DISCONNECT` signal is used to notify participants in a match that a participant has disconnected from the match. The server MUST send a `DISCONNECT` signal to all participants in the match except the originator when a participant disconnects from the match. Note, that a `DISCONNECT` does not indicate that the participant has been removed but rather they have just lost connection to the match. The participant may reconnect to the match (eg using a `JOIN` message) and continue. The server MUST NOT remove the participant from the match until they leave the match or the match ends.
 
 **Sources**: [DisconnectBroadcastSignal.java](common/src/main/java/dev/getelements/elements/crossfire/model/signal/DisconnectBroadcastSignal.java)
 
@@ -168,6 +172,33 @@ The `BINARY_BROADCAST` and `STRING_BROADCAST` are functionally similar signals w
 **Sources**:
 * [BinaaryBroadcastSignal.java](common/src/main/java/dev/getelements/elements/crossfire/model/signal/BinaryBroadcastSignal.java)
 * [StringBroadcastSignal.java](common/src/main/java/dev/getelements/elements/crossfire/model/signal/StringBroadcastSignal.java)
+
+## Control Messages
+
+Control messages are used to manage the state of the match and its participants. Some control messages may be sent only
+by the host participant while others may be sent by any participant. The server MUST enforce the rules associated with each control message. Unlike signals, the server MUST NOT relay these messages to any other player. The server MUST process the control message and take appropriate action which MAY involve driving other signals.
+
+### `LEAVE` (Client to Server)
+
+The `LEAVE` control MUST be sent by the server to a client when the client has left the match. A participant who has left the match will no longer receive any messages from the server and will be removed from the match. The `LEAVE` message contains the base control message fields simply indicating the participant has left. Once a participant has left the match, they may not rejoin the match and the server MUST delete them from the match. The server MUST NOT allow the participant to re-join the match via a `JOIN` message. The server MAY allow the participant to join again through the `FIND` message if the match otherwise meets criteria to show up in the FIND request. Such circumstances would likely be coincidental.
+
+### `OPEN` (Host to Server)
+
+The `OPEN` control message is sent by the host participant to the server to indicate that the match is now open for new participants to join. The server MUST allow new participants to join the match after receiving an `OPEN` message from the host. The `OPEN` message contains the base control message fields. Note, that opening a match does not guarantee that new participants will be able to join. The server MUST still enforce any matchmaking rules associated with the match.
+
+Upon first assignment, a match is considered open by default. Therefore, the host does not need to send an `OPEN` message when the match is first created. The host MAY send an `OPEN` message at any time to re-open the match if it has been closed. If the match is already open, the server MUST ignore the `OPEN` message. It MAY choose to log an error or warning to indicate buggy or problematic client behavior.
+
+### `CLOSE` (Host to Server)
+
+The `CLOSE` control message is sent by the host participant to the server to indicate that the match is now closed for new participants to join. The server MUST NOT allow new participants to join the match after receiving a `CLOSE` message from the host. The `CLOSE` message contains the base control message fields. Note, closing a match does not remove existing participants from the match. Existing participants may continue to communicate and exchange messages until they leave the match or the match ends.
+
+It is not necessary for the host to send a `CLOSE` message before ending the match with an `END` message. The server MUST ignore any `CLOSE` messages received if closed or ended. The server MAY choose to log an error or warning to indicate buggy or problematic client behavior.
+
+Closing a match is optional and depends entirely on the application requirements. Some applications may choose to keep the match open for new participants to join while others may choose to close the match to new participants.
+
+### `END` (Host to Server)
+
+The `END` control message is sent by the host participant to the server to indicate that the match is now over and should be terminated. The server MUST remove all participants from the match and terminate the match after receiving an `END` message from the host. The `END` message contains the base control message fields. Once a match has been ended, it may not be re-opened or re-joined. The server MUST transition the match to the ENDED state and clean up any resources associated with the match. The server MUST ultimately close all WebSocket connections associated with the match at its discretion.
 
 ## Errors
 
