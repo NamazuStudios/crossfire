@@ -12,6 +12,8 @@ additionally, we are actively developing support for [Defold](https://defold.com
 
 More importantly, the Java implementation is used to run all integration tests to ensure proper connectivity. The implementation here serves as a reference implementation which others should follow. If there is any doubt or confusion over the correct behavior, we recommend checking the Java implementation.
 
+For a detailed overview of Crossfire's protocol, refer to the protocol document [Protocol Specification](PROTOCOL.md).
+
 ## Communication Modes
 
 Crossfire supports two modes of communication between players, at the time of writing. The Java client interface provides implementations which should be easily swapped out in production code.
