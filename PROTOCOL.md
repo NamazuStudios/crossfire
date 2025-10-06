@@ -182,6 +182,8 @@ by the host participant while others may be sent by any participant. The server 
 
 The `LEAVE` control MUST be sent by the server to a client when the client has left the match. A participant who has left the match will no longer receive any messages from the server and will be removed from the match. The `LEAVE` message contains the base control message fields simply indicating the participant has left. Once a participant has left the match, they may not rejoin the match and the server MUST delete them from the match. The server MUST NOT allow the participant to re-join the match via a `JOIN` message. The server MAY allow the participant to join again through the `FIND` message if the match otherwise meets criteria to show up in the FIND request. Such circumstances would likely be coincidental.
 
+If all participants leave the match, the server MUST end the match and clean up any resources associated with the match.
+
 ### `OPEN` (Host to Server)
 
 The `OPEN` control message is sent by the host participant to the server to indicate that the match is now open for new participants to join. The server MUST allow new participants to join the match after receiving an `OPEN` message from the host. The `OPEN` message contains the base control message fields. Note, that opening a match does not guarantee that new participants will be able to join. The server MUST still enforce any matchmaking rules associated with the match.
