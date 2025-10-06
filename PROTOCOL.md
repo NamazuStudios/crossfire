@@ -180,4 +180,14 @@ The `ERROR` message contains the following fields in addition to the base protoc
 
 **Sources**:
 * [ProtocolError.java](common/src/main/java/dev/getelements/elements/crossfire/model/error/ProtocolError.java)
-* [ErrorCode.java](common/src/main/java/dev/getelements/elements/crossfire/model/error/ErrorCode.java)
+
+# Final Notes
+
+This is a work in progress and not a complete specification. The protocol may evolve over time as new features are added and existing features are refined. The goal is to provide a robust and flexible protocol that can be used to facilitate cross-platform matchmaking and real-time communication in a variety of gaming scenarios.
+
+Known limitations:
+* There is not currently a system of control messages. Control messages include the ability to close the match, remove participants, or change match settings. These features may and will very likely be added in the future.
+* There is no built in authentication or encryption. It is assumed that the WebSocket connection is established over a secure channel (wss://) and that the session key provided during the handshake is sufficient for authentication. Future versions may include additional security features.
+* Additional matchmaking systems that establish internet connectivity outside of WebRTC are not natively supported. It would be possible to build such a system on top of the existing protocol using the relay signals but it is not a first class feature of the protocol at this time. It may make sense to add signaling types to include support for such matchmaking and NAT traversal systems.
+
+For additional features, suggestions, and enhancements feel free to open a ticket or a pull request.
