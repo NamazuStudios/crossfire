@@ -4,6 +4,7 @@ import dev.getelements.elements.crossfire.client.SignalingClient;
 import dev.getelements.elements.crossfire.jackson.JacksonEncoder;
 import dev.getelements.elements.crossfire.jackson.JacksonProtocolMessageDecoder;
 import dev.getelements.elements.crossfire.model.ProtocolMessage;
+import dev.getelements.elements.crossfire.model.ProtocolMessageType;
 import dev.getelements.elements.crossfire.model.Version;
 import dev.getelements.elements.crossfire.model.error.ProtocolError;
 import dev.getelements.elements.crossfire.model.error.ProtocolStateException;
@@ -160,7 +161,7 @@ public class V10SignalingClient implements SignalingClient {
     }
 
     private void onHandshakeMessage(final HandshakeResponse message) {
-        if (ProtocolMessage.Type.MATCHED.equals(message.getType())) {
+        if (ProtocolMessageType.MATCHED.equals(message.getType())) {
             final var state = this.state.updateAndGet(s -> s.matched(message));
 
             switch (state.phase()) {

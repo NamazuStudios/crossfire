@@ -1,5 +1,6 @@
 package dev.getelements.elements.crossfire.model.signal;
 
+import dev.getelements.elements.crossfire.model.ProtocolMessageType;
 import jakarta.validation.constraints.NotNull;
 
 import static dev.getelements.elements.crossfire.model.signal.SignalLifecycle.ONCE;
@@ -24,8 +25,8 @@ public class BinaryRelayDirectSignal implements DirectSignal {
     private SignalLifecycle lifecycle = ONCE;
 
     @Override
-    public Type getType() {
-        return Type.BINARY_RELAY;
+    public ProtocolMessageType getType() {
+        return ProtocolMessageType.BINARY_RELAY;
     }
 
     @Override

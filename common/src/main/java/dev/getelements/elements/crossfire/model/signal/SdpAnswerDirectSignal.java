@@ -1,8 +1,9 @@
 package dev.getelements.elements.crossfire.model.signal;
 
+import dev.getelements.elements.crossfire.model.ProtocolMessageType;
 import jakarta.validation.constraints.NotNull;
 
-import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.SDP_ANSWER;
+import static dev.getelements.elements.crossfire.model.ProtocolMessageType.SDP_ANSWER;
 import static dev.getelements.elements.crossfire.model.signal.SignalLifecycle.SESSION;
 
 /**
@@ -24,7 +25,7 @@ public class SdpAnswerDirectSignal implements DirectSignal {
     private String peerSdp;
 
     @Override
-    public Type getType() {
+    public ProtocolMessageType getType() {
         return SDP_ANSWER;
     }
 

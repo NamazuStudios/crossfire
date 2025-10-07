@@ -5,7 +5,7 @@ import jakarta.websocket.DecodeException;
 import jakarta.websocket.Decoder;
 
 import static dev.getelements.elements.crossfire.jackson.Jackson.getMapper;
-import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.findType;
+import static dev.getelements.elements.crossfire.model.ProtocolMessageType.findType;
 
 public class JacksonProtocolMessageDecoder implements Decoder.Text<ProtocolMessage> {
 

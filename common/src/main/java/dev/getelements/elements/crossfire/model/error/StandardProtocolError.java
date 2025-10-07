@@ -1,5 +1,6 @@
 package dev.getelements.elements.crossfire.model.error;
 
+import dev.getelements.elements.crossfire.model.ProtocolMessageType;
 import dev.getelements.elements.sdk.model.exception.BaseException;
 import jakarta.validation.constraints.NotNull;
 import org.slf4j.Logger;
@@ -7,7 +8,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.IllegalFormatException;
 
-import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.ERROR;
+import static dev.getelements.elements.crossfire.model.ProtocolMessageType.ERROR;
 import static dev.getelements.elements.crossfire.model.error.ProtocolError.Code.TIMEOUT;
 import static dev.getelements.elements.crossfire.model.error.ProtocolError.Code.UNKNOWN;
 import static java.lang.String.format;
@@ -26,7 +27,7 @@ public class StandardProtocolError implements ProtocolError {
     private String message;
 
     @Override
-    public Type getType() {
+    public ProtocolMessageType getType() {
         return ERROR;
     }
 

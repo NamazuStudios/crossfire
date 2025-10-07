@@ -1,11 +1,11 @@
 package dev.getelements.elements.crossfire.model.handshake;
 
+import dev.getelements.elements.crossfire.model.ProtocolMessageType;
 import dev.getelements.elements.crossfire.model.Version;
 import dev.getelements.elements.sdk.annotation.ElementPublic;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
 
-import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.JOIN;
+import static dev.getelements.elements.crossfire.model.ProtocolMessageType.JOIN;
 
 /**
  * Requets to join an existing match in the Elements Crossfire protocol. This is used when the player already has
@@ -30,7 +30,7 @@ public class JoinHandshakeRequest implements HandshakeRequest {
     private String matchId;
 
     @Override
-    public Type getType() {
+    public ProtocolMessageType getType() {
         return JOIN;
     }
 

@@ -1,11 +1,11 @@
 package dev.getelements.elements.crossfire.model.handshake;
 
+import dev.getelements.elements.crossfire.model.ProtocolMessageType;
 import dev.getelements.elements.crossfire.model.Version;
 import dev.getelements.elements.sdk.annotation.ElementPublic;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
 
-import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.FIND;
+import static dev.getelements.elements.crossfire.model.ProtocolMessageType.FIND;
 
 /**
  * A handshake request for finding a match in the Elements Crossfire protocol. This is used when the player does not
@@ -36,7 +36,7 @@ public class FindHandshakeRequest implements HandshakeRequest {
     }
 
     @Override
-    public Type getType() {
+    public ProtocolMessageType getType() {
         return FIND;
     }
 

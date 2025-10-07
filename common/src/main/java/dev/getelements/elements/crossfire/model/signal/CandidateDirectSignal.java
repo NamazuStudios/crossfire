@@ -1,9 +1,10 @@
 package dev.getelements.elements.crossfire.model.signal;
 
+import dev.getelements.elements.crossfire.model.ProtocolMessageType;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
-import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.CANDIDATE;
+import static dev.getelements.elements.crossfire.model.ProtocolMessageType.CANDIDATE;
 
 /**
  * A direct signal that contains a candidate for establishing a peer-to-peer connection. The candidate is typically an
@@ -29,7 +30,7 @@ public class CandidateDirectSignal implements DirectSignal {
     private int midIndex;
 
     @Override
-    public Type getType() {
+    public ProtocolMessageType getType() {
         return CANDIDATE;
     }
 

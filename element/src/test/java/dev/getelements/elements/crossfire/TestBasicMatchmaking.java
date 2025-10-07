@@ -41,7 +41,7 @@ import java.util.stream.Stream;
 import static dev.getelements.elements.crossfire.client.Crossfire.Mode.SIGNALING_CLIENT;
 import static dev.getelements.elements.crossfire.client.Crossfire.Mode.SIGNALING_HOST;
 import static dev.getelements.elements.crossfire.client.Peer.SendResult.SENT;
-import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.MATCHED;
+import static dev.getelements.elements.crossfire.model.ProtocolMessageType.MATCHED;
 import static dev.getelements.elements.sdk.model.user.User.Level.USER;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;

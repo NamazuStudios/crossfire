@@ -1,9 +1,10 @@
 package dev.getelements.elements.crossfire.model.handshake;
 
+import dev.getelements.elements.crossfire.model.ProtocolMessageType;
 import dev.getelements.elements.sdk.annotation.ElementPublic;
 import jakarta.validation.constraints.NotNull;
 
-import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.MATCHED;
+import static dev.getelements.elements.crossfire.model.ProtocolMessageType.MATCHED;
 
 /**
  * Indicates that the client has successfully connected to a matched. This response includes the assigned match ID.
@@ -27,7 +28,7 @@ public class MatchedResponse implements HandshakeResponse {
     }
 
     @Override
-    public Type getType() {
+    public ProtocolMessageType getType() {
         return MATCHED;
     }
 

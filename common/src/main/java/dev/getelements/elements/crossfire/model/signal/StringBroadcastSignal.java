@@ -1,8 +1,9 @@
 package dev.getelements.elements.crossfire.model.signal;
 
+import dev.getelements.elements.crossfire.model.ProtocolMessageType;
 import jakarta.validation.constraints.NotNull;
 
-import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.STRING_BROADCAST;
+import static dev.getelements.elements.crossfire.model.ProtocolMessageType.STRING_BROADCAST;
 
 /**
  * A simple implementation of a broadcast signal that carries a string payload. This signal can be used to send text
@@ -40,7 +41,7 @@ public class StringBroadcastSignal implements BroadcastSignal {
     }
 
     @Override
-    public Type getType() {
+    public ProtocolMessageType getType() {
         return STRING_BROADCAST;
     }
 

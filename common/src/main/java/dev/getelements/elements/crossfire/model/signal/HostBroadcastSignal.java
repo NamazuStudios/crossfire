@@ -1,8 +1,9 @@
 package dev.getelements.elements.crossfire.model.signal;
 
+import dev.getelements.elements.crossfire.model.ProtocolMessageType;
 import jakarta.validation.constraints.NotNull;
 
-import static dev.getelements.elements.crossfire.model.ProtocolMessage.Type.HOST;
+import static dev.getelements.elements.crossfire.model.ProtocolMessageType.HOST;
 import static dev.getelements.elements.crossfire.model.signal.SignalLifecycle.SESSION;
 
 /**
@@ -15,7 +16,7 @@ public class HostBroadcastSignal implements BroadcastSignal {
     private String profileId;
 
     @Override
-    public Type getType() {
+    public ProtocolMessageType getType() {
         return HOST;
     }
 
