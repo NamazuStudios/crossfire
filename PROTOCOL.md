@@ -6,6 +6,20 @@ It provides a set of messages and operations which can be used to facilitate mat
 
 **Note:** At the time of this writing, the only supported protocol version is 1.0. The server uses the literal string `V_1_0` to indicate this version. See [Version.java](common/src/main/java/dev/getelements/elements/crossfire/model/Version.java)
 
+## Operational Overview
+
+The Crossfire Protocol operates over a single WebSocket connection between the client and the server. The client initiates the connection and performs a handshake to authenticate and establish the session. Once the handshake is complete, the client can send and receive messages to participate in matchmaking and game sessions.
+
+From the client's perspective, the protocol has three major phases:
+* **Handshake Phase** - The client establishes a WebSocket connection to the server and performs a handshake to authenticate and establish the session. The client MUST send one and only one handshake request, and the server MUST respond with one and only one handshake response. Only after successful doses the protocol transition to the signaling phase. The server MUST NOT accept any other messages at this time..
+* **Signaling Phase** - The client sends and receives signaling messages to facilitate matchmaking and game session management. This also includes the exchange of control messages as well as signaling messages. The server MUST accept any valid messages during this phase. Any non-recoverable errors MUST result in a ProtocolError and termination of the session.
+* **Termination Phase** - The server will neither accept nor forward any messages. The server MAY silently ignore messages in this phase but MAY log them for debugging purposes. The server MUST close the WebSocket connection as soon as possible after entering this phase.
+
+As an implementation detail, the server has an additional phases which are not visible to the client and are used for internal state management.
+
+**Sources:**
+* [ConnectionPhase.java](element/src/main/java/dev/getelements/elements/crossfire/protocol/ConnectionPhase.java)
+
 # Message Categories and Types
 
 All communication in the Crossfire protocol is done through WebSocket messages. Each message is a JSON object with a `type` field that indicates the specific message function and messages are divided into general categories for different functionalities.
@@ -195,8 +209,7 @@ The `BINARY_BROADCAST` and `STRING_BROADCAST` are functionally similar signals w
 
 ## Control Messages
 
-Control messages are used to manage the state of the match and its participants. Some control messages may be sent only
-by the host participant while others may be sent by any participant. The server MUST enforce the rules associated with each control message. Unlike signals, the server MUST NOT relay these messages to any other player. The server MUST process the control message and take appropriate action which MAY involve driving other signals.
+Control messages are used to manage the state of the match and its participants. Some control messages may be sent only by the host participant while others may be sent by any participant. The server MUST enforce the rules associated with each control message. Unlike signals, the server MUST NOT relay these messages to any other player. The server MUST process the control message and take appropriate action which MAY involve driving other signals.
 
 * `profileId` - **Required.** The profile ID of the originator of the control operation.
 
@@ -256,8 +269,6 @@ The `ERROR` message contains the following fields in addition to the base protoc
 This is a work in progress and not a complete specification. The protocol may evolve over time as new features are added and existing features are refined. The goal is to provide a robust and flexible protocol that can be used to facilitate cross-platform matchmaking and real-time communication in a variety of gaming scenarios.
 
 Known limitations:
-* There is not currently a system of control messages. Control messages include the ability to close the match, remove participants, or change match settings. These features may and will very likely be added in the future.
-* There is no built in authentication or encryption. It is assumed that the WebSocket connection is established over a secure channel (wss://) and that the session key provided during the handshake is sufficient for authentication. Future versions may include additional security features.
 * Additional matchmaking systems that establish internet connectivity outside of WebRTC are not natively supported. It would be possible to build such a system on top of the existing protocol using the relay signals but it is not a first class feature of the protocol at this time. It may make sense to add signaling types to include support for such matchmaking and NAT traversal systems.
 
 For additional features, suggestions, and enhancements feel free to open a ticket or a pull request.

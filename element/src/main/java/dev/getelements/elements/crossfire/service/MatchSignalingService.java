@@ -7,6 +7,7 @@ import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.annotation.ElementPublic;
 import dev.getelements.elements.sdk.annotation.ElementServiceExport;
 
+import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
@@ -15,6 +16,13 @@ import java.util.function.Consumer;
 @ElementPublic
 @ElementServiceExport
 public interface MatchSignalingService {
+
+    /**
+     * Gets the host for the match.
+     *
+     * @return the host profile ID, or null if no host is assigned.
+     */
+    Optional<String> findHost();
 
     /**
      * Sends the signal to the match.

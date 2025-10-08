@@ -8,6 +8,8 @@ import jakarta.inject.Provider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static dev.getelements.elements.sdk.model.match.MultiMatchStatus.ENDED;
+
 public abstract class StandardCancelableMatchHandle<RequestT extends HandshakeRequest> extends AbstractMatchHandle<RequestT> {
 
     private static final Logger logger = LoggerFactory.getLogger(StandardCancelableMatchHandle.class);
@@ -52,6 +54,27 @@ public abstract class StandardCancelableMatchHandle<RequestT extends HandshakeRe
         } else {
             logger.info("Terminating match for request: {}", getRequest());
         }
+
+    }
+
+    @Override
+    protected void onEnd(final CancelableMatchStateRecord<RequestT> state) {
+        try (var txn = getTransactionProvider().get()) {
+            final var dao = txn.getDao(MultiMatchDao.class);
+            final var match = dao.getMultiMatch(state.result().getId());
+            match.setStatus(ENDED);
+            dao.updateMultiMatch(match);
+            txn.commit();
+        }
+    }
+
+    @Override
+    protected void onOpen(final CancelableMatchStateRecord<RequestT> state) {
+        
+    }
+
+    @Override
+    protected void onMatching(final CancelableMatchStateRecord<RequestT> state) {
 
     }
 

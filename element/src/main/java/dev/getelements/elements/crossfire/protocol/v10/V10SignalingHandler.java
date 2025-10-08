@@ -1,10 +1,12 @@
 package dev.getelements.elements.crossfire.protocol.v10;
 
+import dev.getelements.elements.crossfire.model.control.ControlMessage;
 import dev.getelements.elements.crossfire.model.error.ProtocolStateException;
 import dev.getelements.elements.crossfire.model.signal.BroadcastSignal;
 import dev.getelements.elements.crossfire.model.signal.DirectSignal;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler;
 import dev.getelements.elements.crossfire.protocol.SignalingHandler;
+import dev.getelements.elements.crossfire.service.ControlService;
 import dev.getelements.elements.crossfire.service.MatchSignalingService;
 import jakarta.inject.Inject;
 import jakarta.websocket.Session;
@@ -18,6 +20,8 @@ import static dev.getelements.elements.crossfire.protocol.v10.V10SignalingState.
 public class V10SignalingHandler implements SignalingHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(V10SignalingHandler.class);
+
+    private ControlService controlService;
 
     private MatchSignalingService matchSignalingService;
 
@@ -97,6 +101,31 @@ public class V10SignalingHandler implements SignalingHandler {
             default -> throw new ProtocolStateException("Unexpected state: " + state.phase());
         }
 
+    }
+
+    @Override
+    public void onMessageControl(
+            final ProtocolMessageHandler handler,
+            final Session session,
+            final ControlMessage message) {
+
+        final var state = this.state.get();
+
+        switch (state.phase()) {
+            case SIGNALING -> getControlService().process(state.match(), state.auth(), message);
+            case TERMINATED -> logger.debug("Dropping message. Signaling terminated.");
+            default -> throw new ProtocolStateException("Unexpected state: " + state.phase());
+        }
+
+    }
+
+    public ControlService getControlService() {
+        return controlService;
+    }
+
+    @Inject
+    public void setControlService(final ControlService controlService) {
+        this.controlService = controlService;
     }
 
     public MatchSignalingService getMatchSignalingService() {

@@ -58,7 +58,7 @@ public abstract class AbstractMatchHandle<RequestT extends HandshakeRequest> imp
 
         switch (state.phase()) {
 
-            case MATCHING -> {
+            case MATCHED, MATCHING -> {
                 logger.debug("Starting matchmaking algorithm for request: {}", request);
                 onTerminated(state);
             }
@@ -67,6 +67,30 @@ public abstract class AbstractMatchHandle<RequestT extends HandshakeRequest> imp
 
             default -> throw new ProtocolStateException("Unknown phase: " + state.phase());
 
+        }
+
+    }
+
+    @Override
+    public void end() {
+
+        final var state = this.state.getAndSet(create());
+
+        switch (state.phase()) {
+            case MATCHED -> onEnd(state);
+            default -> throw new ProtocolStateException("Unknown phase: " + state.phase());
+        }
+
+    }
+
+    @Override
+    public void open() {
+
+        final var state = this.state.getAndSet(create());
+
+        switch (state.phase()) {
+            case MATCHED -> onOpen(state);
+            default -> throw new ProtocolStateException("Unknown phase: " + state.phase());
         }
 
     }
@@ -105,6 +129,10 @@ public abstract class AbstractMatchHandle<RequestT extends HandshakeRequest> imp
     public MatchmakingAlgorithm getAlgorithm() {
         return algorithm;
     }
+
+    protected abstract void onEnd(CancelableMatchStateRecord<RequestT> state);
+
+    protected abstract void onOpen(CancelableMatchStateRecord<RequestT> state);
 
     protected abstract void onMatching(CancelableMatchStateRecord<RequestT> state);
 

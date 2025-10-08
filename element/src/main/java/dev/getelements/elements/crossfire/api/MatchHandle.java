@@ -23,6 +23,22 @@ public interface MatchHandle<RequestT extends HandshakeRequest> {
     void start();
 
     /**
+     * Ends the matchmaking algorithm, indicating that the player is no longer interested in being matched. This does
+     * not
+     */
+    void end();
+
+    /**
+     * Opens the match indicating that the match is open and ready to accept players.
+     */
+    void open();
+
+    /**
+     * Closes the match indicating that the match is no longer accepting players until it is reopened.
+     */
+    void close();
+
+    /**
      * Cancels the matchmaking algorithm removing the player from the matchmaking queue.
      */
     void leave();
@@ -58,5 +74,4 @@ public interface MatchHandle<RequestT extends HandshakeRequest> {
      * @return the matchmaking algorithm
      */
     MatchmakingAlgorithm getAlgorithm();
-
 }

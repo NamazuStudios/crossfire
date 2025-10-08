@@ -18,7 +18,6 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
-import static dev.getelements.elements.crossfire.model.signal.SignalLifecycle.SESSION;
 import static java.util.Objects.requireNonNull;
 
 public class MemoryMatchState {

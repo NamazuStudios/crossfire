@@ -15,6 +15,7 @@ import jakarta.inject.Named;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Consumer;
@@ -33,6 +34,11 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
     private int maxBacklogSize;
 
     private MultiMatchDao mongoMultiMatchDao;
+
+    @Override
+    public Optional<String> findHost() {
+        return Optional.empty();
+    }
 
     @Override
     public void send(final String matchId, final BroadcastSignal signal) {
