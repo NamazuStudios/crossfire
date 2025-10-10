@@ -8,35 +8,42 @@ import java.util.Optional;
 
 /**
  * Represents a handle for a matchmaking process, allowing you to start, leave, and retrieve the result of the match.
- * Consider this the live connection to the match which must be closed out when the connection fails or the match is no
- * longer needed.
+ * Since the matchmaking process may enforce specific rules for how the match is managed, the implementation of this
+ * provides hooks for managing the lifecycle of the match.
  *
  * @param <RequestT> the type of handshake request used to initiate the matchmaking process
  */
 public interface MatchHandle<RequestT extends HandshakeRequest> {
 
     /**
+     * Gets the matchmaking algorithm used to make this match.
+     *
+     * @return the matchmaking algorithm
+     */
+    MatchmakingAlgorithm getAlgorithm();
+
+    /**
      * Starts the matchmaking algorithm. Note that this method is non-blocking and returns immediately and does not
      * write to the database or perform any blocking operations. At some point in the future, the match will transition
      * to a new state, which can be observed by calling {@link #getResult()}.
      */
-    void start();
+    void startMatcing();
 
     /**
      * Ends the matchmaking algorithm, indicating that the player is no longer interested in being matched. This does
-     * not
+     * not.
      */
-    void end();
+    void endMatch();
 
     /**
      * Opens the match indicating that the match is open and ready to accept players.
      */
-    void open();
+    void openMatch();
 
     /**
      * Closes the match indicating that the match is no longer accepting players until it is reopened.
      */
-    void close();
+    void closeMatch();
 
     /**
      * Cancels the matchmaking algorithm removing the player from the matchmaking queue.
@@ -68,10 +75,4 @@ public interface MatchHandle<RequestT extends HandshakeRequest> {
      */
     MatchmakingRequest<RequestT> getRequest();
 
-    /**
-     * Gets the matchmaking algorithm used to make this match.
-     *
-     * @return the matchmaking algorithm
-     */
-    MatchmakingAlgorithm getAlgorithm();
 }

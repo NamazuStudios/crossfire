@@ -208,7 +208,7 @@ public class V10HandshakeHandler implements HandshakeHandler {
         final var state = this.state.updateAndGet(s -> s.matching(matchHandle));
 
         switch (state.phase()) {
-            case MATCHING -> matchHandle.start();
+            case MATCHING -> matchHandle.startMatcing();
             case TERMINATED -> state.leave();
             default -> throw new ProtocolStateException("Unexpected handshake state: " + state.phase());
         }

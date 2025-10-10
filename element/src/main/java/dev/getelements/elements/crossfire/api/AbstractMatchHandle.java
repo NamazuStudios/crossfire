@@ -32,21 +32,14 @@ public abstract class AbstractMatchHandle<RequestT extends HandshakeRequest> imp
     }
 
     @Override
-    public void start() {
+    public void startMatcing() {
 
         final var state = this.state.updateAndGet(CancelableMatchStateRecord::matching);
 
         switch (state.phase()) {
-
-            case MATCHING -> {
-                logger.debug("Starting matchmaking algorithm for request: {}", request);
-                onMatching(state);
-            }
-
-            case TERMINATED -> logger.debug("Terminating matchmaking algorithm for request: {}", request);
-
+            case MATCHING -> onMatching(state);
+            case TERMINATED -> logger.debug("Can't start. Match was previously terminated: {}", request);
             default -> throw new ProtocolStateException("Unknown phase: " + state.phase());
-
         }
 
     }
@@ -54,42 +47,51 @@ public abstract class AbstractMatchHandle<RequestT extends HandshakeRequest> imp
     @Override
     public void leave() {
 
-        final var state = this.state.updateAndGet(CancelableMatchStateRecord::terminate);
+        final var state = this.state.getAndUpdate(CancelableMatchStateRecord::terminate);
 
         switch (state.phase()) {
-
-            case MATCHED, MATCHING -> {
-                logger.debug("Starting matchmaking algorithm for request: {}", request);
-                onTerminated(state);
-            }
-
-            case TERMINATED -> logger.debug("Terminating matchmaking algorithm for request: {}", request);
-
-            default -> throw new ProtocolStateException("Unknown phase: " + state.phase());
-
-        }
-
-    }
-
-    @Override
-    public void end() {
-
-        final var state = this.state.getAndSet(create());
-
-        switch (state.phase()) {
-            case MATCHED -> onEnd(state);
+            case MATCHED -> onLeaveMatch(state);
+            case MATCHING -> onTerminated(state);
+            case TERMINATED -> logger.debug("Match handle closed. Cannot leave match: {}", request);
             default -> throw new ProtocolStateException("Unknown phase: " + state.phase());
         }
 
     }
 
     @Override
-    public void open() {
+    public void endMatch() {
 
-        final var state = this.state.getAndSet(create());
+        final var state = this.state.get();
 
         switch (state.phase()) {
-            case MATCHED -> onOpen(state);
+            case MATCHED -> onEndMatch(state);
+            case TERMINATED -> logger.debug("Match handle closed. Cannot end match: {}", request);
+            default -> throw new ProtocolStateException("Unknown phase: " + state.phase());
+        }
+
+    }
+
+    @Override
+    public void openMatch() {
+
+        final var state = this.state.get();
+
+        switch (state.phase()) {
+            case MATCHED -> onOpenMatch(state);
+            case TERMINATED -> logger.debug("Match handle closed. Cannot open match: {}", request);
+            default -> throw new ProtocolStateException("Unknown phase: " + state.phase());
+        }
+
+    }
+
+    @Override
+    public void closeMatch() {
+
+        final var state = this.state.get();
+
+        switch (state.phase()) {
+            case MATCHED -> onCloseMatch(state);
+            case TERMINATED -> logger.debug("Match handle closed. Cannot close match: {}", request);
             default -> throw new ProtocolStateException("Unknown phase: " + state.phase());
         }
 
@@ -130,14 +132,54 @@ public abstract class AbstractMatchHandle<RequestT extends HandshakeRequest> imp
         return algorithm;
     }
 
-    protected abstract void onEnd(CancelableMatchStateRecord<RequestT> state);
+    /**
+     * Called to open the match.
+     *
+     * @param state the state result as part of the operation
+     */
+    protected abstract void onOpenMatch(CancelableMatchStateRecord<RequestT> state);
 
-    protected abstract void onOpen(CancelableMatchStateRecord<RequestT> state);
+    /**
+     * Called to close the match.
+     *
+     * @param state the state result as part of the operation
+     * */
+    protected abstract void onCloseMatch(CancelableMatchStateRecord<RequestT> state);
 
+    /**
+     * Called to end the match.
+     *
+     * @param state the state result as part of the operation
+     */
+    protected abstract void onEndMatch(CancelableMatchStateRecord<RequestT> state);
+
+    /**
+     * Called when matching has started.
+     *
+     * @param state the state result as part of the operation
+     */
     protected abstract void onMatching(CancelableMatchStateRecord<RequestT> state);
 
+    /**
+     * Called when the match has matching has been terminated and the player has left the queue.
+     *
+     * @param state the state result as part of the operation
+     */
+    protected abstract void onLeaveMatch(CancelableMatchStateRecord<RequestT> state);
+
+    /**
+     * Called when the match has matching has been terminated.
+     *
+     * @param state the state result as part of the operation
+     */
     protected abstract void onTerminated(CancelableMatchStateRecord<RequestT> state);
 
+    /**
+     * Called when the match has been made.
+     *
+     * @param state the state result as part of the operation
+     * @param result the resulting {@link MultiMatch}
+     */
     protected abstract void onResult(CancelableMatchStateRecord<RequestT> state, MultiMatch result);
 
 }

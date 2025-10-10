@@ -135,6 +135,16 @@ All signals contain a lifecycle which indicates long the server should retain th
 
 The `SIGNAL_JOIN` signal is used to notify participants in a match that a new participant has joined the match. The server MUST send a `SIGNAL_JOIN` signal to all participants in the match except the originator when a new participant joins the match. The `SIGNAL_JOIN` signal contains the base broadcast signal fields indicating the player has joined.
 
+**Sources**:
+* [JoinBroadcastSignal.java](common/src/main/java/dev/getelements/elements/crossfire/model/signal/JoinBroadcastSignal.java)
+
+### `SIGNAL_LEAVE` (Server Only)
+
+The `SIGNAL_LEAVE` signal is used to notify participants in a match that a participant has left the match. The server MUST send a `SIGNAL_LEAVE` signal to all participants in the match except the originator when a participant leaves the match. The `SIGNAL_LEAVE` signal contains the base broadcast signal fields indicating the player has joined.
+
+**Sources**:
+* [LeaveBroadcastSignal.java](common/src/main/java/dev/getelements/elements/crossfire/model/signal/LeaveBroadcastSignal.java)
+
 ### `CONNECT` (Server Only)
 
 The `CONNECT` signal is used to notify participants in a match that a new participant has connected to the match. The server MUST send a `CONNECT` signal to all participants in the match except the originator when a new participant joins the match when the participant establishes a connection and successful `HANDSHAKE`.

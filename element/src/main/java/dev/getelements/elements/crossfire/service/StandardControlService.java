@@ -28,19 +28,19 @@ public class StandardControlService implements ControlService {
     private void onMessageEnd(final ProtocolMessageHandler.MultiMatchRecord match,
                               final ProtocolMessageHandler.AuthRecord auth,
                               final EndControlMessage message) {
-        match.matchHandle().end();
+        match.matchHandle().endMatch();
     }
 
     private void onMessageOpen(final ProtocolMessageHandler.MultiMatchRecord match,
                                final ProtocolMessageHandler.AuthRecord auth,
                                final OpenControlMessage message) {
-        match.matchHandle().open();
+        match.matchHandle().openMatch();
     }
 
     private void onMessageClose(final ProtocolMessageHandler.MultiMatchRecord match,
                                 final ProtocolMessageHandler.AuthRecord auth,
                                 final CloseControlMessage message) {
-        match.matchHandle().close();
+        match.matchHandle().closeMatch();
     }
 
     private void onMessageLeave(final ProtocolMessageHandler.MultiMatchRecord match,

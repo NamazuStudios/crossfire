@@ -8,8 +8,6 @@ import jakarta.inject.Provider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static dev.getelements.elements.sdk.model.match.MultiMatchStatus.ENDED;
-
 public abstract class StandardCancelableMatchHandle<RequestT extends HandshakeRequest> extends AbstractMatchHandle<RequestT> {
 
     private static final Logger logger = LoggerFactory.getLogger(StandardCancelableMatchHandle.class);
@@ -58,24 +56,31 @@ public abstract class StandardCancelableMatchHandle<RequestT extends HandshakeRe
     }
 
     @Override
-    protected void onEnd(final CancelableMatchStateRecord<RequestT> state) {
-        try (var txn = getTransactionProvider().get()) {
+    protected void onEndMatch(final CancelableMatchStateRecord<RequestT> state) {
+        getTransactionProvider().get().performAndCloseV(txn -> {
             final var dao = txn.getDao(MultiMatchDao.class);
             final var match = dao.getMultiMatch(state.result().getId());
-            match.setStatus(ENDED);
-            dao.updateMultiMatch(match);
-            txn.commit();
-        }
+            dao.endMatch(match.getId());
+        });
     }
 
     @Override
-    protected void onOpen(final CancelableMatchStateRecord<RequestT> state) {
-        
+    protected void onCloseMatch(CancelableMatchStateRecord<RequestT> state) {
+
     }
 
     @Override
-    protected void onMatching(final CancelableMatchStateRecord<RequestT> state) {
+    protected void onLeaveMatch(CancelableMatchStateRecord<RequestT> state) {
 
+    }
+
+    @Override
+    protected void onOpenMatch(final CancelableMatchStateRecord<RequestT> state) {
+        getTransactionProvider().get().performAndCloseV(txn -> {
+            final var dao = txn.getDao(MultiMatchDao.class);
+            final var match = dao.getMultiMatch(state.result().getId());
+            dao.openMatch(match.getId());
+        });
     }
 
     @Override
