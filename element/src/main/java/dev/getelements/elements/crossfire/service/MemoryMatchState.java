@@ -66,6 +66,10 @@ public class MemoryMatchState {
         return memoryMatchBacklog.join(profileId);
     }
 
+    public boolean leave(final String profileId) {
+        return memoryMatchBacklog.leave(profileId);
+    }
+
     public Subscription connect(
             final String profileId,
             final Consumer<ProtocolMessage> onMessage,
@@ -216,6 +220,16 @@ public class MemoryMatchState {
 
                 return state.subscribe(onMessage, onError);
 
+            }
+
+        }
+
+        public boolean leave(final String profileId) {
+
+            requireNonNull(profileId, "profileId cannot be null");
+
+            try (var mon = Monitor.enter(write)) {
+                return sessionStates.remove(profileId) != null;
             }
 
         }

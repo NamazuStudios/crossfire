@@ -73,7 +73,7 @@ public interface MatchSignalingService {
      * @param matchId the match id
      * @param profileId the profile id
      */
-    void leave(String matchId, String profileId);
+    boolean leave(String matchId, String profileId);
 
     /**
      * Assigns a host to matches that do not have one. This assigns a host arbitrarily. If a host is already present

@@ -127,8 +127,9 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
     }
 
     @Override
-    public void leave(final String matchId, final String profileId) {
-        throw new UnsupportedOperationException();
+    public boolean leave(final String matchId, final String profileId) {
+        final var state = matches.get(matchId);
+        return state != null && state.leave(profileId);
     }
 
     @Override
