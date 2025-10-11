@@ -86,7 +86,21 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
 
     @Override
     public boolean join(final String matchId, final String profileId) {
-        throw new UnsupportedOperationException();
+
+        final var match = getMongoMultiMatchDao().getMultiMatch(matchId);
+        final var profiles = getMongoMultiMatchDao().getProfiles(match.getId());
+
+        final var exists = profiles
+                .stream()
+                .anyMatch(p -> p.getId().equals(profileId));
+
+        if (!exists)
+            throw new ForbiddenException("Profile " + profileId + " is not part of match " + matchId);
+
+        return matches
+                .computeIfAbsent(match.getId(), mid -> new MemoryMatchState(getMaxBacklogSize()))
+                .join(profileId);
+
     }
 
     @Override
@@ -108,7 +122,7 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
 
         return matches
                 .computeIfAbsent(match.getId(), mid -> new MemoryMatchState(getMaxBacklogSize()))
-                .join(profileId, onMessage, onError);
+                .connect(profileId, onMessage, onError);
 
     }
 

@@ -62,11 +62,15 @@ public class MemoryMatchState {
         memoryMatchBacklog.error(th);
     }
 
-    public Subscription join(
+    public boolean join(final String profileId) {
+        return memoryMatchBacklog.join(profileId);
+    }
+
+    public Subscription connect(
             final String profileId,
             final Consumer<ProtocolMessage> onMessage,
             final Consumer<Throwable> onError) {
-        return memoryMatchBacklog.join(
+        return memoryMatchBacklog.connect(
                 profileId,
                 onMessage,
                 onError
@@ -158,16 +162,36 @@ public class MemoryMatchState {
             }
         }
 
-        public Subscription join(
+        public boolean join(final String profileId) {
+
+            requireNonNull(profileId, "profileId cannot be null");
+
+            try (final var mon = Monitor.enter(write)) {
+
+                var state = sessionStates.get(profileId);
+
+                if (state == null) {
+                    state = new SessionState(profileId);
+                    sessionStates.put(profileId, state);
+                    return true;
+                } else {
+                    return false;
+                }
+
+            }
+
+        }
+
+        public Subscription connect(
                 final String profileId,
                 final Consumer<ProtocolMessage> onMessage,
                 final Consumer<Throwable> onError) {
 
-            try (var mon = Monitor.enter(write)) {
+            requireNonNull(onError, "onError cannot be null");
+            requireNonNull(onMessage, "onMessage cannot be null");
+            requireNonNull(profileId, "profileId cannot be null");
 
-                requireNonNull(onError, "onError cannot be null");
-                requireNonNull(onMessage, "onMessage cannot be null");
-                requireNonNull(profileId, "profileId cannot be null");
+            try (var mon = Monitor.enter(write)) {
 
                 final var state = sessionStates.computeIfAbsent(profileId, SessionState::new);
 
@@ -213,10 +237,12 @@ public class MemoryMatchState {
 
             private SessionState(final String profileId) {
                 this.profileId = requireNonNull(profileId, "profileId cannot be null");
-                final var connect = new ConnectBroadcastSignal();
-                connect.setProfileId(profileId);
-                append(connect);
-                doPublish(connect);
+
+                final var join = new JoinBroadcastSignal();
+                join.setProfileId(profileId);
+                append(join);
+                doPublish(join);
+
             }
 
             public String getProfileId() {
