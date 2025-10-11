@@ -145,6 +145,13 @@ The `SIGNAL_LEAVE` signal is used to notify participants in a match that a parti
 **Sources**:
 * [LeaveBroadcastSignal.java](common/src/main/java/dev/getelements/elements/crossfire/model/signal/LeaveBroadcastSignal.java)
 
+### `SIGNAL_END` (Server Only)
+
+The `SIGNAL_LEAVE` signal is used to notify participants in a match that a participant has left the match. The server MUST send a `SIGNAL_LEAVE` signal to all participants in the match except the originator when a participant leaves the match. The `SIGNAL_LEAVE` signal contains the base broadcast signal fields indicating the player has joined.
+
+**Sources**:
+* [LeaveBroadcastSignal.java](common/src/main/java/dev/getelements/elements/crossfire/model/signal/LeaveBroadcastSignal.java)
+
 ### `CONNECT` (Server Only)
 
 The `CONNECT` signal is used to notify participants in a match that a new participant has connected to the match. The server MUST send a `CONNECT` signal to all participants in the match except the originator when a new participant joins the match when the participant establishes a connection and successful `HANDSHAKE`.

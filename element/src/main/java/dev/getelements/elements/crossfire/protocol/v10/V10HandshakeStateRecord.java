@@ -80,7 +80,7 @@ record V10HandshakeStateRecord(
 
     public void leave() {
         if (pending() != null) {
-            pending().leave();
+            pending().leaveMatch();
         }
     }
 

@@ -45,7 +45,7 @@ public abstract class AbstractMatchHandle<RequestT extends HandshakeRequest> imp
     }
 
     @Override
-    public void leave() {
+    public void leaveMatch() {
 
         final var state = this.state.getAndUpdate(CancelableMatchStateRecord::terminate);
 
@@ -97,7 +97,30 @@ public abstract class AbstractMatchHandle<RequestT extends HandshakeRequest> imp
 
     }
 
-    protected CancelableMatchStateRecord<RequestT> result(final MultiMatch result) {
+    @Override
+    public Optional<MultiMatch> findResult() {
+        return Optional.of(state.get().result());
+    }
+
+    @Override
+    public MatchmakingRequest<RequestT> getRequest() {
+        return request;
+    }
+
+    @Override
+    public MatchmakingAlgorithm getAlgorithm() {
+        return algorithm;
+    }
+
+    /**
+     * Sets the result of the matchmaking process. This transitions the state to {@link MatchPhase#MATCHED}. Intended
+     * to be called by subclasses when a match is found to accurately handle state transitions. It is not recommended to
+     * override this method.
+     *
+     * @param result the result
+     * @return the {@link CancelableMatchStateRecord} after the update
+     */
+    protected CancelableMatchStateRecord<RequestT> setResult(final MultiMatch result) {
 
         final var state = this.state.updateAndGet(s -> s.matched(result));
 
@@ -115,21 +138,6 @@ public abstract class AbstractMatchHandle<RequestT extends HandshakeRequest> imp
 
         return state;
 
-    }
-
-    @Override
-    public Optional<MultiMatch> findResult() {
-        return Optional.of(state.get().result());
-    }
-
-    @Override
-    public MatchmakingRequest<RequestT> getRequest() {
-        return request;
-    }
-
-    @Override
-    public MatchmakingAlgorithm getAlgorithm() {
-        return algorithm;
     }
 
     /**
@@ -172,7 +180,9 @@ public abstract class AbstractMatchHandle<RequestT extends HandshakeRequest> imp
      *
      * @param state the state result as part of the operation
      */
-    protected abstract void onTerminated(CancelableMatchStateRecord<RequestT> state);
+    protected void onTerminated(final CancelableMatchStateRecord<RequestT> state) {
+        logger.debug("Terminating matchmaking for request: {}", request);
+    }
 
     /**
      * Called when the match has been made.

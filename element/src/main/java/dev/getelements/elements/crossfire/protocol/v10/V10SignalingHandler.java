@@ -8,12 +8,15 @@ import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler;
 import dev.getelements.elements.crossfire.protocol.SignalingHandler;
 import dev.getelements.elements.crossfire.service.ControlService;
 import dev.getelements.elements.crossfire.service.MatchSignalingService;
+import dev.getelements.elements.sdk.model.exception.ForbiddenException;
 import jakarta.inject.Inject;
 import jakarta.websocket.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 import static dev.getelements.elements.crossfire.protocol.v10.V10SignalingState.create;
 
@@ -37,7 +40,13 @@ public class V10SignalingHandler implements SignalingHandler {
         final var matchId = match.getId();
         final var profileId = auth.profile().getId();
 
-        final var subscription = getMatchSignalingService().join(
+        if (getMatchSignalingService().join(matchId, profileId)) {
+            logger.debug("Joined match {}", matchId);
+        } else {
+            logger.debug("Already in match {}", matchId);
+        }
+
+        final var subscription = getMatchSignalingService().connect(
                 matchId,
                 profileId,
                 m -> session.getAsyncRemote().sendObject(m),
@@ -78,6 +87,7 @@ public class V10SignalingHandler implements SignalingHandler {
             final BroadcastSignal signal) {
 
         final var state = this.state.get();
+        checkAuth(signal::getProfileId);
 
         switch (state.phase()) {
             case SIGNALING -> getMatchSignalingService().send(state.match().getId(), signal);
@@ -94,6 +104,7 @@ public class V10SignalingHandler implements SignalingHandler {
             final DirectSignal signal) {
 
         final var state = this.state.get();
+        checkAuth(signal::getProfileId);
 
         switch (state.phase()) {
             case SIGNALING -> getMatchSignalingService().send(state.match().getId(), signal);
@@ -110,11 +121,23 @@ public class V10SignalingHandler implements SignalingHandler {
             final ControlMessage message) {
 
         final var state = this.state.get();
+        checkAuth(message::getProfileId);
 
         switch (state.phase()) {
             case SIGNALING -> getControlService().process(state.match(), state.auth(), message);
             case TERMINATED -> logger.debug("Dropping message. Signaling terminated.");
             default -> throw new ProtocolStateException("Unexpected state: " + state.phase());
+        }
+
+    }
+
+    private void checkAuth(final Supplier<String> profileIdSupplier) {
+
+        final var authProfileId = state.get().auth().profile().getId();
+        final var senderProfileId = profileIdSupplier.get();
+
+        if (!Objects.equals(authProfileId, senderProfileId)) {
+            throw new ForbiddenException();
         }
 
     }

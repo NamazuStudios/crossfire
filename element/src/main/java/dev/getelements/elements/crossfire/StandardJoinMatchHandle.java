@@ -38,7 +38,7 @@ public class StandardJoinMatchHandle extends StandardCancelableMatchHandle<JoinH
                     )
                     .orElseThrow(MultiMatchNotFoundException::new);
 
-            result(result);
+            setResult(result);
 
         }
     }

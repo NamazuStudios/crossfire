@@ -23,55 +23,41 @@ public abstract class StandardCancelableMatchHandle<RequestT extends HandshakeRe
     }
 
     @Override
-    protected void onTerminated(final CancelableMatchStateRecord<RequestT> state) {
-        getRequest().getProtocolMessageHandler().submit(() -> doTerminate(state));
-    }
-
-    private void doTerminate(final CancelableMatchStateRecord<RequestT> state) {
-
-        if (state.result() != null) {
-
-            logger.info("Terminating match: {}", state.result().getId());
-
-            try (final var transaction = getTransactionProvider().get()) {
-
-                final var dao = transaction.getDao(MultiMatchDao.class);
-                dao.removeProfile(state.result().getId(), getRequest().getProfile());
-
-                final var profiles = dao.getProfiles(state.result().getId());
-
-                if (profiles.isEmpty()) {
-                    logger.info("Removing match: {} as it has no profiles left", state.result().getId());
-                    dao.deleteMultiMatch(state.result().getId());
-                } else {
-                    logger.info("Match {} still has profiles, not removing", state.result().getId());
-                }
-
-            }
-
-        } else {
-            logger.info("Terminating match for request: {}", getRequest());
-        }
-
-    }
-
-    @Override
     protected void onEndMatch(final CancelableMatchStateRecord<RequestT> state) {
-        getTransactionProvider().get().performAndCloseV(txn -> {
-            final var dao = txn.getDao(MultiMatchDao.class);
-            final var match = dao.getMultiMatch(state.result().getId());
-            dao.endMatch(match.getId());
-        });
+        getRequest()
+                .getProtocolMessageHandler()
+                .submit(() -> getTransactionProvider().get().performAndCloseV(txn -> {
+                    final var dao = txn.getDao(MultiMatchDao.class);
+                    dao.endMatch(state.result().getId());
+                }));
     }
 
     @Override
-    protected void onCloseMatch(CancelableMatchStateRecord<RequestT> state) {
-
+    protected void onCloseMatch(final CancelableMatchStateRecord<RequestT> state) {
+        getRequest()
+                .getProtocolMessageHandler()
+                .submit(() -> getTransactionProvider().get().performAndCloseV(txn -> {
+                    final var dao = txn.getDao(MultiMatchDao.class);
+                    dao.closeMatch(state.result().getId());
+                }));
     }
 
     @Override
-    protected void onLeaveMatch(CancelableMatchStateRecord<RequestT> state) {
+    protected void onLeaveMatch(final CancelableMatchStateRecord<RequestT> state) {
+        getRequest()
+                .getProtocolMessageHandler()
+                .submit(() -> getTransactionProvider().get().performAndCloseV(txn -> {
 
+                    final var dao = txn.getDao(MultiMatchDao.class);
+                    final var result = dao.removeProfile(state.result().getId(), getRequest().getProfile());
+
+                    if (result.getCount() == 0) {
+                        // We are the last profile, delete the match. The database will not need a dangling or empty
+                        // match hanging around in the queue.
+                        dao.deleteMultiMatch(result.getId());
+                    }
+
+                }));
     }
 
     @Override

@@ -41,17 +41,13 @@ public interface MatchSignalingService {
     void send(String matchId, BroadcastSignal signal);
 
     /**
-     * Assigns a host to matches that do not have one. This assigns a host arbitrarily. If a host is already present
-     * then this method does not change it.
+     * Joins the match for the given profile ID. If the user has already joined the match, then this has no effect.
      *
      * @param matchId the match ID
+     * @param profileId the profile ID
+     * @return true if the profile was added, false if it was already present
      */
-    void assignHost(String matchId);
-
-    /**
-     * Assigns a host to matches. If a host is already present then this method does change the host.
-     */
-    void assignHost(String matchId, String profileId);
+    boolean join(String matchId, String profileId);
 
     /**
      * Subscribes to updates with the supplied connection id, match id, profile id, and consumers. If this is the first
@@ -63,11 +59,33 @@ public interface MatchSignalingService {
      * @param onMessage the message consumer
      * @param onError the message error
      */
-    Subscription join(
+    Subscription connect(
             String matchId,
             String profileId,
             Consumer<ProtocolMessage> onMessage,
             Consumer<Throwable> onError
     );
+
+    /**
+     * Leaves the match for the given profile ID. If the profile ID is the host, then the host will be unassigned or
+     * reassigned to another participant.
+     *
+     * @param matchId the match id
+     * @param profileId the profile id
+     */
+    void leave(String matchId, String profileId);
+
+    /**
+     * Assigns a host to matches that do not have one. This assigns a host arbitrarily. If a host is already present
+     * then this method does not change it.
+     *
+     * @param matchId the match ID
+     */
+    void assignHost(String matchId);
+
+    /**
+     * Assigns a host to matches. If a host is already present then this method does change the host.
+     */
+    void assignHost(String matchId, String profileId);
 
 }

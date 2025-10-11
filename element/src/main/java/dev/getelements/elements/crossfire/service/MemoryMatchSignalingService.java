@@ -85,17 +85,12 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
     }
 
     @Override
-    public void assignHost(final String matchId) {
+    public boolean join(final String matchId, final String profileId) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public void assignHost(final String matchId, final String profileId) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public Subscription join(
+    public Subscription connect(
             final String matchId,
             final String profileId,
             final Consumer<ProtocolMessage> onMessage,
@@ -115,6 +110,21 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
                 .computeIfAbsent(match.getId(), mid -> new MemoryMatchState(getMaxBacklogSize()))
                 .join(profileId, onMessage, onError);
 
+    }
+
+    @Override
+    public void leave(final String matchId, final String profileId) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void assignHost(final String matchId) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void assignHost(final String matchId, final String profileId) {
+        throw new UnsupportedOperationException();
     }
 
     public int getMaxBacklogSize() {

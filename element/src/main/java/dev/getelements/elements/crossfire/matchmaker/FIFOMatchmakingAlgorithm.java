@@ -5,9 +5,7 @@ import dev.getelements.elements.crossfire.api.*;
 import dev.getelements.elements.crossfire.model.handshake.FindHandshakeRequest;
 import dev.getelements.elements.crossfire.model.handshake.JoinHandshakeRequest;
 import dev.getelements.elements.dao.mongo.match.MongoMultiMatchDao;
-import dev.getelements.elements.rt.exception.DuplicateException;
 import dev.getelements.elements.sdk.annotation.ElementServiceExport;
-import dev.getelements.elements.sdk.dao.MultiMatchDao;
 import dev.getelements.elements.sdk.dao.Transaction;
 import dev.getelements.elements.sdk.model.match.MultiMatch;
 import dev.getelements.elements.sdk.model.match.MultiMatchStatus;
@@ -16,14 +14,6 @@ import jakarta.inject.Provider;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.List;
-import java.util.Objects;
-import java.util.function.Supplier;
-import java.util.stream.Stream;
-
-import static dev.getelements.elements.sdk.model.match.MultiMatchStatus.FULL;
-import static dev.getelements.elements.sdk.model.match.MultiMatchStatus.OPEN;
 
 @Slf4j
 @ElementServiceExport(value = MatchmakingAlgorithm.class)
@@ -43,39 +33,7 @@ public class FIFOMatchmakingAlgorithm implements MatchmakingAlgorithm {
 
     @Override
     public MatchHandle<FindHandshakeRequest> find(final MatchmakingRequest<FindHandshakeRequest> request) {
-        return new StandardCancelableMatchHandle<>(this, request, getTransactionProvider()) {
-
-            @Override
-            protected void onMatching(final CancelableMatchStateRecord<FindHandshakeRequest> state) {
-                request.getProtocolMessageHandler().submit(this::find);
-            }
-
-            private void find() {
-
-                final var result = getTransactionProvider().get().performAndClose(txn -> {
-
-                    final var dao = txn.getDao(MongoMultiMatchDao.class);
-                    final var profile = request.getProfile();
-                    final var configuration = request.getApplicationConfiguration();
-
-                    final var multiMatch =  dao
-                            .findOldestAvailableMultiMatchCandidate(configuration, profile.getId(), "")
-                            .orElseGet(() -> {
-                                final var m = new MultiMatch();
-                                m.setConfiguration(request.getApplicationConfiguration());
-                                m.setStatus(MultiMatchStatus.OPEN);
-                                return dao.createMultiMatch(m);
-                            });
-
-                    return dao.addProfile(multiMatch.getId(), profile);
-
-                });
-
-                result(result);
-
-            }
-
-        };
+        return new FIFOMatchHandle(request);
     }
 
     @Override
@@ -88,8 +46,43 @@ public class FIFOMatchmakingAlgorithm implements MatchmakingAlgorithm {
     }
 
     @Inject
-    public void setTransactionProvider(Provider<Transaction> transactionProvider) {
+    public void setTransactionProvider(final Provider<Transaction> transactionProvider) {
         this.transactionProvider = transactionProvider;
+    }
+
+    private class FIFOMatchHandle extends StandardCancelableMatchHandle<FindHandshakeRequest> {
+
+        public FIFOMatchHandle(final MatchmakingRequest<FindHandshakeRequest> request) {
+            super(FIFOMatchmakingAlgorithm.this, request, FIFOMatchmakingAlgorithm.this.getTransactionProvider());
+        }
+
+        @Override
+        protected void onMatching(final CancelableMatchStateRecord<FindHandshakeRequest> state) {
+            getRequest().getProtocolMessageHandler().submit(() -> {
+                final var result = getTransactionProvider().get().performAndClose(txn -> {
+
+                    final var dao = txn.getDao(MongoMultiMatchDao.class);
+                    final var profile = getRequest().getProfile();
+                    final var configuration = getRequest().getApplicationConfiguration();
+
+                    final var multiMatch =  dao
+                            .findOldestAvailableMultiMatchCandidate(configuration, profile.getId(), "")
+                            .orElseGet(() -> {
+                                final var m = new MultiMatch();
+                                m.setConfiguration(getRequest().getApplicationConfiguration());
+                                m.setStatus(MultiMatchStatus.OPEN);
+                                return dao.createMultiMatch(m);
+                            });
+
+                    return dao.addProfile(multiMatch.getId(), profile);
+
+                });
+
+                setResult(result);
+
+            });
+        }
+
     }
 
 }

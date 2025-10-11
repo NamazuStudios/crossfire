@@ -46,7 +46,8 @@ public class StandardControlService implements ControlService {
     private void onMessageLeave(final ProtocolMessageHandler.MultiMatchRecord match,
                                 final ProtocolMessageHandler.AuthRecord auth,
                                 final LeaveControlMessage message) {
-        match.matchHandle().leave();
+        match.matchHandle().leaveMatch();
+        getMatchSignalingService().leave(match.getId(), auth.profile().getId());
     }
 
     public MatchSignalingService getMatchSignalingService() {

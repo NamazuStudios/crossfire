@@ -46,9 +46,10 @@ public interface MatchHandle<RequestT extends HandshakeRequest> {
     void closeMatch();
 
     /**
-     * Cancels the matchmaking algorithm removing the player from the matchmaking queue.
+     * Cancels the matchmaking algorithm removing the player from the matchmaking queue. If the match has not  yet
+     * been found then this just cancels the pending matchmaking operation.
      */
-    void leave();
+    void leaveMatch();
 
     /**
      * Gets the {@link MultiMatch}, throwing NoSuchElementException if the match is not yet complete or otherwise missing.
