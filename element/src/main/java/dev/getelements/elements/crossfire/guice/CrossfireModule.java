@@ -7,8 +7,10 @@ import dev.getelements.elements.crossfire.protocol.*;
 import dev.getelements.elements.crossfire.protocol.v10.V10HandshakeHandler;
 import dev.getelements.elements.crossfire.protocol.v10.V10ProtocolMessageHandler;
 import dev.getelements.elements.crossfire.protocol.v10.V10SignalingHandler;
+import dev.getelements.elements.crossfire.service.ControlService;
 import dev.getelements.elements.crossfire.service.MatchSignalingService;
 import dev.getelements.elements.crossfire.service.MemoryMatchSignalingService;
+import dev.getelements.elements.crossfire.service.StandardControlService;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 
@@ -35,6 +37,9 @@ public class  CrossfireModule extends PrivateModule {
         bind(MatchSignalingService.class)
                 .to(MemoryMatchSignalingService.class)
                 .asEagerSingleton();
+
+        bind(ControlService.class)
+                .to(StandardControlService.class);
 
         bind(ProtocolMessageHandler.class)
                 .to(V10ProtocolMessageHandler.class);

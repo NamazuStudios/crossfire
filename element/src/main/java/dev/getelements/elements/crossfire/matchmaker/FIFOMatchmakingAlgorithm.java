@@ -6,6 +6,7 @@ import dev.getelements.elements.crossfire.model.handshake.FindHandshakeRequest;
 import dev.getelements.elements.crossfire.model.handshake.JoinHandshakeRequest;
 import dev.getelements.elements.dao.mongo.match.MongoMultiMatchDao;
 import dev.getelements.elements.sdk.annotation.ElementServiceExport;
+import dev.getelements.elements.sdk.dao.MultiMatchDao;
 import dev.getelements.elements.sdk.dao.Transaction;
 import dev.getelements.elements.sdk.model.match.MultiMatch;
 import dev.getelements.elements.sdk.model.match.MultiMatchStatus;
@@ -61,7 +62,7 @@ public class FIFOMatchmakingAlgorithm implements MatchmakingAlgorithm {
             getRequest().getProtocolMessageHandler().submit(() -> {
                 final var result = getTransactionProvider().get().performAndClose(txn -> {
 
-                    final var dao = txn.getDao(MongoMultiMatchDao.class);
+                    final var dao = txn.getDao(MultiMatchDao.class);
                     final var profile = getRequest().getProfile();
                     final var configuration = getRequest().getApplicationConfiguration();
 

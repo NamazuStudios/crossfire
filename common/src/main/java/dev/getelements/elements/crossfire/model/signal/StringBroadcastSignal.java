@@ -4,6 +4,7 @@ import dev.getelements.elements.crossfire.model.ProtocolMessageType;
 import jakarta.validation.constraints.NotNull;
 
 import static dev.getelements.elements.crossfire.model.ProtocolMessageType.STRING_BROADCAST;
+import static dev.getelements.elements.crossfire.model.signal.SignalLifecycle.ONCE;
 
 /**
  * A simple implementation of a broadcast signal that carries a string payload. This signal can be used to send text
@@ -17,7 +18,7 @@ public class StringBroadcastSignal implements BroadcastSignal {
     private String profileId;
 
     @NotNull
-    private SignalLifecycle lifecycle;
+    private SignalLifecycle lifecycle = ONCE;
 
     @NotNull
     private String payload;
