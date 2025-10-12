@@ -11,10 +11,7 @@ import dev.getelements.elements.crossfire.model.error.ProtocolStateException;
 import dev.getelements.elements.crossfire.model.error.UnexpectedMessageException;
 import dev.getelements.elements.crossfire.model.handshake.HandshakeRequest;
 import dev.getelements.elements.crossfire.model.handshake.HandshakeResponse;
-import dev.getelements.elements.crossfire.model.signal.ConnectBroadcastSignal;
-import dev.getelements.elements.crossfire.model.signal.DisconnectBroadcastSignal;
-import dev.getelements.elements.crossfire.model.signal.HostBroadcastSignal;
-import dev.getelements.elements.crossfire.model.signal.Signal;
+import dev.getelements.elements.crossfire.model.signal.*;
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.util.ConcurrentDequePublisher;
 import dev.getelements.elements.sdk.util.Publisher;
@@ -130,13 +127,13 @@ public class V10SignalingClient implements SignalingClient {
                 final var host = (HostBroadcastSignal) message;
                 yield this.state.updateAndGet(s -> s.host(host));
             }
-            case CONNECT -> {
-                final var connect = (ConnectBroadcastSignal) message;
-                yield this.state.updateAndGet(s -> s.connect(connect));
+            case SIGNAL_JOIN -> {
+                final var join = (JoinBroadcastSignal) message;
+                yield this.state.updateAndGet(s -> s.join(join));
             }
-            case DISCONNECT -> {
-                final var disconnect = (DisconnectBroadcastSignal) message;
-                yield this.state.updateAndGet(s -> s.disconnect(disconnect));
+            case SIGNAL_LEAVE -> {
+                final var leave = (LeaveBroadcastSignal) message;
+                yield this.state.updateAndGet(s -> s.leave(leave));
             }
             default -> this.state.updateAndGet(s -> s.signal(message));
         };

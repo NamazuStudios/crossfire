@@ -72,7 +72,7 @@ record V10SignalingClientState(SignalingClientPhase phase,
         };
     }
 
-    public V10SignalingClientState connect(final ConnectBroadcastSignal signal) {
+    public V10SignalingClientState join(final JoinBroadcastSignal signal) {
         return switch (phase()) {
             case TERMINATED -> this;
             case SIGNALING -> {
@@ -84,7 +84,7 @@ record V10SignalingClientState(SignalingClientPhase phase,
         };
     }
 
-    public V10SignalingClientState disconnect(final DisconnectBroadcastSignal disconnect) {
+    public V10SignalingClientState leave(final LeaveBroadcastSignal disconnect) {
         return switch (phase()) {
             case TERMINATED -> this;
             case SIGNALING -> {

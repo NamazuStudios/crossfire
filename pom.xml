@@ -85,11 +85,6 @@
             </dependency>
             <dependency>
                 <groupId>dev.getelements.elements.crossfire</groupId>
-                <artifactId>test</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>dev.getelements.elements.crossfire</groupId>
                 <artifactId>client</artifactId>
                 <version>${project.version}</version>
             </dependency>

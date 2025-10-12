@@ -1,6 +1,9 @@
 package dev.getelements.elements.crossfire.model;
 
+import dev.getelements.elements.crossfire.model.error.UnexpectedMessageException;
 import dev.getelements.elements.sdk.annotation.ElementPublic;
+
+import static java.lang.String.format;
 
 @ElementPublic
 public interface ProtocolMessage {
@@ -20,6 +23,32 @@ public interface ProtocolMessage {
      */
     default boolean isServerOnly() {
         return false;
+    }
+
+    /**
+     * Casts this ProtocolMessage to the specified subclass if possible. This just maps the ClassCastException to a
+     * a {@link UnexpectedMessageException} to provide better context. Additionally, this includes an assert for debug
+     * and enhanced testing.
+     *
+     * @param clazz the class to cast to
+     * @param <T>   the type of the class
+     * @return this instance, cast to the requested type
+     * @throws ClassCastException if the cast is not possible
+     */
+    default <T extends ProtocolMessage> T as(final Class<T> clazz) {
+
+        assert getType().getMessageType() == clazz : format("%s does not match expected type %s(%s)",
+                getType(),
+                getType().getMessageType(),
+                clazz
+        );
+
+        try {
+            return clazz.cast(this);
+        } catch (ClassCastException ex) {
+            throw new UnexpectedMessageException(ex);
+        }
+
     }
 
 }

@@ -38,14 +38,14 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static dev.getelements.elements.crossfire.client.Crossfire.Mode.SIGNALING_CLIENT;
-import static dev.getelements.elements.crossfire.client.Crossfire.Mode.SIGNALING_HOST;
+import static dev.getelements.elements.crossfire.client.Crossfire.Mode.*;
 import static dev.getelements.elements.crossfire.client.Peer.SendResult.SENT;
 import static dev.getelements.elements.crossfire.model.ProtocolMessageType.MATCHED;
 import static dev.getelements.elements.sdk.model.user.User.Level.USER;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.util.regex.Pattern.quote;
 import static org.testng.Assert.*;
 import static org.testng.AssertJUnit.assertNotNull;
@@ -132,6 +132,10 @@ public class TestBasicMatchmaking {
                     final var crossfire = new StandardCrossfire.Builder()
                             .withDefaultUri(server.getTestTestServerWsUrl())
                             .withWebSocketContainer(webSocketContainer)
+                            // The WebRTC Clients have some issues with memory management so those tests are disabled
+                            // for now until we can figure out the memory corruption issues with the Java WebRTC
+                            // client library. This does a full signaling test and we can manually run the WebRTC
+                            // tests to ensure that connectivity is working.
                             .withDefaultProtocol(Protocol.SIGNALING)
                             .withSupportedModes(SIGNALING_HOST, SIGNALING_CLIENT)
                             .withWebRTCHostBuilder(() -> new WebRTCMatchHost.Builder()
@@ -191,7 +195,7 @@ public class TestBasicMatchmaking {
         request.setProfileId(context.profile().getId());
         request.setSessionKey(context.creation().getSessionSecret());
 
-        final var response = context.signalingClient().handshake(request, 30, TimeUnit.SECONDS);
+        final var response = context.signalingClient().handshake(request, 30, SECONDS);
 
         assertNotNull(response);
         assertEquals(response.getType(), MATCHED);
@@ -205,7 +209,12 @@ public class TestBasicMatchmaking {
 
     }
 
-    @Test(dependsOnMethods = "testFindHandshake")
+    @Test(dependsOnMethods = "testFindHandshake", dataProvider = "allContexts")
+    public void testAllPlayersJoined(final TestContext context) {
+
+    }
+
+    @Test(dependsOnMethods = "testAllPlayersJoined")
     public void testTestAllJoinedSameMatch() {
 
         final var uniqueMatchIds = testContextList.stream()
@@ -226,25 +235,41 @@ public class TestBasicMatchmaking {
 
         String actualHostId = null;
 
-        final var expectedProfileIds = testContextList
+        final var remaining = testContextList
                 .stream()
                 .filter(tc -> tc != context)
                 .map(TestContext::profile)
                 .map(Profile::getId)
-                .collect(Collectors.toSet());
+                .toList();
+
+        final var remainingJoins = new TreeSet<>(remaining);
+        final var remainingConnects = new TreeSet<>(remaining);
 
         final var signals = new ArrayList<Signal>();
 
-        while (actualHostId == null && !expectedProfileIds.isEmpty()) {
+        while (actualHostId == null || !remainingJoins.isEmpty() || !remainingConnects.isEmpty()) {
 
-            final var signal = context.signals().take();
+            final var signal = context.signals().poll(1, SECONDS);
+
+            if (signal == null) {
+                // This is here to allow for setting breakpoints when debugging
+                continue;
+            }
+
             logger.info("Signal received: {} from context {}.", signal.getType(), context.profile().getId());
 
             signals.add(signal);
 
             switch (signal.getType()) {
-                case HOST -> actualHostId = ((HostBroadcastSignal)signal).getProfileId();
-                case CONNECT -> expectedProfileIds.remove(((ConnectBroadcastSignal)signal).getProfileId());
+                case HOST -> actualHostId = signal.as(HostBroadcastSignal.class).getProfileId();
+                case CONNECT -> {
+                    final var profileId = signal.as(ConnectBroadcastSignal.class).getProfileId();
+                    remainingConnects.remove(profileId);
+                }
+                case SIGNAL_JOIN -> {
+                    final var profileId = signal.as(JoinBroadcastSignal.class).getProfileId();
+                    remainingJoins.remove(profileId);
+                }
             }
 
         }
@@ -491,7 +516,7 @@ public class TestBasicMatchmaking {
         }
 
         private void onHostOpened(final Subscription hostSubscription,
-                                    final Crossfire.OpenStatus<MatchHost> matchClient) {
+                                  final Crossfire.OpenStatus<MatchHost> matchClient) {
             if (matchClient.open()) {
                 matchClient.object().onPeerStatus(this::onPeerStatus);
             } else {

@@ -199,12 +199,29 @@ public class MemoryMatchState {
 
                 final var state = sessionStates.computeIfAbsent(profileId, SessionState::new);
 
+                // We have to call this first here because it may clear out the existing session's backlog which would
+                // immediately eliminate the connection message from the backlog. Since this is happening in the
+                // exclusive lock, other clients trying to connect will be blocked until this is done so they will
+                // either receive the old connection's backlog or the new connection's backlog but not a mix of both.
+
+                state.disconnectExistingIfNecessary();
+
+                final var connect = new ConnectBroadcastSignal();
+                connect.setProfileId(profileId);
+                state.append(connect);
+
+                // This happens next in case the new subscription is the host. This ensures that the host signal will
+                // be put into the queue as well when the call to "host" is made below.
+
                 if (host == null) {
                     state.host();
                     host = state;
                 }
 
-                // Process the full backlog for this profile
+                // Process the full backlog for this profile which includes the connection message we just added above
+                // as well as the join message that was added when the profile first joined the match in this type's
+                // constructor.
+
                 final var backlog = sessionStates
                         .values()
                         .stream()
@@ -335,35 +352,74 @@ public class MemoryMatchState {
                 requireNonNull(onError, "onError cannot be null");
                 requireNonNull(onMessage, "onMessage cannot be null");
 
-                final var updated = new SubscriptionRecord(onMessage, onError, this::unsubscribe);
-                final var existing = subscription.getAndSet(updated);
-
-                if (existing != null)
-                    existing.onError(new DuplicateConnectionException());
+                final var updated = subscription.updateAndGet(existing -> {
+                    if (existing == null)
+                        return new SubscriptionRecord(onMessage, onError, this::disconnectCleanly);
+                    else
+                        throw new IllegalStateException("Subscription already exists. Did you forget to disconnect the old subscription first?");
+                });
 
                 return updated.subscription();
 
             }
 
-            private void unsubscribe() {
-                try (var mon = Monitor.enter(write)) {
+            /**
+             * Cleanly disconnects the current subscription and clears it from this session state. Clean disconnects
+             * do not drive any sort of error of the existing subscription because we assume that the client is
+             * explicitly disconnecting.
+             */
+            private void disconnectCleanly() {
 
+                // This is protected by the outer write lock because we essentially call it directly from the
+                // calling code in MemoryMatchBacklog.connect() method as the subscription's onUnsubscribe handler.
+
+                try (var mon = Monitor.enter(write)) {
                     session.clear();
                     subscription.set(null);
-
-                    if (host == this)
-                        host = MemoryMatchBacklog.this.sessionStates
-                                .values()
-                                .stream()
-                                .filter(s -> s != this && s.subscription.get() != null)
-                                .findFirst()
-                                .orElse(null);
-
-                    if (host != null)
-                        host.host();
-
+                    reassignHostIfNecessary();
                 }
+
             }
+
+            /**
+             * Forcibly disconnects the existing subscription if one exists. This is used in scenarios where a new
+             * connection for the same profileId is being established and we want to ensure that only one active
+             * subscription exists at a time. This method drives an error to the existing subscription's onError
+             * handler resets it for a new subscription to be established.
+             */
+            private void disconnectExistingIfNecessary() {
+
+                final var existing = subscription.getAndSet(null);
+
+                if (existing != null)
+                    existing.onError(new DuplicateConnectionException());
+
+                reassignHostIfNecessary();
+
+            }
+
+            /**
+             * Re-assigns the host if the current host is this session state. This is called whenever a session state
+             * is removed or its subscription is disconnected.
+             */
+            private void reassignHostIfNecessary() {
+
+                // TODO: Host re-assignment needs to happen externally to this class so that we can implement features
+                // TODO: like authoritative orchestration in the future.
+
+                if (host == this)
+                    host = MemoryMatchBacklog.this.sessionStates
+                            .values()
+                            .stream()
+                            .filter(s -> s != this && s.subscription.get() != null)
+                            .findFirst()
+                            .orElse(null);
+
+                if (host != null)
+                    host.host();
+
+            }
+
 
         }
 
