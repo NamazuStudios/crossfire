@@ -1,9 +1,11 @@
 package dev.getelements.elements.crossfire.model.control;
 
 import dev.getelements.elements.crossfire.model.ProtocolMessageType;
+import jakarta.validation.constraints.NotNull;
 
 public class OpenControlMessage implements ControlMessage {
 
+    @NotNull
     private String profileId;
 
     @Override

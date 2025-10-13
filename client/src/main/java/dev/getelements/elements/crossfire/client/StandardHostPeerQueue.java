@@ -59,7 +59,7 @@ public class StandardHostPeerQueue implements PeerQueue {
         try (var mon = Monitor.enter(lock)) {
 
             while (open && !areAllPeersReady(peerPhase)) {
-                while (!condition.await(1, SECONDS)) {
+                while (!condition.await(5, SECONDS)) {
                     log.debug("Still waiting for all peers to be in phase {}", peerPhase);
                 }
             }

@@ -6,6 +6,7 @@ import dev.getelements.elements.crossfire.jackson.JacksonProtocolMessageDecoder;
 import dev.getelements.elements.crossfire.model.ProtocolMessage;
 import dev.getelements.elements.crossfire.model.ProtocolMessageType;
 import dev.getelements.elements.crossfire.model.Version;
+import dev.getelements.elements.crossfire.model.control.ControlMessage;
 import dev.getelements.elements.crossfire.model.error.ProtocolError;
 import dev.getelements.elements.crossfire.model.error.ProtocolStateException;
 import dev.getelements.elements.crossfire.model.error.UnexpectedMessageException;
@@ -77,6 +78,18 @@ public class V10SignalingClient implements SignalingClient {
 
         switch (state.phase()) {
             case SIGNALING -> state.session().getAsyncRemote().sendObject(signal);
+            default -> throw new IllegalStateException("Unexpected state: " + state.phase());
+        }
+
+    }
+
+    @Override
+    public void control(final ControlMessage control) {
+
+        final var state = this.state.get();
+
+        switch (state.phase()) {
+            case SIGNALING -> state.session().getAsyncRemote().sendObject(control);
             default -> throw new IllegalStateException("Unexpected state: " + state.phase());
         }
 

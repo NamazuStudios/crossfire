@@ -1,6 +1,7 @@
 package dev.getelements.elements.crossfire.client;
 
 import dev.getelements.elements.crossfire.model.Version;
+import dev.getelements.elements.crossfire.model.control.ControlMessage;
 import dev.getelements.elements.crossfire.model.error.TimeoutException;
 import dev.getelements.elements.crossfire.model.handshake.HandshakeRequest;
 import dev.getelements.elements.crossfire.model.handshake.HandshakeResponse;
@@ -63,6 +64,13 @@ public interface SignalingClient extends AutoCloseable {
      * @param signal the signal
      */
     void signal(Signal signal);
+
+    /**
+     * Sends the given control message to the server.
+     *
+     * @param control the signal
+     */
+    void control(ControlMessage control);
 
     /**
      * Returns the current {@link HandshakeResponse} if available. If the response is not available, it throws a

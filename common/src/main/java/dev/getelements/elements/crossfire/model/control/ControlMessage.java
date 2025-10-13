@@ -1,12 +1,14 @@
 package dev.getelements.elements.crossfire.model.control;
 
 import dev.getelements.elements.crossfire.model.ProtocolMessage;
+import dev.getelements.elements.sdk.annotation.ElementPublic;
 
 /**
  * Represents a control message in the Crossfire system. Control messages are special messages that are used by clients
  * to communicate control information to the server, such as requests to join or leave a match, or to perform
  * operations such as closing the match.
  */
+@ElementPublic
 public interface ControlMessage extends ProtocolMessage {
 
     /***

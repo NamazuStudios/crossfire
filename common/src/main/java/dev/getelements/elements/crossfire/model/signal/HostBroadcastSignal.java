@@ -39,9 +39,4 @@ public class HostBroadcastSignal implements BroadcastSignal {
         return true;
     }
 
-    @Override
-    public boolean isFor(final String profileId) {
-        return true;
-    }
-
 }

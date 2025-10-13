@@ -27,7 +27,7 @@ public interface BroadcastSignal extends Signal {
      * @return true if the profile ID does not match the originator of the signal
      */
     default boolean isFor(final String profileId) {
-        return profileId != null && getProfileId() != null && !profileId.equals(getProfileId());
+        return isServerOnly() || profileId != null && getProfileId() != null && !profileId.equals(getProfileId());
     }
 
 }

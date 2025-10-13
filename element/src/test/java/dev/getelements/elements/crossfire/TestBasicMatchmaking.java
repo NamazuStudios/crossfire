@@ -7,6 +7,7 @@ import dev.getelements.elements.crossfire.client.webrtc.WebRTCMatchClient;
 import dev.getelements.elements.crossfire.client.webrtc.WebRTCMatchHost;
 import dev.getelements.elements.crossfire.model.Protocol;
 import dev.getelements.elements.crossfire.model.Version;
+import dev.getelements.elements.crossfire.model.control.LeaveControlMessage;
 import dev.getelements.elements.crossfire.model.handshake.FindHandshakeRequest;
 import dev.getelements.elements.crossfire.model.signal.*;
 import dev.getelements.elements.sdk.Subscription;
@@ -136,6 +137,8 @@ public class TestBasicMatchmaking {
                             // for now until we can figure out the memory corruption issues with the Java WebRTC
                             // client library. This does a full signaling test and we can manually run the WebRTC
                             // tests to ensure that connectivity is working.
+//                            .withDefaultProtocol(Protocol.WEBRTC)
+//                            .withSupportedModes(WEBRTC_HOST, WEBRTC_CLIENT)
                             .withDefaultProtocol(Protocol.SIGNALING)
                             .withSupportedModes(SIGNALING_HOST, SIGNALING_CLIENT)
                             .withWebRTCHostBuilder(() -> new WebRTCMatchHost.Builder()
@@ -474,6 +477,15 @@ public class TestBasicMatchmaking {
             assertEquals(testMessage.recipientProfileId(), context.signalingClient().getState().getHost());
         }
 
+    }
+
+    @Test(dataProvider = "allContexts",
+            dependsOnMethods = "testHostReceiveSignalString"
+    )
+    public void testLeaveMatch(final TestContext context) {
+        final var leave = new LeaveControlMessage();
+        leave.setProfileId(context.profile.getId());
+        context.crossfire().getSignalingClient().control(leave);
     }
 
     public record TestContext(

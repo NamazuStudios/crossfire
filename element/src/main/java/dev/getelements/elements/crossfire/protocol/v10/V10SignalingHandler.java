@@ -15,6 +15,8 @@ import jakarta.websocket.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
@@ -126,11 +128,30 @@ public class V10SignalingHandler implements SignalingHandler {
         checkAuth(state, message::getProfileId);
 
         switch (state.phase()) {
-            case SIGNALING -> getControlService().process(state.match(), state.auth(), message);
+            case SIGNALING -> {
+                final var action = getControlService().process(state.match(), state.auth(), message);
+                process(action, session, message);
+            }
             case TERMINATED -> logger.debug("Dropping message. Signaling terminated.");
             default -> throw new ProtocolStateException("Unexpected state: " + state.phase());
         }
 
+    }
+
+    private void process(final ControlService.Result action,
+                         final Session session,
+                         final ControlMessage message) {
+        try {
+            switch (action) {
+                case PERSIST_CONNECTION -> logger.debug("Persisting connection: {}", message.getType());
+                case CLOSE_CONNECTION -> {
+                    logger.debug("Closing connection: {}", message.getType());
+                    session.close();
+                }
+            }
+        } catch (IOException ex) {
+            throw new UncheckedIOException(ex);
+        }
     }
 
     private void checkAuth(final V10SignalingState state, final Supplier<String> profileIdSupplier) {

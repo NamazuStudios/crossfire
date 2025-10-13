@@ -39,7 +39,8 @@ public class  CrossfireModule extends PrivateModule {
                 .asEagerSingleton();
 
         bind(ControlService.class)
-                .to(StandardControlService.class);
+                .to(StandardControlService.class)
+                .asEagerSingleton();
 
         bind(ProtocolMessageHandler.class)
                 .to(V10ProtocolMessageHandler.class);

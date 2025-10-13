@@ -1,6 +1,7 @@
 package dev.getelements.elements.crossfire.api;
 
 import dev.getelements.elements.crossfire.model.handshake.HandshakeRequest;
+import dev.getelements.elements.sdk.annotation.ElementPublic;
 import dev.getelements.elements.sdk.model.match.MultiMatch;
 
 import java.util.NoSuchElementException;
