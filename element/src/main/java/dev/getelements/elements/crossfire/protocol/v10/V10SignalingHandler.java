@@ -2,6 +2,7 @@ package dev.getelements.elements.crossfire.protocol.v10;
 
 import dev.getelements.elements.crossfire.model.control.ControlMessage;
 import dev.getelements.elements.crossfire.model.error.ProtocolStateException;
+import dev.getelements.elements.crossfire.model.error.UnexpectedMessageException;
 import dev.getelements.elements.crossfire.model.signal.BroadcastSignal;
 import dev.getelements.elements.crossfire.model.signal.DirectSignal;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler;
@@ -87,7 +88,7 @@ public class V10SignalingHandler implements SignalingHandler {
             final BroadcastSignal signal) {
 
         final var state = this.state.get();
-        checkAuth(signal::getProfileId);
+        checkAuth(state, signal::getProfileId);
 
         switch (state.phase()) {
             case SIGNALING -> getMatchSignalingService().send(state.match().getId(), signal);
@@ -104,7 +105,8 @@ public class V10SignalingHandler implements SignalingHandler {
             final DirectSignal signal) {
 
         final var state = this.state.get();
-        checkAuth(signal::getProfileId);
+        checkAuth(state, signal::getProfileId);
+        checkBounce(state, signal::getRecipientProfileId);
 
         switch (state.phase()) {
             case SIGNALING -> getMatchSignalingService().send(state.match().getId(), signal);
@@ -121,7 +123,7 @@ public class V10SignalingHandler implements SignalingHandler {
             final ControlMessage message) {
 
         final var state = this.state.get();
-        checkAuth(message::getProfileId);
+        checkAuth(state, message::getProfileId);
 
         switch (state.phase()) {
             case SIGNALING -> getControlService().process(state.match(), state.auth(), message);
@@ -131,13 +133,24 @@ public class V10SignalingHandler implements SignalingHandler {
 
     }
 
-    private void checkAuth(final Supplier<String> profileIdSupplier) {
+    private void checkAuth(final V10SignalingState state, final Supplier<String> profileIdSupplier) {
 
-        final var authProfileId = state.get().auth().profile().getId();
+        final var authProfileId = state.auth().profile().getId();
         final var senderProfileId = profileIdSupplier.get();
 
         if (!Objects.equals(authProfileId, senderProfileId)) {
             throw new ForbiddenException();
+        }
+
+    }
+
+    private void checkBounce(final V10SignalingState state, final Supplier<String> profileIdSupplier) {
+
+        final var profileId = profileIdSupplier.get();
+        final var authProfileId = state.auth().profile().getId();
+
+        if (Objects.equals(authProfileId, profileId)) {
+            throw new UnexpectedMessageException("Cannot send a signal to the same client.");
         }
 
     }

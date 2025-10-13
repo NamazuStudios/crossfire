@@ -128,7 +128,7 @@ public class MemoryMatchState {
             sessionStates
                     .values()
                     .stream()
-                    .filter(s -> !s.getProfileId().equals(signal.getProfileId()))
+                    .filter(s -> signal.isFor(s.getProfileId()))
                     .map(SessionState::getSubscriptionRecord)
                     .filter(Objects::nonNull)
                     .forEach(subscription -> subscription.onMessage(signal));
@@ -209,6 +209,7 @@ public class MemoryMatchState {
                 final var connect = new ConnectBroadcastSignal();
                 connect.setProfileId(profileId);
                 state.append(connect);
+                doPublish(connect);
 
                 // This happens next in case the new subscription is the host. This ensures that the host signal will
                 // be put into the queue as well when the call to "host" is made below.
@@ -226,11 +227,7 @@ public class MemoryMatchState {
                         .values()
                         .stream()
                         .flatMap(SessionState::stream)
-                        .filter(s -> switch (s.getType().getCategory()) {
-                            case SIGNALING -> true;
-                            case SIGNALING_DIRECT -> ((DirectSignal) s).getRecipientProfileId().equals(profileId);
-                            default -> false;
-                        })
+                        .filter(s -> s.isFor(profileId))
                         .toList();
 
                 backlog.forEach(onMessage);
@@ -407,7 +404,8 @@ public class MemoryMatchState {
                 // TODO: Host re-assignment needs to happen externally to this class so that we can implement features
                 // TODO: like authoritative orchestration in the future.
 
-                if (host == this)
+                if (host == this) {
+
                     host = MemoryMatchBacklog.this.sessionStates
                             .values()
                             .stream()
@@ -415,8 +413,10 @@ public class MemoryMatchState {
                             .findFirst()
                             .orElse(null);
 
-                if (host != null)
-                    host.host();
+                    if (host != null)
+                        host.host();
+
+                }
 
             }
 

@@ -18,4 +18,11 @@ public interface Signal extends ProtocolMessage {
      */
     SignalLifecycle getLifecycle();
 
+    /**
+     * Checks if the signal is intended for the given profile ID.
+     *
+     * @return true if the signal is for the given profile ID, false otherwise
+     */
+    boolean isFor(String profileId);
+
 }

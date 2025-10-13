@@ -102,7 +102,7 @@ Some signals are considered server only in which case the server MUST be the sen
 
 ### Broadcast Signals
 
-Broadcast signals are sent to all participants in a match. The server MUST forward the message to all participants except the originator. All broadcast signals, in addition to the base protocol message fields, MUST contain the following fields:
+Broadcast signals are sent to all participants in a match. The server MUST forward client messages to all participants except the originator. The client MUST accept broadcast messages whose originator matches the current profile. All broadcast signals, in addition to the base protocol message fields, MUST contain the following fields:
 
 * `profileId` - **Required.** The profile ID of the originator of the signal. Note that the server MAY send a signal on behalf of a participant. In this document we use the term "originator" to mean the source of a signal even if that signal was not send directly by the participant's client.
 
