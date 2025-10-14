@@ -126,7 +126,7 @@ public abstract class AbstractMatchHandle<RequestT extends HandshakeRequest> imp
 
         switch (state.phase()) {
 
-            case MATCHING -> {
+            case MATCHED -> {
                 logger.info("Matched for request: {}", request);
                 onResult(state, result);
             }

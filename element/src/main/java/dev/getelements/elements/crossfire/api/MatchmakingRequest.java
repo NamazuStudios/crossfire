@@ -2,6 +2,7 @@ package dev.getelements.elements.crossfire.api;
 
 import dev.getelements.elements.crossfire.model.handshake.HandshakeRequest;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler;
+import dev.getelements.elements.sdk.annotation.ElementPublic;
 import dev.getelements.elements.sdk.model.application.MatchmakingApplicationConfiguration;
 import dev.getelements.elements.sdk.model.profile.Profile;
 
@@ -10,6 +11,7 @@ import dev.getelements.elements.sdk.model.profile.Profile;
  *
  * @param <MessageT> the type of handshake request used to initiate the matchmaking process
  */
+@ElementPublic
 public interface MatchmakingRequest<MessageT extends HandshakeRequest> {
 
     /**

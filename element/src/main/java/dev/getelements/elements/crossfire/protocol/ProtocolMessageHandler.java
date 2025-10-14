@@ -18,6 +18,7 @@ import java.util.concurrent.Future;
 /**
  * Handles all protocol messages.
  */
+@ElementPublic
 @ElementServiceExport
 public interface ProtocolMessageHandler {
 
@@ -158,6 +159,7 @@ public interface ProtocolMessageHandler {
      * @param profile the {@link Profile} that was authenticated
      * @param session the {@link dev.getelements.elements.sdk.model.session.Session} that was created
      */
+    @ElementPublic
     record AuthRecord(
             Profile profile,
             dev.getelements.elements.sdk.model.session.Session session
@@ -170,6 +172,7 @@ public interface ProtocolMessageHandler {
      * @param matchHandle the {@link MultiMatch} that was matched
      * @param configuration the {@link MatchmakingApplicationConfiguration} used for the match
      */
+    @ElementPublic
     record MultiMatchRecord(
             MatchHandle<?> matchHandle,
             MatchmakingApplicationConfiguration configuration

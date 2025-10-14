@@ -174,6 +174,20 @@ public interface SignalingClient extends AutoCloseable {
     Subscription onClientError(BiConsumer<Subscription, Throwable> listener);
 
     /**
+     * Waits for disconnect and returns the message for the disconnect. I the client is already disconnected, it returns
+     * immediately with the message.
+     */
+    default DisconnectStatus waitForDisconnect() throws InterruptedException {
+        return waitForDisconnect(Long.MAX_VALUE, TimeUnit.MILLISECONDS).get();
+    }
+
+    /**
+     * Waits for disconnect and returns the message for the disconnect. I the client is already disconnected, it returns
+     * immediately with the message.
+     */
+    Optional<DisconnectStatus> waitForDisconnect(long time, TimeUnit units) throws InterruptedException;
+
+    /**
      * Closes the client connection and releases any resources associated with it.
      */
     void close();
@@ -226,5 +240,14 @@ public interface SignalingClient extends AutoCloseable {
         }
 
     }
+
+    /**
+     * The phase of the signaling client.
+     *
+     * @param message the message for disconnect
+     * @param code the code for disconnect
+     * @param error true if the disconnect was due to an error
+     */
+    record DisconnectStatus(String message, String code, boolean error) {}
 
 }

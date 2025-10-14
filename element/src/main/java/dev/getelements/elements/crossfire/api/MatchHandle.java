@@ -14,6 +14,7 @@ import java.util.Optional;
  *
  * @param <RequestT> the type of handshake request used to initiate the matchmaking process
  */
+@ElementPublic
 public interface MatchHandle<RequestT extends HandshakeRequest> {
 
     /**

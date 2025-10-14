@@ -26,6 +26,7 @@ public class  CrossfireModule extends PrivateModule {
     @Override
     protected void configure() {
 
+        expose(ControlService.class);
         expose(MatchSignalingService.class);
         expose(ProtocolMessageHandler.class);
         expose(MatchmakingAlgorithm.class);
@@ -39,8 +40,7 @@ public class  CrossfireModule extends PrivateModule {
                 .asEagerSingleton();
 
         bind(ControlService.class)
-                .to(StandardControlService.class)
-                .asEagerSingleton();
+                .to(StandardControlService.class);
 
         bind(ProtocolMessageHandler.class)
                 .to(V10ProtocolMessageHandler.class);

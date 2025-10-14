@@ -1,5 +1,6 @@
 package dev.getelements.elements.crossfire.protocol;
 
+import dev.getelements.elements.sdk.annotation.ElementPublic;
 import jakarta.websocket.PongMessage;
 import jakarta.websocket.Session;
 
@@ -10,6 +11,7 @@ import java.io.IOException;
  * connection remains active and responsive. Terminates the connection if no pong response is received within the
  * configured interval.
  */
+@ElementPublic
 public interface Pinger {
 
     /**

@@ -1,8 +1,11 @@
 package dev.getelements.elements.crossfire.protocol;
 
+import dev.getelements.elements.sdk.annotation.ElementPublic;
+
 /**
  * Indicates what the phase is for signaling.
  */
+@ElementPublic
 public enum SignalingPhase {
 
     /**

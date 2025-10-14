@@ -12,7 +12,10 @@ import dev.getelements.elements.crossfire.model.error.ProtocolStateException;
 import dev.getelements.elements.crossfire.model.error.UnexpectedMessageException;
 import dev.getelements.elements.crossfire.model.handshake.HandshakeRequest;
 import dev.getelements.elements.crossfire.model.handshake.HandshakeResponse;
-import dev.getelements.elements.crossfire.model.signal.*;
+import dev.getelements.elements.crossfire.model.signal.HostBroadcastSignal;
+import dev.getelements.elements.crossfire.model.signal.JoinBroadcastSignal;
+import dev.getelements.elements.crossfire.model.signal.LeaveBroadcastSignal;
+import dev.getelements.elements.crossfire.model.signal.Signal;
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.util.ConcurrentDequePublisher;
 import dev.getelements.elements.sdk.util.Publisher;
@@ -24,6 +27,8 @@ import java.io.IOException;
 import java.util.Deque;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.stream.Stream;
@@ -31,7 +36,10 @@ import java.util.stream.Stream;
 import static dev.getelements.elements.crossfire.client.SignalingClientPhase.HANDSHAKING;
 import static dev.getelements.elements.crossfire.client.SignalingClientPhase.TERMINATED;
 import static dev.getelements.elements.crossfire.client.v10.V10SignalingClientState.create;
+import static jakarta.websocket.CloseReason.CloseCodes.NORMAL_CLOSURE;
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static java.util.Optional.ofNullable;
 
 @ClientEndpoint(
         encoders = JacksonEncoder.class,
@@ -49,6 +57,8 @@ public class V10SignalingClient implements SignalingClient {
 
     private final Publisher<HandshakeResponse> onHandshake = new ConcurrentDequePublisher<>();
 
+    private final CountDownLatch disconnectCountdownLatch = new CountDownLatch(1);
+
     private final AtomicReference<V10SignalingClientState> state = new AtomicReference<>(create());
 
     @Override
@@ -63,7 +73,7 @@ public class V10SignalingClient implements SignalingClient {
 
     @Override
     public Optional<HandshakeResponse> findHandshakeResponse() {
-        return Optional.ofNullable(state.get().handshake());
+        return ofNullable(state.get().handshake());
     }
 
     @Override
@@ -197,23 +207,50 @@ public class V10SignalingClient implements SignalingClient {
     }
 
     private void onErrorMessage(final ProtocolError message) throws IOException {
-        final var state = this.state.updateAndGet(V10SignalingClientState::terminate);
+
+        final var status = new DisconnectStatus(
+                message.getMessage(),
+                message.getCode(),
+                true
+        );
+
+        final var state = this.state.updateAndGet(s -> s.terminate(status));
         state.closeSession();
+        disconnectCountdownLatch.countDown();
+
     }
 
     @OnClose
     public void onSessionClose(final Session session,
                                final CloseReason closeReason) throws IOException {
-        this.state.updateAndGet(V10SignalingClientState::terminate);
+
+        final var status = new DisconnectStatus(
+                closeReason.getReasonPhrase() == null ? "" : closeReason.getReasonPhrase(),
+                closeReason.getCloseCode().toString(),
+                !NORMAL_CLOSURE.equals(closeReason.getCloseCode())
+        );
+
+        this.state.updateAndGet(s -> s.terminate(status));
+        disconnectCountdownLatch.countDown();
         logger.info("Connection closed: {}", closeReason);
+
     }
 
     @OnError
     public void onSessionError(final Session session,
                                final Throwable throwable) throws IOException {
-        this.state.updateAndGet(V10SignalingClientState::terminate);
+
+        final var status = new DisconnectStatus(
+                throwable.getMessage(),
+                throwable.getClass().getSimpleName(),
+                true
+        );
+
+        this.state.updateAndGet(s -> s.terminate(status));
+        disconnectCountdownLatch.countDown();
         logger.error("An error occurred.", throwable);
         onClientError.publish(throwable);
+
     }
 
     @Override
@@ -253,12 +290,26 @@ public class V10SignalingClient implements SignalingClient {
     }
 
     @Override
+    public Optional<DisconnectStatus> waitForDisconnect(final long time, final TimeUnit units) throws InterruptedException {
+        if (disconnectCountdownLatch.await(time, units)) {
+            return Optional.of(state.get().disconnectStatus());
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    @Override
     public void close() {
 
-        final var state = this.state.updateAndGet(V10SignalingClientState::terminate);
+        final var status = new DisconnectStatus("Closed by user.", "CLOSED", false);
+        final var state = this.state.updateAndGet(s -> s.terminate(status));
+        disconnectCountdownLatch.countDown();
 
         try {
             state.closeSession();
+            onSignal.clear();
+            onHandshake.clear();
+            onClientError.clear();
         } catch (IOException ex) {
             logger.error("Error closing session", ex);
         }

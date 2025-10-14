@@ -1,9 +1,12 @@
 package dev.getelements.elements.crossfire.protocol;
 
+import dev.getelements.elements.sdk.annotation.ElementPublic;
+
 /**
  * Represents the different phases of the handshake process in the Crossfire protocol.
  * Each phase indicates a specific state in the authentication and matching process.
  */
+@ElementPublic
 public enum HandshakePhase {
 
     /**

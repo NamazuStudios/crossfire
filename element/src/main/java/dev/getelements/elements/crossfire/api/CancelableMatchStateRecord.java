@@ -4,7 +4,7 @@ import dev.getelements.elements.crossfire.model.error.ProtocolStateException;
 import dev.getelements.elements.crossfire.model.handshake.HandshakeRequest;
 import dev.getelements.elements.sdk.model.match.MultiMatch;
 
-import static dev.getelements.elements.crossfire.api.MatchPhase.MATCHING;
+import static dev.getelements.elements.crossfire.api.MatchPhase.*;
 
 public record CancelableMatchStateRecord<RequestT extends HandshakeRequest>(MatchPhase phase, MultiMatch result) {
 
@@ -25,7 +25,7 @@ public record CancelableMatchStateRecord<RequestT extends HandshakeRequest>(Matc
     public CancelableMatchStateRecord<RequestT> matched(final MultiMatch result) {
         return switch (phase()) {
             case TERMINATED -> this;
-            case MATCHING -> new CancelableMatchStateRecord<>(MATCHING, result);
+            case MATCHING -> new CancelableMatchStateRecord<>(MATCHED, result);
             default -> throw new ProtocolStateException("Unexpected phase: " + phase());
         };
     }
@@ -33,7 +33,7 @@ public record CancelableMatchStateRecord<RequestT extends HandshakeRequest>(Matc
     public CancelableMatchStateRecord<RequestT> terminate() {
         return switch (phase()) {
             case TERMINATED -> this;
-            default -> new CancelableMatchStateRecord<>(MATCHING, result);
+            default -> new CancelableMatchStateRecord<>(TERMINATED, result);
         };
     }
 

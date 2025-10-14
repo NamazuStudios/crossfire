@@ -1,6 +1,7 @@
 package dev.getelements.elements.crossfire.client.v10;
 
 import dev.getelements.elements.crossfire.client.SignalingClient;
+import dev.getelements.elements.crossfire.client.SignalingClient.DisconnectStatus;
 import dev.getelements.elements.crossfire.client.SignalingClientPhase;
 import dev.getelements.elements.crossfire.model.error.ProtocolStateException;
 import dev.getelements.elements.crossfire.model.handshake.HandshakeResponse;
@@ -11,6 +12,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
 
 import static dev.getelements.elements.crossfire.client.SignalingClientPhase.*;
 import static dev.getelements.elements.crossfire.model.signal.SignalLifecycle.SESSION;
@@ -22,7 +24,8 @@ record V10SignalingClientState(SignalingClientPhase phase,
                                HandshakeResponse handshake,
                                String host,
                                List<String> profiles,
-                               List<Signal> backlog) implements SignalingClient.MatchState {
+                               List<Signal> backlog,
+                               DisconnectStatus disconnectStatus) implements SignalingClient.MatchState {
 
     public V10SignalingClientState {
         backlog = backlog == null ? List.of() : unmodifiableList(backlog);
@@ -30,28 +33,32 @@ record V10SignalingClientState(SignalingClientPhase phase,
     }
 
     public static V10SignalingClientState create() {
-        return new V10SignalingClientState(READY, null, null, null, List.of(), List.of());
+        return new V10SignalingClientState(READY, null, null, null, List.of(), List.of(), null);
     }
 
     public V10SignalingClientState connected(final Session session) {
         return switch (phase()) {
             case TERMINATED -> this;
-            case READY -> new V10SignalingClientState(CONNECTED, session, handshake(), host(), profiles(), backlog());
+            case READY -> new V10SignalingClientState(CONNECTED, session, handshake(), host(), profiles(), backlog(), disconnectStatus());
             default -> throw new ProtocolStateException("Invalid connection phase " + phase());
         };
     }
 
-    public V10SignalingClientState terminate() {
+    public V10SignalingClientState terminate(final DisconnectStatus disconnectStatus) {
+
+        final var replacement = disconnectStatus() == null ? disconnectStatus : disconnectStatus();
+
         return switch (phase()) {
             case TERMINATED -> this;
-            default -> new V10SignalingClientState(TERMINATED, session(), handshake(), host(), profiles(), backlog());
+            default -> new V10SignalingClientState(TERMINATED, session(), handshake(), host(), profiles(), backlog(), replacement);
         };
+
     }
 
     public V10SignalingClientState handshaking() {
         return switch (phase()) {
             case TERMINATED -> this;
-            case CONNECTED -> new V10SignalingClientState(HANDSHAKING, session(), handshake(), host(), profiles(), backlog());
+            case CONNECTED -> new V10SignalingClientState(HANDSHAKING, session(), handshake(), host(), profiles(), backlog(), disconnectStatus());
             default -> throw new ProtocolStateException("Invalid handshake phase " + phase());
         };
     }
@@ -59,7 +66,7 @@ record V10SignalingClientState(SignalingClientPhase phase,
     public V10SignalingClientState matched(final HandshakeResponse handshake) {
         return switch (phase()) {
             case TERMINATED -> this;
-            case HANDSHAKING -> new V10SignalingClientState(SIGNALING, session(), handshake, host(), profiles(), backlog());
+            case HANDSHAKING -> new V10SignalingClientState(SIGNALING, session(), handshake, host(), profiles(), backlog(), disconnectStatus());
             default -> throw new ProtocolStateException("Invalid handshake phase " + phase());
         };
     }
@@ -67,7 +74,7 @@ record V10SignalingClientState(SignalingClientPhase phase,
     public V10SignalingClientState host(final HostBroadcastSignal host) {
         return switch (phase()) {
             case TERMINATED -> this;
-            case SIGNALING -> new V10SignalingClientState(phase(), session(), handshake(), host.getProfileId(), profiles(), backlog());
+            case SIGNALING -> new V10SignalingClientState(phase(), session(), handshake(), host.getProfileId(), profiles(), backlog(), disconnectStatus());
             default -> throw new ProtocolStateException("Invalid handshake phase " + phase());
         };
     }
@@ -78,7 +85,7 @@ record V10SignalingClientState(SignalingClientPhase phase,
             case SIGNALING -> {
                 final var backlog = new ArrayList<>(backlog()) {{ add(signal); }};
                 final var profiles = new ArrayList<>(profiles()) {{ add(signal.getProfileId()); }};
-                yield new V10SignalingClientState(phase(), session(), handshake(), host(), profiles, backlog);
+                yield new V10SignalingClientState(phase(), session(), handshake(), host(), profiles, backlog, disconnectStatus());
             }
             default -> throw new ProtocolStateException("Invalid handshake phase " + phase());
         };
@@ -109,7 +116,7 @@ record V10SignalingClientState(SignalingClientPhase phase,
                     removeIf(profileId -> profileId.equals(disconnect.getProfileId()));
                 }};
 
-                yield new V10SignalingClientState(phase(), session(), handshake(), host(), profiles, backlog);
+                yield new V10SignalingClientState(phase(), session(), handshake(), host(), profiles, backlog, disconnectStatus());
 
             }
             default -> throw new ProtocolStateException("Invalid handshake phase " + phase());
@@ -123,7 +130,7 @@ record V10SignalingClientState(SignalingClientPhase phase,
                 case ONCE -> this;
                 case MATCH, SESSION -> {
                     final var backlog = new ArrayList<>(backlog()) {{ add(signal); }};
-                    yield new V10SignalingClientState(phase(), session(), handshake(), host(), profiles(), backlog);
+                    yield new V10SignalingClientState(phase(), session(), handshake(), host(), profiles(), backlog, disconnectStatus());
                 }
             };
             default -> throw new ProtocolStateException("Invalid handshake phase " + phase());

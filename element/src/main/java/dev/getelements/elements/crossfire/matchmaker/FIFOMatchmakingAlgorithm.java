@@ -4,7 +4,6 @@ import dev.getelements.elements.crossfire.StandardJoinMatchHandle;
 import dev.getelements.elements.crossfire.api.*;
 import dev.getelements.elements.crossfire.model.handshake.FindHandshakeRequest;
 import dev.getelements.elements.crossfire.model.handshake.JoinHandshakeRequest;
-import dev.getelements.elements.dao.mongo.match.MongoMultiMatchDao;
 import dev.getelements.elements.sdk.annotation.ElementServiceExport;
 import dev.getelements.elements.sdk.dao.MultiMatchDao;
 import dev.getelements.elements.sdk.dao.Transaction;
@@ -12,11 +11,9 @@ import dev.getelements.elements.sdk.model.match.MultiMatch;
 import dev.getelements.elements.sdk.model.match.MultiMatchStatus;
 import jakarta.inject.Inject;
 import jakarta.inject.Provider;
-import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@Slf4j
 @ElementServiceExport(value = MatchmakingAlgorithm.class)
 @ElementServiceExport(value = MatchmakingAlgorithm.class, name = FIFOMatchmakingAlgorithm.NAME)
 public class FIFOMatchmakingAlgorithm implements MatchmakingAlgorithm {

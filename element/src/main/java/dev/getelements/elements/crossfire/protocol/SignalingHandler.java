@@ -3,12 +3,14 @@ package dev.getelements.elements.crossfire.protocol;
 import dev.getelements.elements.crossfire.model.control.ControlMessage;
 import dev.getelements.elements.crossfire.model.signal.BroadcastSignal;
 import dev.getelements.elements.crossfire.model.signal.DirectSignal;
+import dev.getelements.elements.sdk.annotation.ElementPublic;
 import jakarta.websocket.Session;
 
 /**
  * Handles the signaling messages for the Crossfire protocol.
  * This interface is responsible for processing handshake requests.
  */
+@ElementPublic
 public interface SignalingHandler {
 
     /**

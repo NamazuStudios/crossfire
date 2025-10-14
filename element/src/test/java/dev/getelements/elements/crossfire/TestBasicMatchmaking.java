@@ -34,7 +34,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.TreeSet;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -482,10 +481,14 @@ public class TestBasicMatchmaking {
     @Test(dataProvider = "allContexts",
             dependsOnMethods = "testHostReceiveSignalString"
     )
-    public void testLeaveMatch(final TestContext context) {
+    public void testLeaveMatch(final TestContext context) throws InterruptedException {
+
         final var leave = new LeaveControlMessage();
         leave.setProfileId(context.profile.getId());
         context.crossfire().getSignalingClient().control(leave);
+
+        final var status = context.crossfire.getSignalingClient().waitForDisconnect();
+        assertFalse(status.error(), "Closed with error: " + status.message());
     }
 
     public record TestContext(

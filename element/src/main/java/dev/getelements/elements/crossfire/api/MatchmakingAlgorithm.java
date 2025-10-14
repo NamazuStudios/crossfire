@@ -2,10 +2,12 @@ package dev.getelements.elements.crossfire.api;
 
 import dev.getelements.elements.crossfire.model.handshake.FindHandshakeRequest;
 import dev.getelements.elements.crossfire.model.handshake.JoinHandshakeRequest;
+import dev.getelements.elements.sdk.annotation.ElementPublic;
 
 /**
  * Represents a matchmaking algorithm that can be used to match players or profiles based on certain criteria.
  */
+@ElementPublic
 public interface MatchmakingAlgorithm {
 
     /**

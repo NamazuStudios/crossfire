@@ -1,8 +1,11 @@
 package dev.getelements.elements.crossfire.protocol;
 
+import dev.getelements.elements.sdk.annotation.ElementPublic;
+
 /**
  * Indicates the current phase of the connection.
  */
+@ElementPublic
 public enum ConnectionPhase {
 
     /**
