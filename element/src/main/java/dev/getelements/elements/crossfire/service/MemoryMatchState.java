@@ -379,17 +379,24 @@ public class MemoryMatchState {
                 try (var mon = Monitor.enter(write)) {
 
                     session.clear();
-                    subscription.set(null);
 
-                    final var hasConnections = sessionStates.values()
-                            .stream()
-                            .anyMatch(s -> s.subscription.get() != null);
+                    final var existing = subscription.getAndSet(null);
 
-                    if (hasConnections) {
-                        reassignHostIfNecessary();
+                    if (existing == null) {
+                        logger.debug("No existing subscription to disconnect for profileId {}.", profileId);
                     } else {
-                        parameters.onAllParticipantsDisconnected()
-                                  .accept(MemoryMatchState.this);
+
+                        final var hasConnections = sessionStates.values()
+                                .stream()
+                                .anyMatch(s -> s.subscription.get() != null);
+
+                        if (hasConnections) {
+                            reassignHostIfNecessary();
+                        } else {
+                            parameters.onAllParticipantsDisconnected()
+                                    .accept(MemoryMatchState.this);
+                        }
+
                     }
 
                 }

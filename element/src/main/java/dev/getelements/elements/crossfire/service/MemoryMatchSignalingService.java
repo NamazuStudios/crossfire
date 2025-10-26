@@ -167,9 +167,9 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
             }
 
         } catch (MultiMatchNotFoundException ex) {
-            logger.warn("Could not end MultiMatch {} because it was not found.", matchId);
+            logger.debug("Could not end MultiMatch {} because it was not found.", matchId);
         } catch (InvalidMultiMatchPhaseException ex) {
-            logger.warn("Could not end MultiMatch {} because it was in an invalid state: {}", matchId, ex.getActual());
+            logger.debug("Could not end MultiMatch {} because it was in an invalid state: {}", matchId, ex.getActual());
         }
     }
 
