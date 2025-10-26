@@ -5,6 +5,7 @@ import dev.getelements.elements.crossfire.model.error.DuplicateConnectionExcepti
 import dev.getelements.elements.crossfire.model.error.MessageBufferOverrunException;
 import dev.getelements.elements.crossfire.model.error.UnexpectedMessageException;
 import dev.getelements.elements.crossfire.model.signal.*;
+import dev.getelements.elements.sdk.ElementRegistry;
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.util.Monitor;
 import org.slf4j.Logger;
@@ -13,7 +14,6 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
@@ -28,18 +28,11 @@ public class MemoryMatchState {
 
     private final MemoryMatchBacklog memoryMatchBacklog;
 
-    public MemoryMatchState(final int maxBacklogSize) {
-        this(maxBacklogSize, new ReentrantReadWriteLock());
-    }
+    private final Parameters parameters;
 
-    public MemoryMatchState(final int maxBacklogSize, final ReadWriteLock readWriteLock) {
-        this(maxBacklogSize, readWriteLock.readLock(), readWriteLock.writeLock());
-    }
-
-    public MemoryMatchState(final int maxBacklogSize,
-                            final Lock read,
-                            final Lock write) {
-        memoryMatchBacklog = new MemoryMatchBacklog(maxBacklogSize, read, write);
+    public MemoryMatchState(final Parameters parameters) {
+        this.parameters = parameters;
+        this.memoryMatchBacklog = new MemoryMatchBacklog();
     }
 
     public void send(final DirectSignal signal) {
@@ -56,6 +49,10 @@ public class MemoryMatchState {
             case SESSION, MATCH -> memoryMatchBacklog.publishAndPersist(signal);
             default -> throw new IllegalArgumentException("Unexpected value: " + signal.getLifecycle());
         }
+    }
+
+    public Parameters getParameters() {
+        return parameters;
     }
 
     public void error(final Throwable th) {
@@ -91,13 +88,12 @@ public class MemoryMatchState {
 
         private final BoundedList.Builder<Signal> backlogListBuilder = new BoundedList.Builder<>();
 
-        public MemoryMatchBacklog(final int maxBacklogSize,
-                                  final Lock read,
-                                  final Lock write) {
-            this.read = read;
-            this.write = write;
+        public MemoryMatchBacklog() {
+            final var lock = new ReentrantReadWriteLock();
+            this.read = lock.readLock();
+            this.write = lock.writeLock();
             backlogListBuilder
-                    .maxSize(maxBacklogSize)
+                    .maxSize(parameters.matchBacklogSize())
                     .sizeSupplier(this::size)
                     .exceptionSupplier(MessageBufferOverrunException::new);
         }
@@ -243,7 +239,17 @@ public class MemoryMatchState {
             requireNonNull(profileId, "profileId cannot be null");
 
             try (var mon = Monitor.enter(write)) {
-                return sessionStates.remove(profileId) != null;
+                if (sessionStates.remove(profileId) != null) {
+
+                    if (sessionStates.isEmpty()) {
+                        getParameters().onAllParticipantsLeft().accept(MemoryMatchState.this);
+                    }
+
+                    return true;
+
+                } else {
+                    return false;
+                }
             }
 
         }
@@ -373,7 +379,18 @@ public class MemoryMatchState {
                 try (var mon = Monitor.enter(write)) {
                     session.clear();
                     subscription.set(null);
-                    reassignHostIfNecessary();
+
+                    final var hasConnections = sessionStates.values()
+                            .stream()
+                            .anyMatch(s -> s.subscription.get() != null);
+
+                    if (hasConnections) {
+                        reassignHostIfNecessary();
+                    } else {
+                        parameters.onAllParticipantsDisconnected()
+                                  .accept(MemoryMatchState.this);
+                    }
+
                 }
 
             }
@@ -420,9 +437,15 @@ public class MemoryMatchState {
 
             }
 
-
         }
 
     }
+
+    public record Parameters(
+            String matchId,
+            int matchBacklogSize,
+            ElementRegistry registry,
+            Consumer<MemoryMatchState> onAllParticipantsLeft,
+            Consumer<MemoryMatchState> onAllParticipantsDisconnected) {}
 
 }

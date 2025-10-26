@@ -54,7 +54,7 @@
         <surefire.version>3.0.0-M9</surefire.version>
         <maven.compiler.version>3.11.0</maven.compiler.version>
         <servlet.api>6.1.0</servlet.api>
-        <elements.version>3.4.0-SNAPSHOT</elements.version>
+        <elements.version>3.4.11</elements.version>
         <guice.version>7.0.0</guice.version>
         <java.version>21</java.version>
         <jain.version>1.2.269</jain.version>

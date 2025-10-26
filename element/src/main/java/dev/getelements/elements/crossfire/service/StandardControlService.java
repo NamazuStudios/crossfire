@@ -52,7 +52,6 @@ public class StandardControlService implements ControlService {
     private Result onMessageLeave(final ProtocolMessageHandler.MultiMatchRecord match,
                                 final ProtocolMessageHandler.AuthRecord auth,
                                 final LeaveControlMessage message) {
-        match.matchHandle().leaveMatch();
         getMatchSignalingService().leave(match.getId(), auth.profile().getId());
         return CLOSE_CONNECTION;
     }

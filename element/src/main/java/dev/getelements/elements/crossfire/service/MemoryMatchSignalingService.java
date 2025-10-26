@@ -4,11 +4,14 @@ import dev.getelements.elements.crossfire.model.ProtocolMessage;
 import dev.getelements.elements.crossfire.model.error.MatchDeletedException;
 import dev.getelements.elements.crossfire.model.signal.BroadcastSignal;
 import dev.getelements.elements.crossfire.model.signal.DirectSignal;
+import dev.getelements.elements.sdk.ElementRegistry;
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.annotation.ElementDefaultAttribute;
 import dev.getelements.elements.sdk.annotation.ElementEventConsumer;
 import dev.getelements.elements.sdk.dao.MultiMatchDao;
 import dev.getelements.elements.sdk.model.exception.ForbiddenException;
+import dev.getelements.elements.sdk.model.exception.InvalidMultiMatchPhaseException;
+import dev.getelements.elements.sdk.model.exception.MultiMatchNotFoundException;
 import dev.getelements.elements.sdk.model.match.MultiMatch;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
@@ -21,6 +24,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.function.Consumer;
 
 import static dev.getelements.elements.sdk.dao.MultiMatchDao.MULTI_MATCH_DELETED;
+import static dev.getelements.elements.sdk.model.match.MultiMatchStatus.ENDED;
 
 public class MemoryMatchSignalingService implements MatchSignalingService {
 
@@ -33,7 +37,9 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
 
     private int maxBacklogSize;
 
-    private MultiMatchDao mongoMultiMatchDao;
+    private MultiMatchDao multiMatchDao;
+
+    private ElementRegistry elementRegistry;
 
     @Override
     public Optional<String> findHost() {
@@ -43,7 +49,7 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
     @Override
     public void send(final String matchId, final BroadcastSignal signal) {
 
-        final var match = getMongoMultiMatchDao().getMultiMatch(matchId);
+        final var match = getSignalableMatch(matchId);
         final var profiles = getMongoMultiMatchDao().getProfiles(match.getId());
 
         final var exists = profiles
@@ -54,7 +60,7 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
             throw new ForbiddenException("Profile with id " + signal.getProfileId() + " does not exist");
         }
 
-        matches.computeIfAbsent(match.getId(), mid -> new MemoryMatchState(getMaxBacklogSize()))
+        matches.computeIfAbsent(match.getId(), this::newMemoryMatchState)
                .send(signal);
 
     }
@@ -62,7 +68,7 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
     @Override
     public void send(final String matchId, final DirectSignal signal) {
 
-        final var match = getMongoMultiMatchDao().getMultiMatch(matchId);
+        final var match = getSignalableMatch(matchId);
         final var profiles = getMongoMultiMatchDao().getProfiles(match.getId());
 
         final var senderExists = profiles
@@ -79,7 +85,7 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
             throw new ForbiddenException("Recipient profile with id " + signal.getRecipientProfileId() + " does not exist");
         }
 
-        matches.computeIfAbsent(match.getId(), mid -> new MemoryMatchState(getMaxBacklogSize()))
+        matches.computeIfAbsent(match.getId(), this::newMemoryMatchState)
                .send(signal);
 
     }
@@ -87,7 +93,7 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
     @Override
     public boolean join(final String matchId, final String profileId) {
 
-        final var match = getMongoMultiMatchDao().getMultiMatch(matchId);
+        final var match = getSignalableMatch(matchId);
         final var profiles = getMongoMultiMatchDao().getProfiles(match.getId());
 
         final var exists = profiles
@@ -98,7 +104,7 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
             throw new ForbiddenException("Profile " + profileId + " is not part of match " + matchId);
 
         return matches
-                .computeIfAbsent(match.getId(), mid -> new MemoryMatchState(getMaxBacklogSize()))
+                .computeIfAbsent(match.getId(), this::newMemoryMatchState)
                 .join(profileId);
 
     }
@@ -110,7 +116,7 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
             final Consumer<ProtocolMessage> onMessage,
             final Consumer<Throwable> onError) {
 
-        final var match = getMongoMultiMatchDao().getMultiMatch(matchId);
+        final var match = getSignalableMatch(matchId);
         final var profiles = getMongoMultiMatchDao().getProfiles(match.getId());
 
         final var exists = profiles
@@ -121,9 +127,57 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
             throw new ForbiddenException("Profile " + profileId + " is not part of match " + matchId);
 
         return matches
-                .computeIfAbsent(match.getId(), mid -> new MemoryMatchState(getMaxBacklogSize()))
+                .computeIfAbsent(match.getId(), this::newMemoryMatchState)
                 .connect(profileId, onMessage, onError);
 
+    }
+
+    private MultiMatch getSignalableMatch(final String matchId) {
+
+        final var match = getMongoMultiMatchDao().getMultiMatch(matchId);
+
+        if (ENDED.equals(match.getStatus())) {
+            throw new MatchDeletedException("Match is not active: %s".formatted(matchId));
+        }
+
+        return match;
+
+    }
+
+    private MemoryMatchState newMemoryMatchState(final String matchId) {
+
+        final var parameters = new MemoryMatchState.Parameters(
+                matchId,
+                getMaxBacklogSize(),
+                getElementRegistry(),
+                this::onAllParticipantsLeft,
+                this::onnAllParticipantsDisconnected
+        );
+
+        return new MemoryMatchState(parameters);
+    }
+
+    private void endAndRemove(final String matchId) {
+        try {
+            final var match = getMongoMultiMatchDao().endMatch(matchId);
+            matches.remove(match.getId());
+        } catch (MultiMatchNotFoundException ex) {
+            logger.warn("Could not end MultiMatch {} because it was not found.", matchId);
+        } catch (InvalidMultiMatchPhaseException ex) {
+            logger.warn("Could not end MultiMatch {} because it was in an invalid state: {}", matchId, ex.getActual());
+        }
+    }
+
+    private void onAllParticipantsLeft(final MemoryMatchState memoryMatchState) {
+        final var matchId = memoryMatchState.getParameters().matchId();
+        logger.info("All participants left {}. Removing.", matchId);
+        endAndRemove(matchId);
+    }
+
+    private void onnAllParticipantsDisconnected(final MemoryMatchState memoryMatchState) {
+        final var matchId = memoryMatchState.getParameters().matchId();
+        logger.info("All participants disconnected {}. Removing.", matchId);
+        endAndRemove(matchId);
     }
 
     @Override
@@ -151,13 +205,22 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
         this.maxBacklogSize = maxBacklogSize;
     }
 
+    public ElementRegistry getElementRegistry() {
+        return elementRegistry;
+    }
+
+    @Inject
+    public void setElementRegistry(ElementRegistry elementRegistry) {
+        this.elementRegistry = elementRegistry;
+    }
+
     public MultiMatchDao getMongoMultiMatchDao() {
-        return mongoMultiMatchDao;
+        return multiMatchDao;
     }
 
     @Inject
     public void setMongoMultiMatchDao(MultiMatchDao mongoMultiMatchDao) {
-        this.mongoMultiMatchDao = mongoMultiMatchDao;
+        this.multiMatchDao = mongoMultiMatchDao;
     }
 
     @ElementEventConsumer(MULTI_MATCH_DELETED)
