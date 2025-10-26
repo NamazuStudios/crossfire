@@ -85,7 +85,12 @@ public class V10SignalingHandler implements SignalingHandler {
         switch (updated.phase()) {
             case TERMINATED -> logger.debug("Signaling already terminated.");
             case SIGNALING -> updated.subscription().unsubscribe();
-            default -> throw new ProtocolStateException("Unexpected state: " + updated.phase());
+            default -> {
+                if (updated.subscription() != null) {
+                    logger.warn("Signaling in unexpected state {}. Cleaning up subscription.", updated.phase());
+                    updated.subscription().unsubscribe();
+                }
+            }
         }
 
     }
