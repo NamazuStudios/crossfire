@@ -82,15 +82,9 @@ public class V10SignalingHandler implements SignalingHandler {
         final var updated = state.updateAndGet(V10SignalingState::terminate);
         logger.debug("Stopped signaling.");
 
-        switch (updated.phase()) {
-            case TERMINATED -> logger.debug("Signaling already terminated.");
-            case SIGNALING -> updated.subscription().unsubscribe();
-            default -> {
-                if (updated.subscription() != null) {
-                    logger.warn("Signaling in unexpected state {}. Cleaning up subscription.", updated.phase());
-                    updated.subscription().unsubscribe();
-                }
-            }
+        if (updated.subscription() != null) {
+            logger.warn("Signaling in unexpected state {}. Cleaning up subscription.", updated.phase());
+            updated.subscription().unsubscribe();
         }
 
     }
