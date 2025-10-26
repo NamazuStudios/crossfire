@@ -163,7 +163,7 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
             final var match = getMongoMultiMatchDao().endMatch(matchId);
 
             if (matches.remove(match.getId()) == null) {
-                logger.warn("Could not find MultiMatchState for ended MultiMatch {}.", matchId);
+                logger.debug("Could not find MultiMatchState for ended MultiMatch {}.", matchId);
             }
 
         } catch (MultiMatchNotFoundException ex) {
