@@ -377,6 +377,7 @@ public class MemoryMatchState {
                 // calling code in MemoryMatchBacklog.connect() method as the subscription's onUnsubscribe handler.
 
                 try (var mon = Monitor.enter(write)) {
+
                     session.clear();
                     subscription.set(null);
 
@@ -407,8 +408,6 @@ public class MemoryMatchState {
 
                 if (existing != null)
                     existing.onError(new DuplicateConnectionException());
-
-                reassignHostIfNecessary();
 
             }
 

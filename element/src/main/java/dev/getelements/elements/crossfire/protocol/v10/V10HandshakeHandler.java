@@ -33,6 +33,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
+import static dev.getelements.elements.crossfire.protocol.HandshakePhase.MATCHING;
 import static dev.getelements.elements.crossfire.protocol.HandshakePhase.TERMINATED;
 import static dev.getelements.elements.sdk.service.Constants.UNSCOPED;
 
@@ -71,8 +72,13 @@ public class V10HandshakeHandler implements HandshakeHandler {
     @Override
     public void stop(final ProtocolMessageHandler handler,
                      final Session session) {
+
         final var state = this.state.updateAndGet(V10HandshakeStateRecord::terminate);
-        state.leave();
+
+        if (MATCHING.equals(state.phase())) {
+            state.leave();
+        }
+
     }
 
     @Override

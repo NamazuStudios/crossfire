@@ -159,8 +159,13 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
 
     private void endAndRemove(final String matchId) {
         try {
+
             final var match = getMongoMultiMatchDao().endMatch(matchId);
-            matches.remove(match.getId());
+
+            if (matches.remove(match.getId()) == null) {
+                logger.warn("Could not find MultiMatchState for ended MultiMatch {}.", matchId);
+            }
+
         } catch (MultiMatchNotFoundException ex) {
             logger.warn("Could not end MultiMatch {} because it was not found.", matchId);
         } catch (InvalidMultiMatchPhaseException ex) {

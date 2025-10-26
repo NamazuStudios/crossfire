@@ -103,6 +103,9 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
     public void stop(final Session session) throws IOException {
         final var result = state.updateAndGet(V10ConnectionStateRecord::terminate);
         pinger.stop();
+        handshakeHandler.stop(this, session);
+        signalingHandler.stop(this, session);
+        terminate();
         logger.debug("{}: Stopping protocol message handler {}.", result.phase(), result.sessionId());
     }
 
@@ -301,34 +304,6 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
             terminate(th);
 
         }
-    }
-
-    @Override
-    public void send(final ProtocolMessage message) {
-
-        final var result = state.updateAndGet(existing -> switch (existing.phase()) {
-            case SIGNALING -> existing;
-            default -> throw invalid(existing, message);
-        });
-
-        if (SIGNALING.equals(result.phase())) {
-
-            result.session().getAsyncRemote().sendObject(message);
-
-            logger.debug("{}: Skipping buffer for outbound message {} for session {} in phase.",
-                    result.phase(),
-                    message.getType(),
-                    result.sessionId()
-            );
-
-        } else {
-            logger.debug("{}: Buffered outbound message {} for session {} in phase.",
-                    result.phase(),
-                    message.getType(),
-                    result.sessionId()
-            );
-        }
-
     }
 
     @Override

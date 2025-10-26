@@ -38,7 +38,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static dev.getelements.elements.crossfire.client.Crossfire.Mode.*;
+import static dev.getelements.elements.crossfire.client.Crossfire.Mode.SIGNALING_CLIENT;
+import static dev.getelements.elements.crossfire.client.Crossfire.Mode.SIGNALING_HOST;
 import static dev.getelements.elements.crossfire.client.Peer.SendResult.SENT;
 import static dev.getelements.elements.crossfire.model.ProtocolMessageType.MATCHED;
 import static dev.getelements.elements.sdk.model.user.User.Level.USER;
@@ -52,7 +53,7 @@ import static org.testng.AssertJUnit.assertNotNull;
 
 public class TestBasicMatchmaking {
 
-    public static final int TEST_PLAYER_COUNT = 2;
+    public static final int TEST_PLAYER_COUNT = 4;
 
     public static final String TEST_BASIC_MATCHMAKING = "test_basic_matchmaking";
 
@@ -478,8 +479,9 @@ public class TestBasicMatchmaking {
 
     }
 
-    @Test(dataProvider = "allContexts",
-            dependsOnMethods = "testHostReceiveSignalString"
+    @Test(groups = "testLeaveMatch",
+          dataProvider = "allContexts",
+          dependsOnMethods = "testHostReceiveSignalString"
     )
     public void testLeaveMatch(final TestContext context) throws InterruptedException {
 
@@ -489,6 +491,7 @@ public class TestBasicMatchmaking {
 
         final var status = context.crossfire.getSignalingClient().waitForDisconnect();
         assertFalse(status.error(), "Closed with error: " + status.message());
+
     }
 
     public record TestContext(

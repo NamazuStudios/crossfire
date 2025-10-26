@@ -78,9 +78,16 @@ public class V10SignalingHandler implements SignalingHandler {
     public void stop(
             final ProtocolMessageHandler handler,
             final Session session) {
+
         final var updated = state.updateAndGet(V10SignalingState::terminate);
-        updated.subscription().unsubscribe();
         logger.debug("Stopped signaling.");
+
+        switch (updated.phase()) {
+            case TERMINATED -> logger.debug("Signaling already terminated.");
+            case SIGNALING -> updated.subscription().unsubscribe();
+            default -> throw new ProtocolStateException("Unexpected state: " + updated.phase());
+        }
+
     }
 
     @Override

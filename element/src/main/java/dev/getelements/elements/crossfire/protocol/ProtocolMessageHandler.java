@@ -103,7 +103,7 @@ public interface ProtocolMessageHandler {
      * @param error the protocol message request
      * @throws ProtocolStateException in the event that the connection phase is not ready or has been terminated
      */
-    default void onError(jakarta.websocket.Session session, Throwable error) {
+    default void onError(final jakarta.websocket.Session session, final Throwable error) {
         terminate(error);
     }
 
@@ -114,13 +114,6 @@ public interface ProtocolMessageHandler {
      * @param task the runnable to submit
      */
     Future<?> submit(Runnable task);
-
-    /**
-     * Sends a protocol message to the session, buffering it if necessary.
-     *
-     * @param message the message
-     */
-    void send(ProtocolMessage message);
 
     /**
      * Atomically and in a thread safe manner matches the profile to the session. This will switch the connection phase
