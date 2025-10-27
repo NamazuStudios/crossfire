@@ -50,27 +50,16 @@ public class TestBasicMatchmaking {
 
     private static final Logger logger = LoggerFactory.getLogger(TestBasicMatchmaking.class);
 
-    private TestServer server;
+    private final TestServer server = TestServer.getInstance();
 
-    private List<TestContext> testContextList = List.of();
+    private final WebSocketContainer webSocketContainer = ContainerProvider.getWebSocketContainer();
 
-    private WebSocketContainer webSocketContainer;
+    private final List<TestContext> testContextList = IntStream
+            .range(0, TEST_PLAYER_COUNT)
+            .mapToObj(i -> TestContext.create(i, server, webSocketContainer))
+            .toList();
 
     private MatchmakingApplicationConfiguration configuration;
-
-    @DataProvider
-    public Object[][] allContexts() {
-
-        if (testContextList.isEmpty()) {
-            Assert.fail("Test contexts are not initialized. Ensure setupContexts() succeeds called before running tests.");
-        }
-
-        return testContextList
-                .stream()
-                .map(c -> new Object[]{c})
-                .toArray(Object[][]::new);
-
-    }
 
     @DataProvider
     public Object[][] host() {
@@ -102,24 +91,21 @@ public class TestBasicMatchmaking {
 
     }
 
-    @BeforeClass
-    public void setupServer() {
-         server = TestServer.getInstance();
+    @DataProvider
+    public Object[][] allContexts() {
+
+        if (testContextList.isEmpty()) {
+            Assert.fail("Test contexts are not initialized. Ensure setupContexts() succeeds called before running tests.");
+        }
+
+        return testContextList
+                .stream()
+                .map(c -> new Object[]{c})
+                .toArray(Object[][]::new);
+
     }
 
     @BeforeClass
-    public void setupContainer() {
-        webSocketContainer = ContainerProvider.getWebSocketContainer();
-    }
-
-    @BeforeClass(dependsOnMethods = {"setupServer", "setupContainer"})
-    public void setupContexts() {
-        testContextList = IntStream.range(0, TEST_PLAYER_COUNT)
-                .mapToObj(i -> TestContext.create(i, server, webSocketContainer))
-                .toList();
-    }
-
-    @BeforeClass(dependsOnMethods = {"setupServer"})
     public void setupConfiguration() {
 
         final var application = server.getApplication();
