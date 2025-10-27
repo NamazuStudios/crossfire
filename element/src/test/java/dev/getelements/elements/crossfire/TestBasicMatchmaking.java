@@ -1,26 +1,22 @@
 package dev.getelements.elements.crossfire;
 
-import dev.getelements.elements.crossfire.client.*;
-import dev.getelements.elements.crossfire.client.Peer.Message;
-import dev.getelements.elements.crossfire.client.Peer.StringMessage;
-import dev.getelements.elements.crossfire.client.webrtc.WebRTCMatchClient;
-import dev.getelements.elements.crossfire.client.webrtc.WebRTCMatchHost;
+import dev.getelements.elements.crossfire.client.Peer;
+import dev.getelements.elements.crossfire.client.PeerPhase;
+import dev.getelements.elements.crossfire.client.SignalingClient;
+import dev.getelements.elements.crossfire.client.SignalingClientPhase;
 import dev.getelements.elements.crossfire.model.Protocol;
 import dev.getelements.elements.crossfire.model.Version;
 import dev.getelements.elements.crossfire.model.control.LeaveControlMessage;
 import dev.getelements.elements.crossfire.model.handshake.FindHandshakeRequest;
-import dev.getelements.elements.crossfire.model.signal.*;
-import dev.getelements.elements.sdk.Subscription;
+import dev.getelements.elements.crossfire.model.signal.ConnectBroadcastSignal;
+import dev.getelements.elements.crossfire.model.signal.HostBroadcastSignal;
+import dev.getelements.elements.crossfire.model.signal.JoinBroadcastSignal;
+import dev.getelements.elements.crossfire.model.signal.Signal;
 import dev.getelements.elements.sdk.dao.ApplicationConfigurationDao;
 import dev.getelements.elements.sdk.model.application.MatchmakingApplicationConfiguration;
 import dev.getelements.elements.sdk.model.profile.Profile;
-import dev.getelements.elements.sdk.model.session.SessionCreation;
-import dev.getelements.elements.sdk.model.user.User;
-import dev.onvoid.webrtc.RTCConfiguration;
-import dev.onvoid.webrtc.RTCIceTransportPolicy;
 import jakarta.websocket.ContainerProvider;
 import jakarta.websocket.WebSocketContainer;
-import org.eclipse.jetty.util.BlockingArrayQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -33,17 +29,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.TreeSet;
-import java.util.concurrent.BlockingQueue;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static dev.getelements.elements.crossfire.client.Crossfire.Mode.SIGNALING_CLIENT;
-import static dev.getelements.elements.crossfire.client.Crossfire.Mode.SIGNALING_HOST;
 import static dev.getelements.elements.crossfire.client.Peer.SendResult.SENT;
 import static dev.getelements.elements.crossfire.model.ProtocolMessageType.MATCHED;
-import static dev.getelements.elements.sdk.model.user.User.Level.USER;
-import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -124,48 +115,7 @@ public class TestBasicMatchmaking {
     @BeforeClass(dependsOnMethods = {"setupServer", "setupContainer"})
     public void setupContexts() {
         testContextList = IntStream.range(0, TEST_PLAYER_COUNT)
-                .mapToObj(i -> {
-
-                    final var user = server.createUser(format("test_%d_user", i), USER);
-                    final var profile = server.createProfile(user, format("test_%d_profile", i));
-                    final var session = server.newSessionForUser(user, profile);
-
-                    final var crossfire = new StandardCrossfire.Builder()
-                            .withDefaultUri(server.getTestTestServerWsUrl())
-                            .withWebSocketContainer(webSocketContainer)
-                            // The WebRTC Clients have some issues with memory management so those tests are disabled
-                            // for now until we can figure out the memory corruption issues with the Java WebRTC
-                            // client library. This does a full signaling test and we can manually run the WebRTC
-                            // tests to ensure that connectivity is working.
-//                            .withDefaultProtocol(Protocol.WEBRTC)
-//                            .withSupportedModes(WEBRTC_HOST, WEBRTC_CLIENT)
-                            .withDefaultProtocol(Protocol.SIGNALING)
-                            .withSupportedModes(SIGNALING_HOST, SIGNALING_CLIENT)
-                            .withWebRTCHostBuilder(() -> new WebRTCMatchHost.Builder()
-                                    .withPeerConfigurationProvider(profileId -> {
-                                        final var rtcConfiguration = new RTCConfiguration();
-                                        rtcConfiguration.iceTransportPolicy = RTCIceTransportPolicy.NO_HOST;
-                                        return rtcConfiguration;
-                                    })
-                            )
-                            .withWebRTCClientBuilder(() -> new WebRTCMatchClient.Builder()
-                                    .withPeerConfigurationProvider(profileId -> {
-                                        final var rtcConfiguration = new RTCConfiguration();
-                                        rtcConfiguration.iceTransportPolicy = RTCIceTransportPolicy.NO_HOST;
-                                        return rtcConfiguration;
-                                    })
-                            )
-                            .build()
-                            .connect();
-
-                    return new TestContext(crossfire, user, profile, session,
-                            new BlockingArrayQueue<>(),
-                            new BlockingArrayQueue<>(),
-                            new BlockingArrayQueue<>(),
-                            Subscription.begin()
-                    );
-
-                })
+                .mapToObj(i -> TestContext.create(i, server, webSocketContainer))
                 .toList();
     }
 
@@ -486,113 +436,11 @@ public class TestBasicMatchmaking {
     public void testLeaveMatch(final TestContext context) throws InterruptedException {
 
         final var leave = new LeaveControlMessage();
-        leave.setProfileId(context.profile.getId());
+        leave.setProfileId(context.profile().getId());
         context.crossfire().getSignalingClient().control(leave);
 
-        final var status = context.crossfire.getSignalingClient().waitForDisconnect();
+        final var status = context.crossfire().getSignalingClient().waitForDisconnect();
         assertFalse(status.error(), "Closed with error: " + status.message());
-
-    }
-
-    public record TestContext(
-            Crossfire crossfire,
-            User user,
-            Profile profile,
-            SessionCreation creation,
-            BlockingQueue<Signal> signals,
-            BlockingQueue<Message> messages,
-            BlockingQueue<StringMessage> stringMessages,
-            Subscription subscription
-    ) {
-
-        public TestContext {
-
-            crossfire
-                    .getSignalingClient()
-                    .onSignal((sub, signal) -> {
-                        signals().add(signal);
-                        switch (signal.getType().getCategory()) {
-                            case SIGNALING -> logger.info("Received broadcast signal {} from {} for profile {}.",
-                                    signal.getType(),
-                                    ((BroadcastSignal) signal).getProfileId(),
-                                    profile().getId()
-                            );
-                            case SIGNALING_DIRECT -> logger.info("Received direct signal {} from {} addressed to {} for profile {}.",
-                                    signal.getType(),
-                                    ((DirectSignal) signal).getProfileId(),
-                                    ((DirectSignal) signal).getRecipientProfileId(),
-                                    profile().getId()
-                            );
-                        }
-                    });
-
-            subscription = Subscription.begin()
-                    .chain(subscription)
-                    .chain(crossfire.onHostOpenStatus(this::onHostOpened))
-                    .chain(crossfire.onClientOpenStatus(this::onClientOpened));
-
-        }
-
-        private void onHostOpened(final Subscription hostSubscription,
-                                  final Crossfire.OpenStatus<MatchHost> matchClient) {
-            if (matchClient.open()) {
-                matchClient.object().onPeerStatus(this::onPeerStatus);
-            } else {
-                hostSubscription.unsubscribe();
-            }
-        }
-
-        private void onClientOpened(final Subscription clientSubscription,
-                                    final Crossfire.OpenStatus<MatchClient> matchClient) {
-            if (matchClient.open()) {
-                matchClient.object().onPeerStatus(this::onPeerStatus);
-            } else {
-                clientSubscription.unsubscribe();
-            }
-        }
-
-        private void onPeerStatus(final Subscription peerSubscription, final PeerStatus peerStatus) {
-            switch (peerStatus.phase()) {
-                case READY -> {
-                    peerStatus.peer().onMessage(((s, m) -> {
-
-                        final var localProfileId = crossfire().getSignalingClient().getState().getProfileId();
-
-                        logger.info("Received binary message {} -> {}",
-                                m.peer().getProfileId(),
-                                localProfileId
-                        );
-
-                        if (messages.add(m))
-                            logger.info("Added message: {}", localProfileId);
-                        else
-                            logger.info("Failed to add message: {}", localProfileId);
-
-                    }));
-                    peerStatus.peer().onStringMessage(((s, m) -> {
-
-                        final var localProfileId = crossfire().getSignalingClient().getState().getProfileId();
-
-                        logger.info("Received string message {} -> {}",
-                                m.peer().getProfileId(),
-                                localProfileId
-                        );
-
-                        if (stringMessages.add(m))
-                            logger.info("Added string message: {}.", localProfileId);
-                        else
-                            logger.info("Failed string to add message: {}", localProfileId);
-
-                    }));
-                }
-                case CONNECTED -> logger.info("Connected remote peer: {}", peerStatus.peer().getProfileId());
-                case TERMINATED -> peerSubscription.unsubscribe();
-            }
-        }
-
-        public SignalingClient signalingClient() {
-            return crossfire().getSignalingClient();
-        }
 
     }
 
