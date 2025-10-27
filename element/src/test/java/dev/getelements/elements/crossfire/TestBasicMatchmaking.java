@@ -119,7 +119,7 @@ public class TestBasicMatchmaking {
                 .toList();
     }
 
-    @BeforeClass(dependsOnMethods = {"setupServer", "setupContexts"})
+    @BeforeClass(dependsOnMethods = {"setupServer"})
     public void setupConfiguration() {
 
         final var application = server.getApplication();
@@ -159,11 +159,6 @@ public class TestBasicMatchmaking {
         assertEquals(context.signalingClient().findHandshakeResponse().get().getMatchId(), response.getMatchId());
 
         logger.info("Found match: {}", response.getMatchId());
-
-    }
-
-    @Test(dependsOnMethods = "testFindHandshake", dataProvider = "allContexts")
-    public void testAllPlayersJoined(final TestContext context) {
 
     }
 
