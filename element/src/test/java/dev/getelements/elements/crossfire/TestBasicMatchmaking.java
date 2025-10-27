@@ -162,7 +162,7 @@ public class TestBasicMatchmaking {
 
     }
 
-    @Test(dependsOnMethods = "testAllPlayersJoined")
+    @Test(dependsOnMethods = "testFindHandshake")
     public void testTestAllJoinedSameMatch() {
 
         final var uniqueMatchIds = testContextList.stream()
