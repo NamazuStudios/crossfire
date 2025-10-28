@@ -9,6 +9,7 @@ import dev.getelements.elements.sdk.dao.SessionDao;
 import dev.getelements.elements.sdk.dao.UserDao;
 import dev.getelements.elements.sdk.local.ElementsLocal;
 import dev.getelements.elements.sdk.local.ElementsLocalBuilder;
+import dev.getelements.elements.sdk.local.maven.MavenElementsLocalBuilder;
 import dev.getelements.elements.sdk.model.application.Application;
 import dev.getelements.elements.sdk.model.profile.Profile;
 import dev.getelements.elements.sdk.model.session.Session;
@@ -21,11 +22,13 @@ import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
 import static dev.getelements.elements.dao.mongo.provider.MongoClientProvider.MONGO_CLIENT_URI;
+import static dev.getelements.elements.sdk.local.maven.MavenElementsLocalBuilder.ELEMENT_CLASSPATH;
 import static dev.getelements.elements.sdk.local.maven.MavenElementsLocalBuilder.ELEMENT_CLASSPATH_PROPERTY;
 import static java.lang.String.format;
 import static java.util.concurrent.TimeUnit.DAYS;
@@ -68,14 +71,9 @@ public class TestServer {
         final var properties = System.getProperties();
         final var pathSeparator = System.getProperty("path.separator");
 
-        // TODO We should allow the classpath to be configured via the ElementsLocalBuilder
-        // instead of having to ninja it in here.
-
-        properties.put(ELEMENT_CLASSPATH_PROPERTY, Stream.of(
-                "element/target/classes",
-                "element/target/element-libs/*",
-                "common/target/classes:client/target/classes").collect(joining(pathSeparator))
-        );
+        final var workingDirectory = Path.of(".");
+        logger.info("Element Classpath: {}", ELEMENT_CLASSPATH);
+        logger.info("Working Directory: {}", workingDirectory.toAbsolutePath().normalize().toString());
 
         properties.put(MONGO_CLIENT_URI, format("mongodb://127.0.0.1:%d", TEST_MONGO_PORT));
 
