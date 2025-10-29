@@ -7,13 +7,13 @@
     <parent>
         <groupId>dev.getelements.elements.crossfire</groupId>
         <artifactId>crossfire</artifactId>
-        <version>1.0.1</version>
+        <version>1.0.1-SNAPSHOT</version>
     </parent>
 
     <groupId>dev.getelements.elements.crossfire</groupId>
     <artifactId>element</artifactId>
     <name>Namazu Elements Crossfire - Element</name>
-    <version>1.0.1</version>
+    <version>1.0.1-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <properties>
