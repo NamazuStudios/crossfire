@@ -6,7 +6,7 @@
     <parent>
         <groupId>dev.getelements.elements.crossfire</groupId>
         <artifactId>crossfire</artifactId>
-        <version>1.0.0</version>
+        <version>1.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>client</artifactId>
