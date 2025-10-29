@@ -79,7 +79,7 @@ jobs:
 
       - name: Build and deploy to Maven Central
         if: ${{ github.event.inputs.dry_run != 'true' }}
-        run: mvn clean deploy -P release -B -DskipTests=false
+        run: mvn -B -Pcentral-publish clean deploy
 
       - name: Create GitHub release
         if: ${{ success() && github.event.inputs.dry_run != 'true' }}

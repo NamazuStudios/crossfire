@@ -30,7 +30,7 @@ jobs:
           gpg-passphrase: GPG_PASSPHRASE
 
       - name: Build and Publish Snapshot
-        run: mvn -B -Pcentral-publish clean deploy -Dparallel=none -Ddataproviderthreadcount=1
+        run: mvn -B -Pcentral-publish clean deploy
         env:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
           CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
