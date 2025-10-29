@@ -1,7 +1,6 @@
 # Namazu Crossfire
 
-This is a pre-release version of CrossFire which is an extension of Elements
-to enable CrossPlay games. Crossfire consists of two major components:
+This is an extension of Namazu Elements to enable CrossPlay games. Crossfire consists of two major components:
 
 * Server - A Websocket-based signaling server which queries the Elements database for other eligible players. It also enables signaling between players to establish peer to peer netplay.
 * Client - A Java-based client which communicates with the matchmaking and signaling services in order to establish connections between players and facilitate network play.
@@ -13,6 +12,8 @@ additionally, we are actively developing support for [Defold](https://defold.com
 More importantly, the Java implementation is used to run all integration tests to ensure proper connectivity. The implementation here serves as a reference implementation which others should follow. If there is any doubt or confusion over the correct behavior, we recommend checking the Java implementation.
 
 For a detailed overview of Crossfire's protocol, refer to the protocol document [Protocol Specification](PROTOCOL.md).
+
+We chose to release Crossfire under the MIT License to encourage studios to hack, extend, and modify Crossfire to suit their needs. We believe that Crossfire provides a solid foundation for building multiplayer games, and we hope that by releasing it under a permissive license, we can foster a community of developers who can contribute to its growth and improvement. Namazu Studios will provide paid support for Namazu Crossfire and Namazu Elements. Please check out our website for more information.
 
 ## Communication Modes
 
