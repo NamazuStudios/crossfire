@@ -1,0 +1,72 @@
+name: Reset to Next Snapshot
+
+on:
+  workflow_dispatch:
+    inputs:
+      next_version:
+        description: 'Optionally specify the next snapshot version (e.g. 1.2.0-SNAPSHOT). Leave blank to auto-increment patch.'
+        required: false
+        default: ''
+
+jobs:
+  reset:
+    name: Reset main to next snapshot version
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write  # needed to push commits
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Get current version
+        id: get_version
+        run: |
+          VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Current project version: $VERSION"
+
+      - name: Determine next snapshot version
+        id: next_version
+        run: |
+          CURRENT=${{ steps.get_version.outputs.version }}
+
+          # Exit if already a snapshot
+          if [[ "$CURRENT" == *-SNAPSHOT ]]; then
+            echo "::error::Current version is already a SNAPSHOT ($CURRENT). No reset needed."
+            exit 1
+          fi
+
+          # Use manual override if provided
+          if [[ -n "${{ github.event.inputs.next_version }}" ]]; then
+            NEXT="${{ github.event.inputs.next_version }}"
+          else
+            IFS='.' read -r MAJOR MINOR PATCH <<<"${CURRENT}"
+            NEXT_PATCH=$((PATCH+1))
+            NEXT="${MAJOR}.${MINOR}.${NEXT_PATCH}-SNAPSHOT"
+          fi
+
+          echo "Next snapshot version: $NEXT"
+          echo "next=$NEXT" >> $GITHUB_OUTPUT
+
+      - name: Update version in POM
+        run: |
+          mvn versions:set -DnewVersion=${{ steps.next_version.outputs.next }} -B
+          mvn versions:commit
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -am "Reset to ${{ steps.next_version.outputs.next }}"
+          git push origin main
+
+      - name: Confirm
+        run: echo "Main branch has been reset to ${{ steps.next_version.outputs.next }}"
