@@ -38,6 +38,7 @@ jobs:
       - name: Extract version info
         id: version
         run: |
+          set -x
           VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
           if [[ "$VERSION" == *-SNAPSHOT ]]; then
             RELEASE_VERSION="${VERSION%-SNAPSHOT}"
@@ -68,6 +69,7 @@ jobs:
       - name: Prepare release version (real run)
         if: ${{ github.event.inputs.dry_run != 'true' }}
         run: |
+          set -x
           mvn versions:set -DnewVersion=${{ steps.version.outputs.release_version }} -B
           mvn versions:commit
           git config user.name "github-actions[bot]"
@@ -94,6 +96,7 @@ jobs:
       - name: Bump to next snapshot version
         if: ${{ success() && github.event.inputs.dry_run != 'true' }}
         run: |
+          set -x
           mvn versions:set -DnewVersion=${{ steps.version.outputs.next_version }} -B
           mvn versions:commit
           git commit -am "Start next iteration: ${{ steps.version.outputs.next_version }}"
