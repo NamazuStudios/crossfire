@@ -1,163 +1,100 @@
-name: Release from SNAPSHOT
+name: Manual Maven Release
 
 on:
   workflow_dispatch:
     inputs:
-      target_branch:
-        description: Branch to release from
-        required: true
-        default: main
-      bump:
-        description: Next version bump after release (patch, minor, major, custom)
-        required: true
-        default: patch
-      custom_next_version:
-        description: Next development version if bump=custom (example 1.4.0-SNAPSHOT)
-        required: false
       dry_run:
-        description: Do not push, tag, or create a release
-        required: true
-        default: "false"
-        type: choice
-        options: ["false", "true"]
-
-permissions:
-  contents: write   # needed for pushing commits and tags and creating releases
-
-concurrency:
-  group: release-${{ github.ref }}
-  cancel-in-progress: false
+        description: 'Perform a dry run (no commits, tags, or Maven Central deploy)'
+        required: false
+        default: 'false'
 
 jobs:
   release:
+    name: Publish Maven Release
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.target_branch }}
           fetch-depth: 0
 
-      - name: Set up Temurin JDK 21
+      - name: Set up Java
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: "21"
+          distribution: 'temurin'
+          java-version: '17'
+          server-id: ossrh
+          server-username: CENTRAL_USERNAME
+          server-password: CENTRAL_PASSWORD
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
-      - name: Configure git identity
+      - name: Extract version info
+        id: version
         run: |
-          git config user.name  "github-actions[bot]"
+          VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          if [[ "$VERSION" == *-SNAPSHOT ]]; then
+            RELEASE_VERSION="${VERSION%-SNAPSHOT}"
+          else
+            RELEASE_VERSION="$VERSION"
+          fi
+          IFS='.' read -r MAJOR MINOR PATCH <<<"$RELEASE_VERSION"
+          NEXT_PATCH=$((PATCH+1))
+          NEXT_VERSION="$MAJOR.$MINOR.$NEXT_PATCH-SNAPSHOT"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "release_version=$RELEASE_VERSION" >> $GITHUB_OUTPUT
+          echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Show planned actions (dry run output)
+        if: ${{ github.event.inputs.dry_run == 'true' }}
+        run: |
+          echo "==== DRY RUN MODE ===="
+          echo "Current version:    ${{ steps.version.outputs.version }}"
+          echo "Release version:    ${{ steps.version.outputs.release_version }}"
+          echo "Next snapshot:      ${{ steps.version.outputs.next_version }}"
+          echo "Would run: mvn versions:set -DnewVersion=${{ steps.version.outputs.release_version }}"
+          echo "Would tag: v${{ steps.version.outputs.release_version }}"
+          echo "Would deploy to Maven Central"
+          echo "Would create GitHub release"
+          echo "Would bump to: ${{ steps.version.outputs.next_version }}"
+          echo "No files or tags have been changed."
+
+      - name: Prepare release version (real run)
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          mvn versions:set -DnewVersion=${{ steps.version.outputs.release_version }} -B
+          mvn versions:commit
+          git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -am "Release ${{ steps.version.outputs.release_version }}"
+          git tag -a "v${{ steps.version.outputs.release_version }}" -m "Release ${{ steps.version.outputs.release_version }}"
+          git push origin main
+          git push origin "v${{ steps.version.outputs.release_version }}"
 
-      - name: Verify clean working tree
-        run: |
-          if ! git diff --quiet || ! git diff --cached --quiet; then
-            echo "Working tree has changes. Commit or stash first."
-            exit 1
-          fi
+      - name: Build and deploy to Maven Central
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: mvn clean deploy -P release -B -DskipTests=false
 
-      - name: Resolve and verify current version is a SNAPSHOT
-        id: ver
-        run: |
-          CURR_VERSION=$(mvn -q -DforceStdout help:evaluate -Dexpression=project.version)
-          echo "current_version=$CURR_VERSION" >> "$GITHUB_OUTPUT"
-          if [[ "$CURR_VERSION" != *"-SNAPSHOT" ]]; then
-            echo "Version is not a SNAPSHOT: $CURR_VERSION"
-            exit 1
-          fi
-
-      - name: Build and test before release
-        run: mvn -B -ntp -DskipITs=true verify
-
-      - name: Set release version (remove -SNAPSHOT)
-        id: releasever
-        run: |
-          mvn -B -ntp versions:set -DremoveSnapshot -DgenerateBackupPoms=false
-          RELEASE_VERSION=$(mvn -q -DforceStdout help:evaluate -Dexpression=project.version)
-          echo "release_version=$RELEASE_VERSION" >> "$GITHUB_OUTPUT"
-          echo "Release version: $RELEASE_VERSION"
-
-      - name: Commit release version
-        if: inputs.dry_run == 'false'
-        run: |
-          git add .
-          git commit -m "chore(release): set version ${{ steps.releasever.outputs.release_version }}"
-
-      - name: Commit release version (Dry Run)
-        if: inputs.dry_run == 'true'
-        run: |
-          echo git add .
-          echo git commit -m "chore(release): set version ${{ steps.releasever.outputs.release_version }}"
-
-      - name: Tag release
-        if: inputs.dry_run == 'false'
-        run: |
-          git tag -a "v${{ steps.releasever.outputs.release_version }}" -m "Release ${{ steps.releasever.outputs.release_version }}"
-
-      - name: Tag release (Dry Run)
-        if: inputs.dry_run == 'true'
-        run: |
-          echo git tag -a "v${{ steps.releasever.outputs.release_version }}" -m "Release ${{ steps.releasever.outputs.release_version }}"
-
-      - name: Push commit and tag
-        if: inputs.dry_run == 'false'
-        run: |
-          git push origin "${{ inputs.target_branch }}"
-          git push origin "v${{ steps.releasever.outputs.release_version }}"
-
-      - name: Push commit and tag (Dry Run)
-        if: inputs.dry_run == 'true'
-        run: |
-          echo git push origin "${{ inputs.target_branch }}"
-          echo git push origin "v${{ steps.releasever.outputs.release_version }}"
-
-      - name: Create GitHub Release
-        if: inputs.dry_run == 'false'
+      - name: Create GitHub release
+        if: ${{ success() && github.event.inputs.dry_run != 'true' }}
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.releasever.outputs.release_version }}
-          name: ${{ steps.releasever.outputs.release_version }}
+          tag_name: v${{ steps.version.outputs.release_version }}
+          name: Release ${{ steps.version.outputs.release_version }}
           generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Calculate next development version
-        id: nextver
+      - name: Bump to next snapshot version
+        if: ${{ success() && github.event.inputs.dry_run != 'true' }}
         run: |
-          if [[ "${{ inputs.bump }}" == "custom" ]]; then
-            if [[ -z "${{ inputs.custom_next_version }}" ]]; then
-              echo "custom_next_version must be provided when bump=custom"
-              exit 1
-            fi
-            NEXT="${{ inputs.custom_next_version }}"
-          else
-            # derive base from the just-released version
-            REL="${{ steps.releasever.outputs.release_version }}"
-            IFS='.' read -r MA MI PA <<< "$REL"
-            case "${{ inputs.bump }}" in
-              patch) PA=$((PA+1));;
-              minor) MI=$((MI+1)); PA=0;;
-              major) MA=$((MA+1)); MI=0; PA=0;;
-              *) echo "Unknown bump type"; exit 1;;
-            esac
-            NEXT="${MA}.${MI}.${PA}-SNAPSHOT"
-          fi
-          echo "next_version=$NEXT" >> "$GITHUB_OUTPUT"
-          echo "Next dev version: $NEXT"
-
-      - name: Set next development version
-        run: |
-          mvn -B -ntp versions:set -DnewVersion=${{ steps.nextver.outputs.next_version }} -DgenerateBackupPoms=false
-
-      - name: Commit next development version
-        if: inputs.dry_run == 'false'
-        run: |
-          git add .
-          git commit -m "chore: set next development version ${{ steps.nextver.outputs.next_version }}"
-          git push origin "${{ inputs.target_branch }}"
-
-      - name: Commit next development version (Dry Run)
-        if: inputs.dry_run == 'true'
-        run: |
-          echo git add .
-          echo git commit -m "chore: set next development version ${{ steps.nextver.outputs.next_version }}"
-          echo git push origin "${{ inputs.target_branch }}"
+          mvn versions:set -DnewVersion=${{ steps.version.outputs.next_version }} -B
+          mvn versions:commit
+          git commit -am "Start next iteration: ${{ steps.version.outputs.next_version }}"
+          git push origin main
