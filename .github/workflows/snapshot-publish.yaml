@@ -17,6 +17,27 @@ jobs:
       - name: Cloning the Repository
         uses: actions/checkout@v4
 
+      - name: Get current version
+        id: version
+        run: |
+          VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Current project version: $VERSION"
+
+      - name: Ensure Snapshot Version
+        id: next_version
+        run: |
+
+          CURRENT=${{ steps.version.outputs.version }}
+      
+          # Exit if NOT a snapshot
+          if [[ "$CURRENT" != *-SNAPSHOT ]]; then
+            echo "::error::Expected a -SNAPSHOT version, but found '$CURRENT'."
+            echo "The main branch must end with -SNAPSHOT before running a release."
+            echo "Please bump the version in pom.xml and push before retrying."
+            exit 1
+          fi
+
       - name: Set up JDK 21 and Maven Credentials
         uses: actions/setup-java@v5
         with:

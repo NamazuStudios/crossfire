@@ -1,4 +1,4 @@
-name: Reset to Next Snapshot
+name: Reset Snapshot
 
 on:
   workflow_dispatch:

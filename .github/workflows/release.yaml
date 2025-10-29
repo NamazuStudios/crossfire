@@ -24,8 +24,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Java
-        uses: actions/setup-java@v4
+      - name: Set up JDK 21 and Maven Credentials
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "21"
@@ -90,9 +90,12 @@ jobs:
           git push origin main
           git push origin "v${{ steps.version.outputs.release_version }}"
 
-      - name: Build and deploy to Maven Central
-        if: ${{ github.event.inputs.dry_run != 'true' }}
+      - name: Build and Publish Snapshot
         run: mvn -B -Pcentral-publish clean deploy
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
 
       - name: Create GitHub release
         if: ${{ success() && github.event.inputs.dry_run != 'true' }}
@@ -103,9 +106,6 @@ jobs:
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
-          CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
 
       - name: Bump to next snapshot version
         if: ${{ success() && github.event.inputs.dry_run != 'true' }}
