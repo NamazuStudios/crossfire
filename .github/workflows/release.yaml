@@ -1,4 +1,4 @@
-name: Manual Maven Release
+name: Maven Central Release
 
 on:
   workflow_dispatch:
@@ -54,7 +54,7 @@ jobs:
 
       - name: Verify branch is in a SNAPSHOT state
         run: |
-          VERSION="${{ steps.get_version.outputs.version }}"
+          VERSION="${{ steps.version.outputs.version }}"
           if [[ "$VERSION" != *-SNAPSHOT ]]; then
             echo "::error::Expected a -SNAPSHOT version on main, but found '$VERSION'."
             echo "The main branch must end with -SNAPSHOT before running a release."
