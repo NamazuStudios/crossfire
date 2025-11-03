@@ -118,6 +118,19 @@
 
     <build>
         <plugins>
+
+            <!-- Deploys at the end of the build -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-deploy-plugin</artifactId>
+                <version>3.1.1</version>
+                <configuration>
+                    <classifiers>
+                        <classifier>element</classifier>
+                    </classifiers>
+                </configuration>
+            </plugin>
+
             <!-- Adds just the dependencies for the Element -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -155,6 +168,7 @@
 
                             <shadedClassifierName>element</shadedClassifierName>
                             <shadedArtifactAttached>true</shadedArtifactAttached>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
 
                             <filters>
                                 <filter>
