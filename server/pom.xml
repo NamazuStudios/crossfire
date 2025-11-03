@@ -11,7 +11,7 @@
     </parent>
 
     <groupId>dev.getelements.elements.crossfire</groupId>
-    <artifactId>element</artifactId>
+    <artifactId>server</artifactId>
     <name>Namazu Elements Crossfire - Element</name>
     <version>1.0.3-SNAPSHOT</version>
     <packaging>jar</packaging>
@@ -71,7 +71,6 @@
             <groupId>org.99soft.guice</groupId>
             <artifactId>rocoto</artifactId>
         </dependency>
-
         <dependency>
             <groupId>dev.getelements.elements.crossfire</groupId>
             <artifactId>common</artifactId>
@@ -137,6 +136,37 @@
                             <excludeGroupIds>ch.qos.logback</excludeGroupIds>
                             <excludeArtifactIds>sdk-local,sdk-local-maven,sdk-logback</excludeArtifactIds>
                             <outputDirectory>${project.build.directory}/element-libs</outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.5.1</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+
+                            <shadedClassifierName>element</shadedClassifierName>
+                            <shadedArtifactAttached>true</shadedArtifactAttached>
+
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+
                         </configuration>
                     </execution>
                 </executions>

@@ -4,7 +4,6 @@
       <env name="SDK_LOCAL_CLASSPATH" value="element/target/classes:element/target/element-libs/*:common/target/classes:client/target/classes" />
     </envs>
     <option name="MAIN_CLASS_NAME" value="dev.getelements.elements.crossfire.Main" />
-    <module name="element" />
     <extension name="coverage">
       <pattern>
         <option name="PATTERN" value="dev.getelements.elements.crossfire.*" />

@@ -43,7 +43,7 @@
     <modules>
         <module>common</module>
         <module>client</module>
-        <module>element</module>
+        <module>server</module>
     </modules>
 
     <properties>
