@@ -37,10 +37,6 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>dev.onvoid.webrtc</groupId>
-            <artifactId>webrtc-java</artifactId>
-        </dependency>
-        <dependency>
             <groupId>jakarta.websocket</groupId>
             <artifactId>jakarta.websocket-client-api</artifactId>
         </dependency>
