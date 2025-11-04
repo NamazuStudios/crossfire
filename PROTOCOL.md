@@ -17,6 +17,8 @@ From the client's perspective, the protocol has three major phases:
 
 As an implementation detail, the server has an additional phases which are not visible to the client and are used for internal state management.
 
+![alt Connection Phases](diagrams/clientstate.mmd.png)
+
 **Sources:**
 * [ConnectionPhase.java](element/src/main/java/dev/getelements/elements/crossfire/protocol/ConnectionPhase.java)
 
@@ -50,6 +52,8 @@ For all `HANDSHAKE` messages the following rules apply:
 
 ### `FIND` (Client to Server)
 
+![alt FIND Message](diagrams/matching.mmd.png)
+
 The `FIND` message is used to find a match and if no Matches are created, the server may opt to create a match such that other participants can join. The server MUST NOT respond until it assigns a match or reports an error. The server MAY create a match and assign the client to it or it MAY assign the client to an existing match.
 
 Upon successful match, the server MUST respond with a `MATCHED` message.
@@ -64,6 +68,8 @@ The FIND message contains the following fields:
 * [JoinHandshakeRequest.java](common/src/main/java/dev/getelements/elements/crossfire/model/handshake/JoinHandshakeRequest.java)
 
 ### `JOIN` (Client To Server)
+
+![alt JOIN Message](diagrams/joining.mmd.png)
 
 The `JOIN` message is used to join an existing match, provided the client already knows the match ID. Typically this is used to re-join a match that the client previously joined by may have disconnected.
 

@@ -1,0 +1,18 @@
+sequenceDiagram
+    actor GameClient
+    participant CrossfireAPI
+    participant SessionService
+    participant ApplicationConfigurationDao
+    participant MatchmakingAlgorithm
+    participant MultiMatchDao
+
+    GameClient->>CrossfireAPI: Connect to wss://example.com/app/ws/crossfire
+    GameClient->>CrossfireAPI: SEND "JOIN" (matchId, configurationId, sessionKey)
+    CrossfireAPI->>SessionService: Validate sessionKey
+    CrossfireAPI->>ApplicationConfigurationDao: Find MatchmakingApplicationConfiguration(configurationId)
+    ApplicationConfigurationDao-->>CrossfireAPI: Return MatchmakingApplicationConfiguration
+    CrossfireAPI->>MatchmakingAlgorithm: Join(matchId)
+    MatchmakingAlgorithm->>MultiMatchDao: Find MultiMatch by matchId
+    MultiMatchDao-->>MatchmakingAlgorithm: Return MultiMatch
+    MatchmakingAlgorithm-->>CrossfireAPI: Return existing match
+    CrossfireAPI-->>GameClient: Return HandshakeResponse

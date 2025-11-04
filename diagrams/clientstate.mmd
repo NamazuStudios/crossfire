@@ -1,0 +1,8 @@
+stateDiagram-v2
+    [*] --> Disconnected
+    Disconnected --> HandshakePhase: Connect to server
+    HandshakePhase --> SignalingPhase: HandshakeResponse received (success)
+    HandshakePhase --> TerminationPhase: Handshake failed / ProtocolError
+    SignalingPhase --> TerminationPhase: ProtocolError / SessionExpired / Disconnect
+    TerminationPhase --> Disconnected: Connection closed
+    TerminationPhase --> [*]
