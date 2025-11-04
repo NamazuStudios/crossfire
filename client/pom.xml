@@ -6,7 +6,7 @@
     <parent>
         <groupId>dev.getelements.elements.crossfire</groupId>
         <artifactId>crossfire</artifactId>
-        <version>1.0.5</version>
+        <version>1.0.6-SNAPSHOT</version>
     </parent>
 
     <artifactId>client</artifactId>
@@ -25,6 +25,10 @@
         <dependency>
             <groupId>jakarta.websocket</groupId>
             <artifactId>jakarta.websocket-client-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.onvoid.webrtc</groupId>
+            <artifactId>webrtc-java</artifactId>
         </dependency>
     </dependencies>
 
