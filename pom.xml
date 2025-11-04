@@ -82,7 +82,7 @@
             </dependency>
             <dependency>
                 <groupId>dev.getelements.elements.crossfire</groupId>
-                <artifactId>element</artifactId>
+                <artifactId>server</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
