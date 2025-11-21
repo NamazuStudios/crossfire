@@ -6,11 +6,11 @@
     <parent>
         <groupId>dev.getelements.elements.crossfire</groupId>
         <artifactId>crossfire</artifactId>
-        <version>1.0.6</version>
+        <version>1.0.7-SNAPSHOT</version>
     </parent>
 
     <artifactId>common</artifactId>
-    <version>1.0.6</version>
+    <version>1.0.7-SNAPSHOT</version>
     <name>Namazu Elements Crossfire - Common</name>
 
     <dependencies>
