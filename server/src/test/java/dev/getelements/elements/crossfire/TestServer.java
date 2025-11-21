@@ -1,20 +1,19 @@
 package dev.getelements.elements.crossfire;
 
 import dev.getelements.elements.crossfire.client.v10.V10SignalingClient;
-import dev.getelements.elements.dao.mongo.test.DockerMongoTestInstance;
-import dev.getelements.elements.dao.mongo.test.MongoTestInstance;
 import dev.getelements.elements.sdk.dao.ApplicationDao;
 import dev.getelements.elements.sdk.dao.ProfileDao;
 import dev.getelements.elements.sdk.dao.SessionDao;
 import dev.getelements.elements.sdk.dao.UserDao;
 import dev.getelements.elements.sdk.local.ElementsLocal;
 import dev.getelements.elements.sdk.local.ElementsLocalBuilder;
-import dev.getelements.elements.sdk.local.maven.MavenElementsLocalBuilder;
 import dev.getelements.elements.sdk.model.application.Application;
 import dev.getelements.elements.sdk.model.profile.Profile;
 import dev.getelements.elements.sdk.model.session.Session;
 import dev.getelements.elements.sdk.model.session.SessionCreation;
 import dev.getelements.elements.sdk.model.user.User;
+import dev.getelements.elements.sdk.mongo.test.DockerMongoTestInstance;
+import dev.getelements.elements.sdk.mongo.test.MongoTestInstance;
 import dev.getelements.elements.sdk.util.ShutdownHooks;
 import jakarta.websocket.ContainerProvider;
 import org.slf4j.Logger;
@@ -25,15 +24,12 @@ import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Stream;
 
-import static dev.getelements.elements.dao.mongo.provider.MongoClientProvider.MONGO_CLIENT_URI;
 import static dev.getelements.elements.sdk.local.maven.MavenElementsLocalBuilder.ELEMENT_CLASSPATH;
-import static dev.getelements.elements.sdk.local.maven.MavenElementsLocalBuilder.ELEMENT_CLASSPATH_PROPERTY;
+import static dev.getelements.elements.sdk.mongo.MongoConfigurationService.MONGO_CLIENT_URI;
 import static java.lang.String.format;
 import static java.util.concurrent.TimeUnit.DAYS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static java.util.stream.Collectors.joining;
 
 public class TestServer {
 

@@ -192,7 +192,7 @@
             </dependency>
             <dependency>
                 <groupId>dev.getelements.elements</groupId>
-                <artifactId>mongo-test</artifactId>
+                <artifactId>sdk-mongo-test</artifactId>
                 <version>${elements.version}</version>
                 <scope>test</scope>
             </dependency>
