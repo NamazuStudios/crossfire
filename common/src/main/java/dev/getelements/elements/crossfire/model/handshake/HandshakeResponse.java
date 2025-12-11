@@ -1,6 +1,7 @@
 package dev.getelements.elements.crossfire.model.handshake;
 
 import dev.getelements.elements.crossfire.model.ProtocolMessage;
+import dev.getelements.elements.crossfire.model.Version;
 import dev.getelements.elements.sdk.annotation.ElementPublic;
 
 /**
@@ -8,6 +9,12 @@ import dev.getelements.elements.sdk.annotation.ElementPublic;
  */
 @ElementPublic
 public interface HandshakeResponse extends ProtocolMessage {
+
+    /**
+     * Gets the version of the protocol.
+     * @return the version
+     */
+    Version getVersion();
 
     /**
      * Gets the match ID of the connected match.

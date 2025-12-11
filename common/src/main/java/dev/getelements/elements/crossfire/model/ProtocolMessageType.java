@@ -5,6 +5,7 @@ import dev.getelements.elements.crossfire.model.control.EndControlMessage;
 import dev.getelements.elements.crossfire.model.control.LeaveControlMessage;
 import dev.getelements.elements.crossfire.model.control.OpenControlMessage;
 import dev.getelements.elements.crossfire.model.error.StandardProtocolError;
+import dev.getelements.elements.crossfire.model.handshake.CreateHandshakeRequest;
 import dev.getelements.elements.crossfire.model.handshake.FindHandshakeRequest;
 import dev.getelements.elements.crossfire.model.handshake.JoinHandshakeRequest;
 import dev.getelements.elements.crossfire.model.handshake.MatchedResponse;
@@ -31,6 +32,11 @@ public enum ProtocolMessageType {
      * Indicates the request is to join a match. The server will select the specific match.
      */
     JOIN(HANDSHAKE, JoinHandshakeRequest.class),
+
+    /**
+     * Indicates the request is to join a match. The server will select the specific match.
+     */
+    CREATE(HANDSHAKE, CreateHandshakeRequest.class),
 
     /**
      * Indicates that the client has successfully connected to a match.

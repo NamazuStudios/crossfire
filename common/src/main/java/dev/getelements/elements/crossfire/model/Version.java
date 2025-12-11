@@ -5,7 +5,15 @@ package dev.getelements.elements.crossfire.model;
  */
 public enum Version {
 
-    V_1_0(1, 0);
+    /**
+     * Protocol version 1.0
+     */
+    V_1_0(1, 0),
+
+    /**
+     * Protocol version 1.1
+     */
+    V_1_1(1, 1);
 
     private final int major;
 
