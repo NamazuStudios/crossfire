@@ -2,8 +2,10 @@ package dev.getelements.elements.crossfire.matchmaker;
 
 import dev.getelements.elements.crossfire.StandardJoinMatchHandle;
 import dev.getelements.elements.crossfire.api.*;
-import dev.getelements.elements.crossfire.model.handshake.FindHandshakeRequest;
-import dev.getelements.elements.crossfire.model.handshake.JoinHandshakeRequest;
+import dev.getelements.elements.crossfire.api.model.handshake.FindHandshakeRequest;
+import dev.getelements.elements.crossfire.api.model.handshake.JoinHandshakeRequest;
+import dev.getelements.elements.crossfire.util.CancelableMatchStateRecord;
+import dev.getelements.elements.crossfire.util.StandardCancelableMatchHandle;
 import dev.getelements.elements.sdk.annotation.ElementServiceExport;
 import dev.getelements.elements.sdk.dao.MultiMatchDao;
 import dev.getelements.elements.sdk.dao.Transaction;
@@ -56,7 +58,7 @@ public class FIFOMatchmakingAlgorithm implements MatchmakingAlgorithm {
 
         @Override
         protected void onMatching(final CancelableMatchStateRecord<FindHandshakeRequest> state) {
-            getRequest().getProtocolMessageHandler().submit(() -> {
+            getRequest().getServer().submit(() -> {
                 final var result = getTransactionProvider().get().performAndClose(txn -> {
 
                     final var dao = txn.getDao(MultiMatchDao.class);

@@ -1,6 +1,6 @@
 package dev.getelements.elements.crossfire.client;
 
-import dev.getelements.elements.crossfire.model.Protocol;
+import dev.getelements.elements.crossfire.api.model.Protocol;
 import dev.getelements.elements.sdk.Subscription;
 
 import java.util.Optional;

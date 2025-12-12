@@ -1,6 +1,6 @@
 package dev.getelements.elements.crossfire.service;
 
-import dev.getelements.elements.crossfire.model.control.ControlMessage;
+import dev.getelements.elements.crossfire.api.model.control.ControlMessage;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler;
 import dev.getelements.elements.sdk.annotation.ElementPublic;
 import dev.getelements.elements.sdk.annotation.ElementServiceExport;

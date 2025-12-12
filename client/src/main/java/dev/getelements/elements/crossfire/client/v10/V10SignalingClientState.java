@@ -1,21 +1,20 @@
 package dev.getelements.elements.crossfire.client.v10;
 
+import dev.getelements.elements.crossfire.api.model.signal.*;
 import dev.getelements.elements.crossfire.client.SignalingClient;
 import dev.getelements.elements.crossfire.client.SignalingClient.DisconnectStatus;
 import dev.getelements.elements.crossfire.client.SignalingClientPhase;
-import dev.getelements.elements.crossfire.model.error.ProtocolStateException;
-import dev.getelements.elements.crossfire.model.handshake.HandshakeResponse;
-import dev.getelements.elements.crossfire.model.signal.*;
+import dev.getelements.elements.crossfire.api.model.error.ProtocolStateException;
+import dev.getelements.elements.crossfire.api.model.handshake.HandshakeResponse;
 import jakarta.websocket.Session;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CountDownLatch;
 
 import static dev.getelements.elements.crossfire.client.SignalingClientPhase.*;
-import static dev.getelements.elements.crossfire.model.signal.SignalLifecycle.SESSION;
+import static dev.getelements.elements.crossfire.api.model.signal.SignalLifecycle.SESSION;
 import static java.util.Collections.unmodifiableList;
 import static java.util.Optional.ofNullable;
 

@@ -1,8 +1,8 @@
 package dev.getelements.elements.crossfire.protocol;
 
-import dev.getelements.elements.crossfire.model.control.ControlMessage;
-import dev.getelements.elements.crossfire.model.signal.BroadcastSignal;
-import dev.getelements.elements.crossfire.model.signal.DirectSignal;
+import dev.getelements.elements.crossfire.api.model.control.ControlMessage;
+import dev.getelements.elements.crossfire.api.model.signal.BroadcastSignal;
+import dev.getelements.elements.crossfire.api.model.signal.DirectSignal;
 import dev.getelements.elements.sdk.annotation.ElementPublic;
 import jakarta.websocket.Session;
 

@@ -1,13 +1,13 @@
 package dev.getelements.elements.crossfire.protocol.v10;
 
 
-import dev.getelements.elements.crossfire.model.ProtocolMessage;
-import dev.getelements.elements.crossfire.model.control.ControlMessage;
-import dev.getelements.elements.crossfire.model.error.*;
-import dev.getelements.elements.crossfire.model.handshake.HandshakeRequest;
-import dev.getelements.elements.crossfire.model.handshake.MatchedResponse;
-import dev.getelements.elements.crossfire.model.signal.BroadcastSignal;
-import dev.getelements.elements.crossfire.model.signal.DirectSignal;
+import dev.getelements.elements.crossfire.api.model.ProtocolMessage;
+import dev.getelements.elements.crossfire.api.model.control.ControlMessage;
+import dev.getelements.elements.crossfire.api.model.error.*;
+import dev.getelements.elements.crossfire.api.model.handshake.HandshakeRequest;
+import dev.getelements.elements.crossfire.api.model.handshake.MatchedResponse;
+import dev.getelements.elements.crossfire.api.model.signal.BroadcastSignal;
+import dev.getelements.elements.crossfire.api.model.signal.DirectSignal;
 import dev.getelements.elements.crossfire.protocol.*;
 import dev.getelements.elements.sdk.annotation.ElementDefaultAttribute;
 import dev.getelements.elements.sdk.model.exception.BaseException;
@@ -31,7 +31,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static dev.getelements.elements.crossfire.model.error.ProtocolError.Code.INVALID_MESSAGE;
+import static dev.getelements.elements.crossfire.api.model.error.ProtocolError.Code.INVALID_MESSAGE;
 import static dev.getelements.elements.crossfire.protocol.ConnectionPhase.SIGNALING;
 import static dev.getelements.elements.crossfire.protocol.ConnectionPhase.TERMINATED;
 import static jakarta.websocket.CloseReason.CloseCodes.*;
@@ -49,7 +49,7 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
             TimeoutException.class, th -> new CloseReason(GOING_AWAY, th.getMessage()),
             ProtocolStateException.class, th -> new CloseReason(VIOLATED_POLICY, th.getMessage()),
             UnexpectedMessageException.class, th -> new CloseReason(VIOLATED_POLICY, th.getMessage()),
-            MessageBufferOverrunException.class,  th -> new CloseReason(VIOLATED_POLICY, th.getMessage()),
+            MessageBufferOverrunException.class, th -> new CloseReason(VIOLATED_POLICY, th.getMessage()),
             BaseException.class,                 th -> new CloseReason(
                     switch (((BaseException)th).getCode()) {
                         case UNKNOWN -> UNEXPECTED_CONDITION;

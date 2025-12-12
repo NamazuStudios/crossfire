@@ -1,9 +1,11 @@
 package dev.getelements.elements.crossfire.client.signaling;
 
+import dev.getelements.elements.crossfire.api.model.signal.BinaryRelayDirectSignal;
+import dev.getelements.elements.crossfire.api.model.signal.Signal;
+import dev.getelements.elements.crossfire.api.model.signal.StringRelayDirectSignal;
 import dev.getelements.elements.crossfire.client.*;
-import dev.getelements.elements.crossfire.model.Protocol;
-import dev.getelements.elements.crossfire.model.error.ProtocolError;
-import dev.getelements.elements.crossfire.model.signal.*;
+import dev.getelements.elements.crossfire.api.model.Protocol;
+import dev.getelements.elements.crossfire.api.model.error.ProtocolError;
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.util.ConcurrentDequePublisher;
 import dev.getelements.elements.sdk.util.Publisher;
@@ -17,8 +19,8 @@ import java.util.function.BiConsumer;
 
 import static dev.getelements.elements.crossfire.client.Peer.SendResult.SENT;
 import static dev.getelements.elements.crossfire.client.PeerPhase.*;
-import static dev.getelements.elements.crossfire.model.Protocol.SIGNALING;
-import static dev.getelements.elements.crossfire.model.signal.SignalLifecycle.ONCE;
+import static dev.getelements.elements.crossfire.api.model.Protocol.SIGNALING;
+import static dev.getelements.elements.crossfire.api.model.signal.SignalLifecycle.ONCE;
 
 public class SignalingPeer implements Peer, AutoCloseable {
 

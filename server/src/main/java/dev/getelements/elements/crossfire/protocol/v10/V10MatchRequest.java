@@ -2,7 +2,7 @@ package dev.getelements.elements.crossfire.protocol.v10;
 
 import dev.getelements.elements.crossfire.api.MatchHandle;
 import dev.getelements.elements.crossfire.api.MatchmakingRequest;
-import dev.getelements.elements.crossfire.model.handshake.HandshakeRequest;
+import dev.getelements.elements.crossfire.api.model.handshake.HandshakeRequest;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler.MultiMatchRecord;
 import dev.getelements.elements.sdk.model.application.MatchmakingApplicationConfiguration;
@@ -51,7 +51,7 @@ class V10MatchRequest<MessageT extends HandshakeRequest> implements MatchmakingR
     }
 
     @Override
-    public ProtocolMessageHandler getProtocolMessageHandler() {
+    public ProtocolMessageHandler getServer() {
         return protocolMessageHandler;
     }
 
@@ -59,7 +59,7 @@ class V10MatchRequest<MessageT extends HandshakeRequest> implements MatchmakingR
     public void failure(final Throwable th) {
         final var state = this.state.updateAndGet(V10HandshakeStateRecord::terminate);
         state.leave();
-        getProtocolMessageHandler().terminate(th);
+        getServer().terminate(th);
     }
 
     @Override
@@ -70,7 +70,7 @@ class V10MatchRequest<MessageT extends HandshakeRequest> implements MatchmakingR
 
         switch (state.phase()) {
             case TERMINATED -> state.leave();
-            case MATCHING -> getProtocolMessageHandler().matched(multiMatchRecord);
+            case MATCHING -> getServer().matched(multiMatchRecord);
             default -> throw new IllegalStateException("Unexpected phase " + state.phase());
         }
 

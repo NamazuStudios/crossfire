@@ -73,8 +73,15 @@
         </dependency>
         <dependency>
             <groupId>dev.getelements.elements.crossfire</groupId>
+            <artifactId>api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.getelements.elements.crossfire</groupId>
+            <artifactId>util</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.getelements.elements.crossfire</groupId>
             <artifactId>common</artifactId>
-            <version>${project.version}</version>
         </dependency>
 
         <!-- Provided Dependencies -->

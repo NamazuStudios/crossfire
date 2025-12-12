@@ -1,7 +1,7 @@
 package dev.getelements.elements.crossfire.protocol.v10;
 
 import dev.getelements.elements.crossfire.api.MatchHandle;
-import dev.getelements.elements.crossfire.model.error.ProtocolStateException;
+import dev.getelements.elements.crossfire.api.model.error.ProtocolStateException;
 import dev.getelements.elements.crossfire.protocol.HandshakePhase;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler.AuthRecord;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler.MultiMatchRecord;

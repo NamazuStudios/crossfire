@@ -1,12 +1,12 @@
 package dev.getelements.elements.crossfire.client;
 
-import dev.getelements.elements.crossfire.model.Version;
-import dev.getelements.elements.crossfire.model.control.ControlMessage;
-import dev.getelements.elements.crossfire.model.error.TimeoutException;
-import dev.getelements.elements.crossfire.model.handshake.HandshakeRequest;
-import dev.getelements.elements.crossfire.model.handshake.HandshakeResponse;
-import dev.getelements.elements.crossfire.model.signal.Signal;
-import dev.getelements.elements.crossfire.model.signal.SignalLifecycle;
+import dev.getelements.elements.crossfire.api.model.Version;
+import dev.getelements.elements.crossfire.api.model.control.ControlMessage;
+import dev.getelements.elements.crossfire.api.model.error.TimeoutException;
+import dev.getelements.elements.crossfire.api.model.handshake.HandshakeRequest;
+import dev.getelements.elements.crossfire.api.model.handshake.HandshakeResponse;
+import dev.getelements.elements.crossfire.api.model.signal.Signal;
+import dev.getelements.elements.crossfire.api.model.signal.SignalLifecycle;
 import dev.getelements.elements.sdk.Subscription;
 
 import java.util.List;

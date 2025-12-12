@@ -1,6 +1,6 @@
 package dev.getelements.elements.crossfire.protocol;
 
-import dev.getelements.elements.crossfire.model.handshake.HandshakeRequest;
+import dev.getelements.elements.crossfire.api.model.handshake.HandshakeRequest;
 import dev.getelements.elements.sdk.annotation.ElementPublic;
 import jakarta.websocket.Session;
 

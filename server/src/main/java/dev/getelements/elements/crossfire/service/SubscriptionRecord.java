@@ -1,6 +1,6 @@
 package dev.getelements.elements.crossfire.service;
 
-import dev.getelements.elements.crossfire.model.ProtocolMessage;
+import dev.getelements.elements.crossfire.api.model.ProtocolMessage;
 import dev.getelements.elements.sdk.Subscription;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

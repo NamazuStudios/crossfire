@@ -1,10 +1,10 @@
 package dev.getelements.elements.crossfire.protocol.v10;
 
-import dev.getelements.elements.crossfire.model.control.ControlMessage;
-import dev.getelements.elements.crossfire.model.error.ProtocolStateException;
-import dev.getelements.elements.crossfire.model.error.UnexpectedMessageException;
-import dev.getelements.elements.crossfire.model.signal.BroadcastSignal;
-import dev.getelements.elements.crossfire.model.signal.DirectSignal;
+import dev.getelements.elements.crossfire.api.model.control.ControlMessage;
+import dev.getelements.elements.crossfire.api.model.error.ProtocolStateException;
+import dev.getelements.elements.crossfire.api.model.error.UnexpectedMessageException;
+import dev.getelements.elements.crossfire.api.model.signal.BroadcastSignal;
+import dev.getelements.elements.crossfire.api.model.signal.DirectSignal;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler;
 import dev.getelements.elements.crossfire.protocol.SignalingHandler;
 import dev.getelements.elements.crossfire.service.ControlService;

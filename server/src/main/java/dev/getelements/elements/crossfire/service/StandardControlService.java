@@ -1,7 +1,7 @@
 package dev.getelements.elements.crossfire.service;
 
-import dev.getelements.elements.crossfire.model.control.*;
-import dev.getelements.elements.crossfire.model.error.UnexpectedMessageException;
+import dev.getelements.elements.crossfire.api.model.control.*;
+import dev.getelements.elements.crossfire.api.model.error.UnexpectedMessageException;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler;
 import jakarta.inject.Inject;
 

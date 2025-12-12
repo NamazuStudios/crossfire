@@ -5,10 +5,10 @@ import dev.getelements.elements.crossfire.client.signaling.SignalingMatchHost;
 import dev.getelements.elements.crossfire.client.v10.V10SignalingClient;
 import dev.getelements.elements.crossfire.client.webrtc.WebRTCMatchClient;
 import dev.getelements.elements.crossfire.client.webrtc.WebRTCMatchHost;
-import dev.getelements.elements.crossfire.model.Protocol;
-import dev.getelements.elements.crossfire.model.error.ProtocolError;
-import dev.getelements.elements.crossfire.model.signal.HostBroadcastSignal;
-import dev.getelements.elements.crossfire.model.signal.Signal;
+import dev.getelements.elements.crossfire.api.model.Protocol;
+import dev.getelements.elements.crossfire.api.model.error.ProtocolError;
+import dev.getelements.elements.crossfire.api.model.signal.HostBroadcastSignal;
+import dev.getelements.elements.crossfire.api.model.signal.Signal;
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.util.ConcurrentDequePublisher;
 import dev.getelements.elements.sdk.util.Publisher;
@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
-import static dev.getelements.elements.crossfire.model.Protocol.WEBRTC;
+import static dev.getelements.elements.crossfire.api.model.Protocol.WEBRTC;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toCollection;
 

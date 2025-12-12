@@ -1,8 +1,8 @@
 package dev.getelements.elements.crossfire.service;
 
-import dev.getelements.elements.crossfire.model.ProtocolMessage;
-import dev.getelements.elements.crossfire.model.signal.BroadcastSignal;
-import dev.getelements.elements.crossfire.model.signal.DirectSignal;
+import dev.getelements.elements.crossfire.api.model.ProtocolMessage;
+import dev.getelements.elements.crossfire.api.model.signal.BroadcastSignal;
+import dev.getelements.elements.crossfire.api.model.signal.DirectSignal;
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.annotation.ElementPublic;
 import dev.getelements.elements.sdk.annotation.ElementServiceExport;

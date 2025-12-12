@@ -1,6 +1,6 @@
 package dev.getelements.elements.crossfire.client;
 
-import dev.getelements.elements.crossfire.model.Protocol;
+import dev.getelements.elements.crossfire.api.model.Protocol;
 import dev.getelements.elements.sdk.Subscription;
 
 import java.net.URI;
@@ -9,8 +9,8 @@ import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
-import static dev.getelements.elements.crossfire.model.Protocol.SIGNALING;
-import static dev.getelements.elements.crossfire.model.Protocol.WEBRTC;
+import static dev.getelements.elements.crossfire.api.model.Protocol.SIGNALING;
+import static dev.getelements.elements.crossfire.api.model.Protocol.WEBRTC;
 
 /**
  * Main interface for the Crossfire client, providing access to signaling and match clients and hosts. Crossfires can

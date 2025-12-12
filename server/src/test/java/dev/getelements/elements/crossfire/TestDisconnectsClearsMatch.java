@@ -1,9 +1,9 @@
 package dev.getelements.elements.crossfire;
 
 import dev.getelements.elements.crossfire.client.SignalingClientPhase;
-import dev.getelements.elements.crossfire.model.ProtocolMessageType;
-import dev.getelements.elements.crossfire.model.Version;
-import dev.getelements.elements.crossfire.model.handshake.FindHandshakeRequest;
+import dev.getelements.elements.crossfire.api.model.ProtocolMessageType;
+import dev.getelements.elements.crossfire.api.model.Version;
+import dev.getelements.elements.crossfire.api.model.handshake.FindHandshakeRequest;
 import dev.getelements.elements.sdk.dao.ApplicationConfigurationDao;
 import dev.getelements.elements.sdk.dao.MultiMatchDao;
 import dev.getelements.elements.sdk.model.application.MatchmakingApplicationConfiguration;

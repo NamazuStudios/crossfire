@@ -1,8 +1,8 @@
 package dev.getelements.elements.crossfire.client.webrtc;
 
 import dev.getelements.elements.crossfire.client.*;
-import dev.getelements.elements.crossfire.model.Protocol;
-import dev.getelements.elements.crossfire.model.signal.CandidateDirectSignal;
+import dev.getelements.elements.crossfire.api.model.Protocol;
+import dev.getelements.elements.crossfire.api.model.signal.CandidateDirectSignal;
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.util.ConcurrentDequePublisher;
 import dev.getelements.elements.sdk.util.Publisher;

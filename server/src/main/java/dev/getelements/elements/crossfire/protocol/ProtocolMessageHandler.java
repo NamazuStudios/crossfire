@@ -1,8 +1,9 @@
 package dev.getelements.elements.crossfire.protocol;
 
 import dev.getelements.elements.crossfire.api.MatchHandle;
-import dev.getelements.elements.crossfire.model.ProtocolMessage;
-import dev.getelements.elements.crossfire.model.error.ProtocolStateException;
+import dev.getelements.elements.crossfire.api.Server;
+import dev.getelements.elements.crossfire.api.model.ProtocolMessage;
+import dev.getelements.elements.crossfire.api.model.error.ProtocolStateException;
 import dev.getelements.elements.sdk.annotation.ElementPublic;
 import dev.getelements.elements.sdk.annotation.ElementServiceExport;
 import dev.getelements.elements.sdk.model.application.MatchmakingApplicationConfiguration;
@@ -13,14 +14,13 @@ import jakarta.websocket.PongMessage;
 import java.io.IOException;
 import java.util.NoSuchElementException;
 import java.util.Optional;
-import java.util.concurrent.Future;
 
 /**
  * Handles all protocol messages.
  */
 @ElementPublic
 @ElementServiceExport
-public interface ProtocolMessageHandler {
+public interface ProtocolMessageHandler extends Server {
 
     /**
      * The current connection phase.
@@ -106,14 +106,6 @@ public interface ProtocolMessageHandler {
     default void onError(final jakarta.websocket.Session session, final Throwable error) {
         terminate(error);
     }
-
-    /**
-     * Submits a runnable to the protocol message handler's executor service.
-     * This is used to ensure that the runnable is executed in the context of the protocol message handler.
-     *
-     * @param task the runnable to submit
-     */
-    Future<?> submit(Runnable task);
 
     /**
      * Atomically and in a thread safe manner matches the profile to the session. This will switch the connection phase

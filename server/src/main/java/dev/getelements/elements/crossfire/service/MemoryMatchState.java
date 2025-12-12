@@ -1,10 +1,10 @@
 package dev.getelements.elements.crossfire.service;
 
-import dev.getelements.elements.crossfire.model.ProtocolMessage;
-import dev.getelements.elements.crossfire.model.error.DuplicateConnectionException;
-import dev.getelements.elements.crossfire.model.error.MessageBufferOverrunException;
-import dev.getelements.elements.crossfire.model.error.UnexpectedMessageException;
-import dev.getelements.elements.crossfire.model.signal.*;
+import dev.getelements.elements.crossfire.api.model.ProtocolMessage;
+import dev.getelements.elements.crossfire.api.model.error.DuplicateConnectionException;
+import dev.getelements.elements.crossfire.api.model.error.MessageBufferOverrunException;
+import dev.getelements.elements.crossfire.api.model.error.UnexpectedMessageException;
+import dev.getelements.elements.crossfire.api.model.signal.*;
 import dev.getelements.elements.sdk.ElementRegistry;
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.util.Monitor;

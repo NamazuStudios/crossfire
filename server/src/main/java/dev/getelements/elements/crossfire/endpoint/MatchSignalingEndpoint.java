@@ -1,9 +1,9 @@
 package dev.getelements.elements.crossfire.endpoint;
 
-import dev.getelements.elements.crossfire.jackson.FailDecoder;
-import dev.getelements.elements.crossfire.jackson.JacksonEncoder;
-import dev.getelements.elements.crossfire.jackson.JacksonProtocolMessageDecoder;
-import dev.getelements.elements.crossfire.model.ProtocolMessage;
+import dev.getelements.elements.crossfire.common.jackson.FailDecoder;
+import dev.getelements.elements.crossfire.common.jackson.JacksonEncoder;
+import dev.getelements.elements.crossfire.common.jackson.JacksonProtocolMessageDecoder;
+import dev.getelements.elements.crossfire.api.model.ProtocolMessage;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler;
 import dev.getelements.elements.sdk.Element;
 import dev.getelements.elements.sdk.ElementSupplier;

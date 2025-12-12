@@ -20,6 +20,10 @@
         </dependency>
         <dependency>
             <groupId>dev.getelements.elements.crossfire</groupId>
+            <artifactId>api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.getelements.elements.crossfire</groupId>
             <artifactId>common</artifactId>
         </dependency>
         <dependency>

@@ -1,10 +1,10 @@
 package dev.getelements.elements.crossfire;
 
-import dev.getelements.elements.crossfire.api.CancelableMatchStateRecord;
+import dev.getelements.elements.crossfire.util.CancelableMatchStateRecord;
 import dev.getelements.elements.crossfire.api.MatchmakingAlgorithm;
 import dev.getelements.elements.crossfire.api.MatchmakingRequest;
-import dev.getelements.elements.crossfire.api.StandardCancelableMatchHandle;
-import dev.getelements.elements.crossfire.model.handshake.JoinHandshakeRequest;
+import dev.getelements.elements.crossfire.util.StandardCancelableMatchHandle;
+import dev.getelements.elements.crossfire.api.model.handshake.JoinHandshakeRequest;
 import dev.getelements.elements.sdk.dao.MultiMatchDao;
 import dev.getelements.elements.sdk.dao.Transaction;
 import dev.getelements.elements.sdk.model.exception.MultiMatchNotFoundException;
@@ -21,7 +21,7 @@ public class StandardJoinMatchHandle extends StandardCancelableMatchHandle<JoinH
 
     @Override
     protected void onMatching(final CancelableMatchStateRecord<JoinHandshakeRequest> state) {
-        getRequest().getProtocolMessageHandler().submit(this::doFind);
+        getRequest().getServer().submit(this::doFind);
     }
 
     private void doFind() {

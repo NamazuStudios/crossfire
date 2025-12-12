@@ -1,9 +1,9 @@
 package dev.getelements.elements.crossfire.client.webrtc;
 
+import dev.getelements.elements.crossfire.api.model.signal.*;
 import dev.getelements.elements.crossfire.client.PeerException;
 import dev.getelements.elements.crossfire.client.PeerStatus;
 import dev.getelements.elements.crossfire.client.SignalingClient;
-import dev.getelements.elements.crossfire.model.signal.*;
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.util.Publisher;
 import dev.getelements.elements.sdk.util.SimpleLazyValue;

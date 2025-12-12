@@ -2,12 +2,12 @@ package dev.getelements.elements.crossfire.protocol.v10;
 
 import dev.getelements.elements.crossfire.api.MatchHandle;
 import dev.getelements.elements.crossfire.api.MatchmakingAlgorithm;
-import dev.getelements.elements.crossfire.model.error.MultiMatchConfigurationNotFoundException;
-import dev.getelements.elements.crossfire.model.error.ProtocolStateException;
-import dev.getelements.elements.crossfire.model.error.UnexpectedMessageException;
-import dev.getelements.elements.crossfire.model.handshake.FindHandshakeRequest;
-import dev.getelements.elements.crossfire.model.handshake.HandshakeRequest;
-import dev.getelements.elements.crossfire.model.handshake.JoinHandshakeRequest;
+import dev.getelements.elements.crossfire.api.model.error.MultiMatchConfigurationNotFoundException;
+import dev.getelements.elements.crossfire.api.model.error.ProtocolStateException;
+import dev.getelements.elements.crossfire.api.model.error.UnexpectedMessageException;
+import dev.getelements.elements.crossfire.api.model.handshake.FindHandshakeRequest;
+import dev.getelements.elements.crossfire.api.model.handshake.HandshakeRequest;
+import dev.getelements.elements.crossfire.api.model.handshake.JoinHandshakeRequest;
 import dev.getelements.elements.crossfire.protocol.HandshakeHandler;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler.AuthRecord;

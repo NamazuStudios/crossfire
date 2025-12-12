@@ -1,11 +1,11 @@
 package dev.getelements.elements.crossfire.client.signaling;
 
 import dev.getelements.elements.crossfire.client.*;
-import dev.getelements.elements.crossfire.model.Protocol;
-import dev.getelements.elements.crossfire.model.error.ProtocolError;
-import dev.getelements.elements.crossfire.model.signal.ConnectBroadcastSignal;
-import dev.getelements.elements.crossfire.model.signal.DisconnectBroadcastSignal;
-import dev.getelements.elements.crossfire.model.signal.Signal;
+import dev.getelements.elements.crossfire.api.model.Protocol;
+import dev.getelements.elements.crossfire.api.model.error.ProtocolError;
+import dev.getelements.elements.crossfire.api.model.signal.ConnectBroadcastSignal;
+import dev.getelements.elements.crossfire.api.model.signal.DisconnectBroadcastSignal;
+import dev.getelements.elements.crossfire.api.model.signal.Signal;
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.util.ConcurrentDequePublisher;
 import dev.getelements.elements.sdk.util.Publisher;
@@ -20,7 +20,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-import static dev.getelements.elements.crossfire.model.Protocol.SIGNALING;
+import static dev.getelements.elements.crossfire.api.model.Protocol.SIGNALING;
 
 public class SignalingMatchHost implements MatchHost {
 

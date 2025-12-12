@@ -4,7 +4,6 @@ import dev.getelements.elements.sdk.annotation.ElementDefaultAttribute;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import jakarta.websocket.CloseReason;
-import jakarta.websocket.OnMessage;
 import jakarta.websocket.PongMessage;
 import jakarta.websocket.Session;
 import org.slf4j.Logger;
@@ -12,7 +11,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 
@@ -22,7 +20,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 public class StandardPinger implements Pinger {
 
     @ElementDefaultAttribute("90")
-    public static final String TIMOUT_SECONDS = "dev.getelements.elements.timeout.seconds";
+    public static final String TIMEOUT_SECONDS = "dev.getelements.elements.timeout.seconds";
 
     @ElementDefaultAttribute("30")
     public static final String PING_INTERVAL_SECONDS = "dev.getelements.elements.ping.interval.seconds";
@@ -104,7 +102,7 @@ public class StandardPinger implements Pinger {
     }
 
     @Inject
-    public void setTimeout(@Named(TIMOUT_SECONDS) int timeout) {
+    public void setTimeout(@Named(TIMEOUT_SECONDS) int timeout) {
         this.timeout = timeout;
     }
 
