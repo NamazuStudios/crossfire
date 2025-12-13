@@ -154,6 +154,7 @@
                             <excludeScope>test</excludeScope>
                             <excludeScope>provided</excludeScope>
                             <excludeGroupIds>ch.qos.logback</excludeGroupIds>
+                            <prependGroupId>true</prependGroupId>
                             <excludeArtifactIds>sdk-local,sdk-local-maven,sdk-logback</excludeArtifactIds>
                             <outputDirectory>${project.build.directory}/element-libs</outputDirectory>
                         </configuration>
