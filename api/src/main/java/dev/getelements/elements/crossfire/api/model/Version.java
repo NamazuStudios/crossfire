@@ -52,4 +52,25 @@ public enum Version {
         return toString().equals(version);
     }
 
+    /**
+     * Checks if this version is compatible with the requested version. For clarity, this version must be the server
+     * or session version, and the requested version is the client's or message's requested version.
+     *
+     * @param requested the requested version
+     * @return true if compatible, false otherwise
+     */
+    public boolean isCompatibleWithRequestedVersion(final Version requested) {
+        return getMajor() == requested.getMajor() && getMinor() >=  requested.getMinor();
+    }
+
+    /**
+     * Version 1.0 (String version for DI)
+     */
+    public static final String VERSION_1_0_NAME = "V_1_0";
+
+    /**
+     * Version 1.1 (String version for DI)
+     */
+    public static final String VERSION_1_1_NAME = "V_1_1";
+
 }

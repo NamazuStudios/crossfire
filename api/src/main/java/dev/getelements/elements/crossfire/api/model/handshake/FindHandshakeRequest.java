@@ -6,6 +6,7 @@ import dev.getelements.elements.sdk.annotation.ElementPublic;
 import jakarta.validation.constraints.NotNull;
 
 import static dev.getelements.elements.crossfire.api.model.ProtocolMessageType.FIND;
+import static dev.getelements.elements.crossfire.api.model.Version.V_1_0;
 
 /**
  * A handshake request for finding a match in the Elements Crossfire protocol. This is used when the player does not
@@ -16,7 +17,7 @@ import static dev.getelements.elements.crossfire.api.model.ProtocolMessageType.F
 public class FindHandshakeRequest implements HandshakeRequest {
 
     @NotNull
-    private Version version = Version.V_1_0;
+    private Version version = V_1_0;
 
     private String profileId;
 

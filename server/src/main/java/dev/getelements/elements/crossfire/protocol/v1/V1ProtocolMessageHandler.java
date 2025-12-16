@@ -1,7 +1,8 @@
-package dev.getelements.elements.crossfire.protocol.v10;
+package dev.getelements.elements.crossfire.protocol.v1;
 
 
 import dev.getelements.elements.crossfire.api.model.ProtocolMessage;
+import dev.getelements.elements.crossfire.api.model.Version;
 import dev.getelements.elements.crossfire.api.model.control.ControlMessage;
 import dev.getelements.elements.crossfire.api.model.error.*;
 import dev.getelements.elements.crossfire.api.model.handshake.HandshakeRequest;
@@ -36,14 +37,14 @@ import static dev.getelements.elements.crossfire.protocol.ConnectionPhase.SIGNAL
 import static dev.getelements.elements.crossfire.protocol.ConnectionPhase.TERMINATED;
 import static jakarta.websocket.CloseReason.CloseCodes.*;
 
-public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
+public class V1ProtocolMessageHandler implements ProtocolMessageHandler {
 
     public static final String UNKNOWN_SESSION = "<unknown session id>";
 
     @ElementDefaultAttribute("100")
     public static final String MAX_BUFFER_SIZE = "dev.getelements.elements.crossfire.protocol.max.buffer.size";
 
-    private static final Logger logger = LoggerFactory.getLogger(V10ProtocolMessageHandler.class);
+    private static final Logger logger = LoggerFactory.getLogger(V1ProtocolMessageHandler.class);
 
     public static final Map<Class<? extends Throwable>, Function<Throwable, CloseReason>> EXPECTED_EXCEPTIONS = Map.of(
             TimeoutException.class, th -> new CloseReason(GOING_AWAY, th.getMessage()),
@@ -68,11 +69,13 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
 
     private ExecutorService executorService;
 
-    private HandshakeHandler handshakeHandler;
+    private HandshakeHandler v10HandshakeHandler;
+
+    private HandshakeHandler v11HandshakeHandler;
 
     private SignalingHandler signalingHandler;
 
-    private final AtomicReference<V10ConnectionStateRecord> state = new AtomicReference<>(V10ConnectionStateRecord.create());
+    private final AtomicReference<V1ConnectionStateRecord> state = new AtomicReference<>(V1ConnectionStateRecord.create());
 
     @Override
     public ConnectionPhase getPhase() {
@@ -94,17 +97,19 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
         perform(() -> {
             final var result = state.updateAndGet(existing -> existing.start(session));
             pinger.start(session);
-            getHandshakeHandler().start(this, session);
+            getV10HandshakeHandler().start(this, session);
+            getV11HandshakeHandler().start(this, session);
             logger.debug("{}: Connection started for session {}", result.phase(), session.getId());
         });
     }
 
     @Override
     public void stop(final Session session) throws IOException {
-        final var result = state.updateAndGet(V10ConnectionStateRecord::terminate);
-        pinger.stop();
-        handshakeHandler.stop(this, session);
-        signalingHandler.stop(this, session);
+        final var result = state.updateAndGet(V1ConnectionStateRecord::terminate);
+        getPinger().stop();
+        getV10HandshakeHandler().stop(this, session);
+        getV11HandshakeHandler().stop(this, session);
+        getSignalingHandler().stop(this, session);
         terminate();
         logger.debug("{}: Stopping protocol message handler {}.", result.phase(), result.sessionId());
     }
@@ -163,9 +168,11 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
     }
 
     private void onMessageReadyPhase(
-            final V10ConnectionStateRecord state,
+            final V1ConnectionStateRecord state,
             final Session session,
             final ProtocolMessage message) {
+
+        final var handshake = (HandshakeRequest) message;
 
         switch (message.getType().getCategory()) {
 
@@ -175,21 +182,21 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
 
             case HANDSHAKE -> {
 
-                final var result = this.state.updateAndGet(V10ConnectionStateRecord::handshake);
+                final var result = this.state.updateAndGet(V1ConnectionStateRecord::handshake);
 
                 switch (result.phase()) {
                     case HANDSHAKE -> {
 
                         // The state was updated to HANDSHAKE, so we can now process the handshake request.
-                        getHandshakeHandler().onMessage(
-                                this,
-                                session,
-                                (HandshakeRequest) message
-                        );
+                        switch (handshake.getType().getVersion()) {
+                            case V_1_0 -> getV10HandshakeHandler().onMessage(this, session, handshake);
+                            case V_1_1 -> getV11HandshakeHandler().onMessage(this, session, handshake);
+                            default -> throw invalid(state, message);
+                        };
 
                         // Now that we entered the HANDSHAKE phase, we can process the handshake request. The above line
-                        // ensures that the state is updated to HANDSHAKE before processing the message and that multiple
-                        // handshake requests are not allowed in the READY phase.
+                        // ensures that the state is updated to HANDSHAKE before processing the message and that
+                        // multiple handshake requests are not allowed in the READY phase.
 
                         logger.debug("{}: Started handshake {} for session {}.",
                                 result,
@@ -225,7 +232,7 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
     }
 
     private void onMessageHandshakePhase(
-            final V10ConnectionStateRecord state,
+            final V1ConnectionStateRecord state,
             final Session session,
             final ProtocolMessage message) {
         switch (message.getType().getCategory()) {
@@ -268,7 +275,7 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
     }
 
     private void onSignalingMessage(
-            final V10ConnectionStateRecord state,
+            final V1ConnectionStateRecord state,
             final Session session,
             final ProtocolMessage message) {
         switch (message.getType().getCategory()) {
@@ -340,7 +347,7 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
 
     }
 
-    private void startSignaling(final V10ConnectionStateRecord state) {
+    private void startSignaling(final V1ConnectionStateRecord state) {
 
         logger.debug("Starting signaling for session {} in match {}.",
                 state.sessionId(),
@@ -377,7 +384,7 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
     }
 
     private void log(
-            final V10ConnectionStateRecord state,
+            final V1ConnectionStateRecord state,
             final CloseReason closeReason,
             final Throwable th) {
 
@@ -401,7 +408,7 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
 
     private void doTerminate(final CloseReason reason, final Throwable th) {
 
-        V10ConnectionStateRecord curent;
+        V1ConnectionStateRecord curent;
 
         do {
 
@@ -417,7 +424,7 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
 
         } while (!state.compareAndSet(curent, curent.terminate()));
 
-        final var result = state.updateAndGet(V10ConnectionStateRecord::terminate);
+        final var result = state.updateAndGet(V1ConnectionStateRecord::terminate);
         final var session = result.session();
 
         if (th == null) {
@@ -436,7 +443,7 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
         }
 
         getPinger().stop();
-        getHandshakeHandler().stop(this, session);
+        getV10HandshakeHandler().stop(this, session);
         getSignalingHandler().stop(this, session);
 
         try {
@@ -454,7 +461,7 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
 
     }
 
-    private ProtocolStateException invalid(final V10ConnectionStateRecord phase, final ProtocolMessage message) {
+    private ProtocolStateException invalid(final V1ConnectionStateRecord phase, final ProtocolMessage message) {
 
         logger.error("{}: Not ready to accept {}({}} messages in phase.",
                 phase.phase(),
@@ -498,13 +505,22 @@ public class V10ProtocolMessageHandler implements ProtocolMessageHandler {
         this.executorService = executorService;
     }
 
-    public HandshakeHandler getHandshakeHandler() {
-        return handshakeHandler;
+    public HandshakeHandler getV10HandshakeHandler() {
+        return v10HandshakeHandler;
     }
 
     @Inject
-    public void setHandshakeHandler(HandshakeHandler handshakeHandler) {
-        this.handshakeHandler = handshakeHandler;
+    public void setV10HandshakeHandler(@Named(Version.VERSION_1_0_NAME) HandshakeHandler v10HandshakeHandler) {
+        this.v10HandshakeHandler = v10HandshakeHandler;
+    }
+
+    public HandshakeHandler getV11HandshakeHandler() {
+        return v11HandshakeHandler;
+    }
+
+    @Inject
+    public void setV11HandshakeHandler(@Named(Version.VERSION_1_1_NAME) HandshakeHandler v11HandshakeHandler) {
+        this.v11HandshakeHandler = v11HandshakeHandler;
     }
 
     public SignalingHandler getSignalingHandler() {

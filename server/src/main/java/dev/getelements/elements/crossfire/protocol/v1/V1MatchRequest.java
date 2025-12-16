@@ -1,4 +1,4 @@
-package dev.getelements.elements.crossfire.protocol.v10;
+package dev.getelements.elements.crossfire.protocol.v1;
 
 import dev.getelements.elements.crossfire.api.MatchHandle;
 import dev.getelements.elements.crossfire.api.MatchmakingRequest;
@@ -10,11 +10,11 @@ import dev.getelements.elements.sdk.model.profile.Profile;
 
 import java.util.concurrent.atomic.AtomicReference;
 
-class V10MatchRequest<MessageT extends HandshakeRequest> implements MatchmakingRequest<MessageT> {
+class V1MatchRequest<MessageT extends HandshakeRequest> implements MatchmakingRequest<MessageT> {
 
     private final ProtocolMessageHandler protocolMessageHandler;
 
-    private final AtomicReference<V10HandshakeStateRecord> state;
+    private final AtomicReference<V1HandshakeStateRecord> state;
 
     private final Profile profile;
 
@@ -22,9 +22,9 @@ class V10MatchRequest<MessageT extends HandshakeRequest> implements MatchmakingR
 
     private final MatchmakingApplicationConfiguration applicationConfiguration;
 
-    public V10MatchRequest(
+    public V1MatchRequest(
             final ProtocolMessageHandler protocolMessageHandler,
-            final AtomicReference<V10HandshakeStateRecord> state,
+            final AtomicReference<V1HandshakeStateRecord> state,
             final Profile profile,
             final MessageT handshakeRequest,
             final MatchmakingApplicationConfiguration applicationConfiguration) {
@@ -57,7 +57,7 @@ class V10MatchRequest<MessageT extends HandshakeRequest> implements MatchmakingR
 
     @Override
     public void failure(final Throwable th) {
-        final var state = this.state.updateAndGet(V10HandshakeStateRecord::terminate);
+        final var state = this.state.updateAndGet(V1HandshakeStateRecord::terminate);
         state.leave();
         getServer().terminate(th);
     }

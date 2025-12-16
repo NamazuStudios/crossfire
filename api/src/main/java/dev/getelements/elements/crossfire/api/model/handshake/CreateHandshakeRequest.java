@@ -9,6 +9,8 @@ import static dev.getelements.elements.crossfire.api.model.Version.V_1_1;
 
 public class CreateHandshakeRequest implements HandshakeRequest {
 
+    private Version version = V_1_1;
+
     private String profileId;
 
     private String sessionKey;
@@ -18,7 +20,11 @@ public class CreateHandshakeRequest implements HandshakeRequest {
 
     @Override
     public Version getVersion() {
-        return V_1_1;
+        return version;
+    }
+
+    public void setVersion(Version version) {
+        this.version = version;
     }
 
     @Override

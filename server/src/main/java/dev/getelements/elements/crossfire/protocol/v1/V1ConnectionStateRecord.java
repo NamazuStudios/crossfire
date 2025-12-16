@@ -1,4 +1,4 @@
-package dev.getelements.elements.crossfire.protocol.v10;
+package dev.getelements.elements.crossfire.protocol.v1;
 
 import dev.getelements.elements.crossfire.api.model.ProtocolMessage;
 import dev.getelements.elements.crossfire.api.model.error.ProtocolStateException;
@@ -11,45 +11,45 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static dev.getelements.elements.crossfire.protocol.ConnectionPhase.*;
-import static dev.getelements.elements.crossfire.protocol.v10.V10ProtocolMessageHandler.UNKNOWN_SESSION;
+import static dev.getelements.elements.crossfire.protocol.v1.V1ProtocolMessageHandler.UNKNOWN_SESSION;
 import static java.util.Collections.unmodifiableList;
 import static java.util.Objects.requireNonNull;
 
-record V10ConnectionStateRecord(
+record V1ConnectionStateRecord(
         Session session,
         MultiMatchRecord match,
         ProtocolMessageHandler.AuthRecord auth,
         ConnectionPhase phase) {
 
-    public static V10ConnectionStateRecord create() {
-        return new V10ConnectionStateRecord(null, null, null, WAITING);
+    public static V1ConnectionStateRecord create() {
+        return new V1ConnectionStateRecord(null, null, null, WAITING);
     }
 
     public String sessionId() {
         return session() != null ? session().getId() : UNKNOWN_SESSION;
     }
 
-    public V10ConnectionStateRecord start(final Session session) {
+    public V1ConnectionStateRecord start(final Session session) {
 
         requireNonNull(session, "Session cannot be null");
 
         return switch (phase()) {
-            case WAITING -> new V10ConnectionStateRecord(session, match(), auth(), READY);
+            case WAITING -> new V1ConnectionStateRecord(session, match(), auth(), READY);
             case TERMINATED -> this;
             default -> throw new ProtocolStateException("Cannot start session in phase " + phase());
         };
 
     }
 
-    public V10ConnectionStateRecord handshake() {
+    public V1ConnectionStateRecord handshake() {
         return switch (phase()) {
-            case READY -> new V10ConnectionStateRecord(session(), match(), auth(), HANDSHAKE);
+            case READY -> new V1ConnectionStateRecord(session(), match(), auth(), HANDSHAKE);
             case TERMINATED -> this;
             default -> throw new ProtocolStateException("Cannot start handshaking in " + phase());
         };
     }
 
-    public V10ConnectionStateRecord matched(final MultiMatchRecord match) {
+    public V1ConnectionStateRecord matched(final MultiMatchRecord match) {
 
         requireNonNull(match, "Match cannot be null");
 
@@ -57,14 +57,14 @@ record V10ConnectionStateRecord(
             case TERMINATED -> this;
             case HANDSHAKE -> {
                 final var phase = auth() != null ? SIGNALING : HANDSHAKE;
-                yield new V10ConnectionStateRecord(session(), match, auth(), phase);
+                yield new V1ConnectionStateRecord(session(), match, auth(), phase);
             }
             default -> throw new ProtocolStateException("Cannot match in " + phase());
         };
 
     }
 
-    public V10ConnectionStateRecord authenticated(final ProtocolMessageHandler.AuthRecord auth) {
+    public V1ConnectionStateRecord authenticated(final ProtocolMessageHandler.AuthRecord auth) {
 
         requireNonNull(auth, "Auth Record cannot be null");
 
@@ -72,7 +72,7 @@ record V10ConnectionStateRecord(
             case TERMINATED -> this;
             case HANDSHAKE -> {
                 final var phase = match() != null ? SIGNALING : HANDSHAKE;
-                yield new V10ConnectionStateRecord(session(), match(), auth, phase);
+                yield new V1ConnectionStateRecord(session(), match(), auth, phase);
             }
             default -> throw new ProtocolStateException("Cannot authenticate in " + phase());
         };
@@ -89,10 +89,10 @@ record V10ConnectionStateRecord(
         }
     }
 
-    public V10ConnectionStateRecord terminate() {
+    public V1ConnectionStateRecord terminate() {
         return switch (phase()) {
             case TERMINATED -> this;
-            default -> new V10ConnectionStateRecord(session(), match(), auth(), TERMINATED);
+            default -> new V1ConnectionStateRecord(session(), match(), auth(), TERMINATED);
         };
     }
 

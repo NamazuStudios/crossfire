@@ -1,4 +1,4 @@
-package dev.getelements.elements.crossfire.protocol.v10;
+package dev.getelements.elements.crossfire.protocol.v1;
 
 import dev.getelements.elements.crossfire.api.model.control.ControlMessage;
 import dev.getelements.elements.crossfire.api.model.error.ProtocolStateException;
@@ -21,17 +21,17 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
-import static dev.getelements.elements.crossfire.protocol.v10.V10SignalingState.create;
+import static dev.getelements.elements.crossfire.protocol.v1.V1SignalingState.create;
 
-public class V10SignalingHandler implements SignalingHandler {
+public class V1SignalingHandler implements SignalingHandler {
 
-    private static final Logger logger = LoggerFactory.getLogger(V10SignalingHandler.class);
+    private static final Logger logger = LoggerFactory.getLogger(V1SignalingHandler.class);
 
     private ControlService controlService;
 
     private MatchSignalingService matchSignalingService;
 
-    private final AtomicReference<V10SignalingState> state = new AtomicReference<>(create());
+    private final AtomicReference<V1SignalingState> state = new AtomicReference<>(create());
 
     @Override
     public void start(
@@ -79,7 +79,7 @@ public class V10SignalingHandler implements SignalingHandler {
             final ProtocolMessageHandler handler,
             final Session session) {
 
-        final var updated = state.updateAndGet(V10SignalingState::terminate);
+        final var updated = state.updateAndGet(V1SignalingState::terminate);
         logger.debug("Stopped signaling.");
 
         if (updated.subscription() != null) {
@@ -160,7 +160,7 @@ public class V10SignalingHandler implements SignalingHandler {
         }
     }
 
-    private void checkAuth(final V10SignalingState state, final Supplier<String> profileIdSupplier) {
+    private void checkAuth(final V1SignalingState state, final Supplier<String> profileIdSupplier) {
 
         final var authProfileId = state.auth().profile().getId();
         final var senderProfileId = profileIdSupplier.get();
@@ -171,7 +171,7 @@ public class V10SignalingHandler implements SignalingHandler {
 
     }
 
-    private void checkBounce(final V10SignalingState state, final Supplier<String> profileIdSupplier) {
+    private void checkBounce(final V1SignalingState state, final Supplier<String> profileIdSupplier) {
 
         final var profileId = profileIdSupplier.get();
         final var authProfileId = state.auth().profile().getId();

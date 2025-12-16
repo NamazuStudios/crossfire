@@ -1,23 +1,18 @@
-package dev.getelements.elements.crossfire.protocol.v10;
+package dev.getelements.elements.crossfire.protocol.v1;
 
 import dev.getelements.elements.crossfire.api.MatchHandle;
 import dev.getelements.elements.crossfire.api.MatchmakingAlgorithm;
-import dev.getelements.elements.crossfire.api.model.error.MultiMatchConfigurationNotFoundException;
+import dev.getelements.elements.crossfire.api.model.Version;
 import dev.getelements.elements.crossfire.api.model.error.ProtocolStateException;
-import dev.getelements.elements.crossfire.api.model.error.UnexpectedMessageException;
-import dev.getelements.elements.crossfire.api.model.handshake.FindHandshakeRequest;
 import dev.getelements.elements.crossfire.api.model.handshake.HandshakeRequest;
-import dev.getelements.elements.crossfire.api.model.handshake.JoinHandshakeRequest;
 import dev.getelements.elements.crossfire.protocol.HandshakeHandler;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler;
-import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler.AuthRecord;
 import dev.getelements.elements.sdk.ElementRegistrySupplier;
 import dev.getelements.elements.sdk.dao.ApplicationConfigurationDao;
 import dev.getelements.elements.sdk.dao.MultiMatchDao;
 import dev.getelements.elements.sdk.dao.ProfileDao;
 import dev.getelements.elements.sdk.dao.Transaction;
 import dev.getelements.elements.sdk.model.application.ElementServiceReference;
-import dev.getelements.elements.sdk.model.application.MatchmakingApplicationConfiguration;
 import dev.getelements.elements.sdk.model.exception.ForbiddenException;
 import dev.getelements.elements.sdk.model.profile.Profile;
 import dev.getelements.elements.sdk.service.auth.SessionService;
@@ -33,13 +28,13 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
-import static dev.getelements.elements.crossfire.protocol.HandshakePhase.MATCHING;
-import static dev.getelements.elements.crossfire.protocol.HandshakePhase.TERMINATED;
 import static dev.getelements.elements.sdk.service.Constants.UNSCOPED;
 
-public class V10HandshakeHandler implements HandshakeHandler {
+public abstract class V1HandshakeHandler implements HandshakeHandler {
 
-    private static final Logger logger = LoggerFactory.getLogger(V10HandshakeHandler.class);
+    private static final Logger logger = LoggerFactory.getLogger(V1HandshakeHandler.class);
+
+    protected final AtomicReference<V1HandshakeStateRecord> state = new AtomicReference<>(initStateRecord());
 
     private Validator validator;
 
@@ -53,115 +48,11 @@ public class V10HandshakeHandler implements HandshakeHandler {
 
     private Provider<Transaction> transactionProvider;
 
-    private MatchmakingAlgorithm defaultMatchmakingAlgorithm;
+    private MatchmakingAlgorithm<?, ?> defaultMatchmakingAlgorithm;
 
-    private final AtomicReference<V10HandshakeStateRecord> state = new AtomicReference<>(V10HandshakeStateRecord.create());
+    protected abstract V1HandshakeStateRecord initStateRecord();
 
-    @Override
-    public void start(final ProtocolMessageHandler handler,
-                      final Session session) {
-
-        final var state = this.state.updateAndGet(s -> s.start(session));
-
-        if (TERMINATED.equals(state.phase())) {
-            state.leave();
-        }
-
-    }
-
-    @Override
-    public void stop(final ProtocolMessageHandler handler,
-                     final Session session) {
-
-        final var state = this.state.updateAndGet(V10HandshakeStateRecord::terminate);
-
-        if (MATCHING.equals(state.phase())) {
-            state.leave();
-        }
-
-    }
-
-    @Override
-    public void onMessage(
-            final ProtocolMessageHandler handler,
-            final Session session,
-            final HandshakeRequest request) {
-        final var type = request.getType();
-        switch (type) {
-            case FIND -> onFindMessage(handler, session, (FindHandshakeRequest) request);
-            case JOIN -> onJoinMessage(handler, session, (JoinHandshakeRequest) request);
-            default -> throw new UnexpectedMessageException("Unsupported handshake request type: " + request.getType());
-        }
-    }
-
-    private void onFindMessage(
-            final ProtocolMessageHandler handler,
-            final Session session,
-            final FindHandshakeRequest request) {
-        auth(handler, request, (auth) -> {
-
-            final var application = auth.profile().getApplication();
-
-            final var applicationConfigurationOptional = getApplicationConfigurationDao().findApplicationConfiguration(
-                    MatchmakingApplicationConfiguration.class,
-                    application.getId(),
-                    request.getConfiguration()
-            );
-
-            if(applicationConfigurationOptional.isEmpty()) {
-                throw new MultiMatchConfigurationNotFoundException("Matchmaking Configuration with name " + request.getConfiguration() + " not found.");
-            }
-
-            final var applicationConfiguration = applicationConfigurationOptional.get();
-
-            final var matchRequest = new V10MatchRequest<>(
-                    handler,
-                    state,
-                    auth.profile(),
-                    request,
-                    applicationConfiguration
-            );
-
-            final var algorithm = Optional
-                    .ofNullable(applicationConfiguration.getMatchmaker())
-                    .map(this::algorithmFromConfiguration)
-                    .orElseGet(this::getDefaultMatchmakingAlgorithm);
-
-            final var pending = algorithm.find(matchRequest);
-            doStartMatching(pending);
-
-        });
-    }
-
-    private void onJoinMessage(
-            final ProtocolMessageHandler handler,
-            final Session session,
-            final JoinHandshakeRequest request) {
-        auth(handler, request, (auth) -> {
-
-            final var match = getMultiMatchDao().getMultiMatch(request.getMatchId());
-            final var applicationConfiguration = match.getConfiguration();
-
-            final var matchRequest = new V10MatchRequest<>(
-                    handler,
-                    state,
-                    auth.profile(),
-                    request,
-                    applicationConfiguration
-            );
-
-            final var algorithm = Optional
-                    .ofNullable(applicationConfiguration.getMatchmaker())
-                    .map(this::algorithmFromConfiguration)
-                    .orElseGet(this::getDefaultMatchmakingAlgorithm);
-
-            final var pending = algorithm.join(matchRequest);
-            doStartMatching(pending);
-
-        });
-    }
-
-    private MatchmakingAlgorithm algorithmFromConfiguration(final ElementServiceReference matchmaker) {
+    protected MatchmakingAlgorithm<?, ?> algorithmFromConfiguration(final ElementServiceReference matchmaker) {
 
         final var elementOptional = ElementRegistrySupplier
                 .getElementLocal(getClass())
@@ -209,7 +100,7 @@ public class V10HandshakeHandler implements HandshakeHandler {
 
     }
 
-    private void doStartMatching(final MatchHandle<?> matchHandle) {
+    protected void startMatching(final MatchHandle<?> matchHandle) {
 
         final var state = this.state.updateAndGet(s -> s.matching(matchHandle));
 
@@ -221,11 +112,11 @@ public class V10HandshakeHandler implements HandshakeHandler {
 
     }
 
-    private void auth(final ProtocolMessageHandler handler,
-                      final HandshakeRequest request,
-                      final Consumer<AuthRecord> onAuthenticated) {
+    protected void auth(final ProtocolMessageHandler handler,
+                        final HandshakeRequest request,
+                        final Consumer<ProtocolMessageHandler.AuthRecord> onAuthenticated) {
 
-        final var state = this.state.updateAndGet(V10HandshakeStateRecord::authenticating);
+        final var state = this.state.updateAndGet(V1HandshakeStateRecord::authenticating);
 
         switch (state.phase()) {
             case TERMINATED -> {
@@ -238,12 +129,13 @@ public class V10HandshakeHandler implements HandshakeHandler {
                 state.leave();
                 throw new ProtocolStateException("Invalid handshake state: " + state);
             }
-        };
+        }
+
     }
 
     private void doAuthenticate(final ProtocolMessageHandler handler,
                                 final HandshakeRequest request,
-                                final Consumer<AuthRecord> onAuthenticated) {
+                                final Consumer<ProtocolMessageHandler.AuthRecord> onAuthenticated) {
 
         final var session = getSessionService().checkAndRefreshSessionIfNecessary(request.getSessionKey());
 
@@ -270,7 +162,7 @@ public class V10HandshakeHandler implements HandshakeHandler {
             throw new ForbiddenException();
         }
 
-        final var record = new AuthRecord(profile, session);
+        final var record = new ProtocolMessageHandler.AuthRecord(profile, session);
         final var updated = this.state.updateAndGet(s -> s.authenticated(record));
 
         switch (updated.phase()) {

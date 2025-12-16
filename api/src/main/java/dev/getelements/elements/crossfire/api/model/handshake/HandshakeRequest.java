@@ -12,7 +12,7 @@ import dev.getelements.elements.sdk.annotation.ElementPublic;
 public interface HandshakeRequest extends ProtocolMessage {
 
     /**
-     * Gets the version of the protocol requested.
+     * Gets the version of the protocol requested. If the server supports the version, it will respond accordingly.
      *
      * @return the version of the protocol
      */

@@ -11,12 +11,6 @@ import dev.getelements.elements.sdk.annotation.ElementPublic;
 public interface HandshakeResponse extends ProtocolMessage {
 
     /**
-     * Gets the version of the protocol.
-     * @return the version
-     */
-    Version getVersion();
-
-    /**
      * Gets the match ID of the connected match.
      * @return the match id
      */

@@ -6,6 +6,7 @@ import dev.getelements.elements.sdk.annotation.ElementPublic;
 import jakarta.validation.constraints.NotNull;
 
 import static dev.getelements.elements.crossfire.api.model.ProtocolMessageType.JOIN;
+import static dev.getelements.elements.crossfire.api.model.Version.V_1_0;
 
 /**
  * Requets to join an existing match in the Elements Crossfire protocol. This is used when the player already has
@@ -19,7 +20,7 @@ import static dev.getelements.elements.crossfire.api.model.ProtocolMessageType.J
 public class JoinHandshakeRequest implements HandshakeRequest {
 
     @NotNull
-    private Version version;
+    private Version version = V_1_0;
 
     private String profileId;
 

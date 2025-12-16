@@ -1,5 +1,7 @@
 package dev.getelements.elements.crossfire.api;
 
+import dev.getelements.elements.crossfire.api.model.Version;
+
 import java.util.concurrent.Future;
 
 public interface Server {

@@ -18,7 +18,7 @@ import org.slf4j.LoggerFactory;
 
 @ElementServiceExport(value = MatchmakingAlgorithm.class)
 @ElementServiceExport(value = MatchmakingAlgorithm.class, name = FIFOMatchmakingAlgorithm.NAME)
-public class FIFOMatchmakingAlgorithm implements MatchmakingAlgorithm {
+public class FIFOMatchmakingAlgorithm implements MatchmakingAlgorithm<FindHandshakeRequest, JoinHandshakeRequest> {
 
     private static final Logger logger = LoggerFactory.getLogger(FIFOMatchmakingAlgorithm.class);
 
@@ -32,12 +32,12 @@ public class FIFOMatchmakingAlgorithm implements MatchmakingAlgorithm {
     }
 
     @Override
-    public MatchHandle<FindHandshakeRequest> find(final MatchmakingRequest<FindHandshakeRequest> request) {
+    public MatchHandle<FindHandshakeRequest> initialize(final MatchmakingRequest<FindHandshakeRequest> request) {
         return new FIFOMatchHandle(request);
     }
 
     @Override
-    public MatchHandle<JoinHandshakeRequest> join(final MatchmakingRequest<JoinHandshakeRequest> request) {
+    public MatchHandle<JoinHandshakeRequest> resume(final MatchmakingRequest<JoinHandshakeRequest> request) {
         return new StandardJoinMatchHandle(this, request, getTransactionProvider());
     }
 

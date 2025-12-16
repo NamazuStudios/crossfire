@@ -1,4 +1,4 @@
-package dev.getelements.elements.crossfire.protocol.v10;
+package dev.getelements.elements.crossfire.protocol.v1;
 
 import dev.getelements.elements.crossfire.api.model.error.ProtocolStateException;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler.AuthRecord;
@@ -9,7 +9,7 @@ import dev.getelements.elements.sdk.Subscription;
 import static dev.getelements.elements.crossfire.protocol.SignalingPhase.*;
 import static java.util.Objects.requireNonNull;
 
-public record V10SignalingState(
+public record V1SignalingState(
         SignalingPhase phase,
         MultiMatchRecord match,
         AuthRecord auth,
@@ -17,31 +17,31 @@ public record V10SignalingState(
 
     private static final Subscription NOOP = () -> {};
 
-    public static V10SignalingState create() {
-        return new V10SignalingState(READY, null, null, NOOP);
+    public static V1SignalingState create() {
+        return new V1SignalingState(READY, null, null, NOOP);
     }
 
-    public V10SignalingState start(final Subscription subscription,
-                                   final MultiMatchRecord match,
-                                   final AuthRecord auth) {
+    public V1SignalingState start(final Subscription subscription,
+                                  final MultiMatchRecord match,
+                                  final AuthRecord auth) {
 
         requireNonNull(subscription, "Subscription is required.");
 
         return switch (phase()) {
-            case READY -> new V10SignalingState(SIGNALING, match, auth, subscription);
+            case READY -> new V1SignalingState(SIGNALING, match, auth, subscription);
             case TERMINATED -> this;
             default -> throw new ProtocolStateException("Unexpected value: " + phase());
         };
 
     }
 
-    public V10SignalingState terminate() {
+    public V1SignalingState terminate() {
 
         requireNonNull(subscription, "Subscription is required.");
 
         return switch (phase()) {
             case TERMINATED -> this;
-            default -> new V10SignalingState(TERMINATED, match(), auth(), subscription());
+            default -> new V1SignalingState(TERMINATED, match(), auth(), subscription());
         };
 
     }
