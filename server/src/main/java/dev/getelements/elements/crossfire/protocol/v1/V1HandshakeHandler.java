@@ -28,6 +28,8 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
+import static dev.getelements.elements.crossfire.protocol.HandshakePhase.MATCHING;
+import static dev.getelements.elements.crossfire.protocol.HandshakePhase.TERMINATED;
 import static dev.getelements.elements.sdk.service.Constants.UNSCOPED;
 
 public abstract class V1HandshakeHandler implements HandshakeHandler {
@@ -48,9 +50,32 @@ public abstract class V1HandshakeHandler implements HandshakeHandler {
 
     private Provider<Transaction> transactionProvider;
 
-    private MatchmakingAlgorithm<?, ?> defaultMatchmakingAlgorithm;
+    @Override
+    public void start(final ProtocolMessageHandler handler,
+                      final Session session) {
 
+        final var state = this.state.updateAndGet(s -> s.start(session));
+
+        if (TERMINATED.equals(state.phase())) {
+            state.leave();
+        }
+
+    }
+
+    @Override
+    public void stop(final ProtocolMessageHandler handler,
+                     final Session session) {
+
+        final var state = this.state.updateAndGet(V1HandshakeStateRecord::terminate);
+
+        if (MATCHING.equals(state.phase())) {
+            state.leave();
+        }
+
+    }
     protected abstract V1HandshakeStateRecord initStateRecord();
+
+    protected abstract MatchmakingAlgorithm<?, ?> getDefaultMatchmakingAlgorithm();
 
     protected MatchmakingAlgorithm<?, ?> algorithmFromConfiguration(final ElementServiceReference matchmaker) {
 
@@ -235,15 +260,6 @@ public abstract class V1HandshakeHandler implements HandshakeHandler {
     @Inject
     public void setTransactionProvider(Provider<Transaction> transactionProvider) {
         this.transactionProvider = transactionProvider;
-    }
-
-    public MatchmakingAlgorithm getDefaultMatchmakingAlgorithm() {
-        return defaultMatchmakingAlgorithm;
-    }
-
-    @Inject
-    public void setDefaultMatchmakingAlgorithm(MatchmakingAlgorithm defaultMatchmakingAlgorithm) {
-        this.defaultMatchmakingAlgorithm = defaultMatchmakingAlgorithm;
     }
 
 }

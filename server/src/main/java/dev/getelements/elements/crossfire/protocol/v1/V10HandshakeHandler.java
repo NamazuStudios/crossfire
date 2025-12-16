@@ -1,5 +1,6 @@
 package dev.getelements.elements.crossfire.protocol.v1;
 
+import dev.getelements.elements.crossfire.api.MatchmakingAlgorithm;
 import dev.getelements.elements.crossfire.api.model.Version;
 import dev.getelements.elements.crossfire.api.model.error.MultiMatchConfigurationNotFoundException;
 import dev.getelements.elements.crossfire.api.model.error.UnexpectedMessageException;
@@ -8,38 +9,17 @@ import dev.getelements.elements.crossfire.api.model.handshake.HandshakeRequest;
 import dev.getelements.elements.crossfire.api.model.handshake.JoinHandshakeRequest;
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler;
 import dev.getelements.elements.sdk.model.application.MatchmakingApplicationConfiguration;
+import jakarta.inject.Inject;
+import jakarta.inject.Named;
 import jakarta.websocket.Session;
 
 import java.util.Optional;
 
-import static dev.getelements.elements.crossfire.protocol.HandshakePhase.MATCHING;
-import static dev.getelements.elements.crossfire.protocol.HandshakePhase.TERMINATED;
+import static dev.getelements.elements.crossfire.matchmaker.JoinCodeMatchmakingAlgorithm.NAME;
 
 public class V10HandshakeHandler extends V1HandshakeHandler {
 
-    @Override
-    public void start(final ProtocolMessageHandler handler,
-                      final Session session) {
-
-        final var state = this.state.updateAndGet(s -> s.start(session));
-
-        if (TERMINATED.equals(state.phase())) {
-            state.leave();
-        }
-
-    }
-
-    @Override
-    public void stop(final ProtocolMessageHandler handler,
-                     final Session session) {
-
-        final var state = this.state.updateAndGet(V1HandshakeStateRecord::terminate);
-
-        if (MATCHING.equals(state.phase())) {
-            state.leave();
-        }
-
-    }
+    private MatchmakingAlgorithm<?, ?> defaultMatchmakingAlgorithm;
 
     @Override
     public void onMessage(
@@ -116,7 +96,8 @@ public class V10HandshakeHandler extends V1HandshakeHandler {
             final var algorithm = Optional
                     .ofNullable(applicationConfiguration.getMatchmaker())
                     .map(this::algorithmFromConfiguration)
-                    .orElseGet(this::getDefaultMatchmakingAlgorithm);
+                    .orElseGet(this::getDefaultMatchmakingAlgorithm)
+                    .checked(FindHandshakeRequest.class, JoinHandshakeRequest.class);
 
             final var pending = algorithm
                     .checked(FindHandshakeRequest.class, JoinHandshakeRequest.class)
@@ -130,6 +111,15 @@ public class V10HandshakeHandler extends V1HandshakeHandler {
     @Override
     protected V1HandshakeStateRecord initStateRecord() {
         return V1HandshakeStateRecord.create(Version.V_1_0);
+    }
+
+    public MatchmakingAlgorithm<?,?> getDefaultMatchmakingAlgorithm() {
+        return defaultMatchmakingAlgorithm;
+    }
+
+    @Inject
+    public void setDefaultMatchmakingAlgorithm(@Named(NAME) MatchmakingAlgorithm<?, ?> defaultMatchmakingAlgorithm) {
+        this.defaultMatchmakingAlgorithm = defaultMatchmakingAlgorithm;
     }
 
 }

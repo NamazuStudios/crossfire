@@ -35,6 +35,11 @@ public enum ProtocolMessageType {
     /**
      * Indicates the request is to join a match. The server will select the specific match.
      */
+    JOIN_CODE(HANDSHAKE, JoinCodeHandshakeRequest.class, V_1_1),
+
+    /**
+     * Indicates the request is to join a match. The server will select the specific match.
+     */
     CREATE(HANDSHAKE, CreateHandshakeRequest.class, V_1_1),
 
     /**
