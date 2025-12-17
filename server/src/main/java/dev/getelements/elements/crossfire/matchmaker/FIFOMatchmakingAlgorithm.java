@@ -1,6 +1,5 @@
 package dev.getelements.elements.crossfire.matchmaker;
 
-import dev.getelements.elements.crossfire.StandardJoinMatchHandle;
 import dev.getelements.elements.crossfire.api.*;
 import dev.getelements.elements.crossfire.api.model.handshake.FindHandshakeRequest;
 import dev.getelements.elements.crossfire.api.model.handshake.JoinHandshakeRequest;

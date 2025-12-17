@@ -24,13 +24,14 @@ public abstract class AbstractMatchHandle<RequestT extends HandshakeRequest> imp
 
     private static final Logger logger = LoggerFactory.getLogger(AbstractMatchHandle.class);
 
-    private final MatchmakingAlgorithm algorithm;
+    private final MatchmakingAlgorithm<?, ?> algorithm;
 
     private final MatchmakingRequest<RequestT> request;
 
     private final AtomicReference<CancelableMatchStateRecord<RequestT>> state = new AtomicReference<>(create());
 
-    protected AbstractMatchHandle(final MatchmakingAlgorithm algorithm, final MatchmakingRequest<RequestT> request) {
+    protected AbstractMatchHandle(final MatchmakingAlgorithm<?, ?> algorithm,
+                                  final MatchmakingRequest<RequestT> request) {
         this.request = request;
         this.algorithm = algorithm;
     }
@@ -112,7 +113,7 @@ public abstract class AbstractMatchHandle<RequestT extends HandshakeRequest> imp
     }
 
     @Override
-    public MatchmakingAlgorithm getAlgorithm() {
+    public MatchmakingAlgorithm<?,?> getAlgorithm() {
         return algorithm;
     }
 

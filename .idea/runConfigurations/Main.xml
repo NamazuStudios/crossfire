@@ -6,7 +6,7 @@
     <option name="MAIN_CLASS_NAME" value="dev.getelements.elements.crossfire.Main" />
     <extension name="coverage">
       <pattern>
-        <option name="PATTERN" value="dev.getelements.elements.crossfire.*" />
+        <option name="PATTERN" value="dev.getelements.elements.crossfire.matchmaker.*" />
         <option name="ENABLED" value="true" />
       </pattern>
     </extension>

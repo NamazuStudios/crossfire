@@ -17,7 +17,7 @@ public abstract class StandardCancelableMatchHandle<RequestT extends HandshakeRe
     private final Provider<Transaction> transactionProvider;
 
     public StandardCancelableMatchHandle(
-            final MatchmakingAlgorithm algorithm,
+            final MatchmakingAlgorithm<?,?> algorithm,
             final MatchmakingRequest<RequestT> request,
             final Provider<Transaction> transactionProvider) {
         super(algorithm, request);

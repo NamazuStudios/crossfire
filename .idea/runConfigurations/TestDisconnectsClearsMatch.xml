@@ -4,7 +4,7 @@
     <useClassPathOnly />
     <extension name="coverage">
       <pattern>
-        <option name="PATTERN" value="dev.getelements.elements.crossfire.*" />
+        <option name="PATTERN" value="dev.getelements.elements.crossfire.matchmaker.*" />
         <option name="ENABLED" value="true" />
       </pattern>
     </extension>
