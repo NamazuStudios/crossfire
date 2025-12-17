@@ -1,6 +1,5 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="TestDisconnectsClearsMatch" type="TestNG" nameIsGenerated="true">
-    <module name="element" />
     <shortenClasspath name="NONE" />
     <useClassPathOnly />
     <extension name="coverage">

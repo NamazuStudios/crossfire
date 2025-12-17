@@ -16,9 +16,12 @@ import jakarta.inject.Provider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@ElementServiceExport(value = MatchmakingAlgorithm.class)
-@ElementServiceExport(value = MatchmakingAlgorithm.class, name = FIFOMatchmakingAlgorithm.NAME)
-public class FIFOMatchmakingAlgorithm implements MatchmakingAlgorithm<FindHandshakeRequest, JoinHandshakeRequest> {
+/**
+ * An implementation of the FindMatchmakingAlgorithm that matches participants based on a FIFO strategy.
+ */
+@ElementServiceExport(value = FindMatchmakingAlgorithm.class)
+@ElementServiceExport(value = FindMatchmakingAlgorithm.class, name = FIFOMatchmakingAlgorithm.NAME)
+public class FIFOMatchmakingAlgorithm implements FindMatchmakingAlgorithm {
 
     private static final Logger logger = LoggerFactory.getLogger(FIFOMatchmakingAlgorithm.class);
 

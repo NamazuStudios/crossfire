@@ -36,7 +36,7 @@ public abstract class AbstractMatchHandle<RequestT extends HandshakeRequest> imp
     }
 
     @Override
-    public void startMatcing() {
+    public void startMatching() {
 
         final var state = this.state.updateAndGet(CancelableMatchStateRecord::matching);
 

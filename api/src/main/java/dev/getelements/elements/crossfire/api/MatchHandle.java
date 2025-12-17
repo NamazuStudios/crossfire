@@ -22,14 +22,14 @@ public interface MatchHandle<RequestT extends HandshakeRequest> {
      *
      * @return the matchmaking algorithm
      */
-    MatchmakingAlgorithm getAlgorithm();
+    MatchmakingAlgorithm<?, ?> getAlgorithm();
 
     /**
      * Starts the matchmaking algorithm. Note that this method is non-blocking and returns immediately and does not
      * write to the database or perform any blocking operations. At some point in the future, the match will transition
      * to a new state, which can be observed by calling {@link #getResult()}.
      */
-    void startMatcing();
+    void startMatching();
 
     /**
      * Ends the matchmaking algorithm, indicating that the player is no longer interested in being matched. This does

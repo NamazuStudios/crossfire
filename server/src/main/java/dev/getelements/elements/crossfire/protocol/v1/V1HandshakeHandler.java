@@ -2,7 +2,7 @@ package dev.getelements.elements.crossfire.protocol.v1;
 
 import dev.getelements.elements.crossfire.api.MatchHandle;
 import dev.getelements.elements.crossfire.api.MatchmakingAlgorithm;
-import dev.getelements.elements.crossfire.api.model.Version;
+import dev.getelements.elements.crossfire.api.model.error.InvalidConfigurationException;
 import dev.getelements.elements.crossfire.api.model.error.ProtocolStateException;
 import dev.getelements.elements.crossfire.api.model.handshake.HandshakeRequest;
 import dev.getelements.elements.crossfire.protocol.HandshakeHandler;
@@ -11,14 +11,13 @@ import dev.getelements.elements.sdk.ElementRegistrySupplier;
 import dev.getelements.elements.sdk.dao.ApplicationConfigurationDao;
 import dev.getelements.elements.sdk.dao.MultiMatchDao;
 import dev.getelements.elements.sdk.dao.ProfileDao;
-import dev.getelements.elements.sdk.dao.Transaction;
 import dev.getelements.elements.sdk.model.application.ElementServiceReference;
+import dev.getelements.elements.sdk.model.application.MatchmakingApplicationConfiguration;
 import dev.getelements.elements.sdk.model.exception.ForbiddenException;
 import dev.getelements.elements.sdk.model.profile.Profile;
 import dev.getelements.elements.sdk.service.auth.SessionService;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
-import jakarta.inject.Provider;
 import jakarta.validation.Validator;
 import jakarta.websocket.Session;
 import org.slf4j.Logger;
@@ -48,8 +47,6 @@ public abstract class V1HandshakeHandler implements HandshakeHandler {
 
     private SessionService sessionService;
 
-    private Provider<Transaction> transactionProvider;
-
     @Override
     public void start(final ProtocolMessageHandler handler,
                       final Session session) {
@@ -75,9 +72,25 @@ public abstract class V1HandshakeHandler implements HandshakeHandler {
     }
     protected abstract V1HandshakeStateRecord initStateRecord();
 
-    protected abstract MatchmakingAlgorithm<?, ?> getDefaultMatchmakingAlgorithm();
 
-    protected MatchmakingAlgorithm<?, ?> algorithmFromConfiguration(final ElementServiceReference matchmaker) {
+    protected <AlgorithmT extends MatchmakingAlgorithm<?, ?>>
+    AlgorithmT getMatchmakingAlgorithm(
+            final Class<? extends AlgorithmT> algorithmClass,
+            final MatchmakingApplicationConfiguration applicationConfiguration,
+            final AlgorithmT defaultAlgorithm) {
+
+        final var matchmaker = applicationConfiguration.getMatchmaker();
+
+        return matchmaker == null
+                ? defaultAlgorithm
+                : algorithmFromConfiguration(algorithmClass, matchmaker);
+
+    }
+
+    private <AlgorithmT extends MatchmakingAlgorithm<?, ?>>
+    AlgorithmT algorithmFromConfiguration(
+            final Class<? extends AlgorithmT> algorithmClass,
+            final ElementServiceReference matchmaker) {
 
         final var elementOptional = ElementRegistrySupplier
                 .getElementLocal(getClass())
@@ -87,13 +100,19 @@ public abstract class V1HandshakeHandler implements HandshakeHandler {
                 .findFirst();
 
         if (elementOptional.isPresent()) {
+
             logger.warn("Unable to find element with name {}.", matchmaker.getElementName());
-            return getDefaultMatchmakingAlgorithm();
+
+            throw new InvalidConfigurationException(
+                    "Unable to find element with name %s."
+                    .formatted(matchmaker.getElementName())
+            );
+
         }
 
         final var element = elementOptional.get();
 
-        final Class<? extends MatchmakingAlgorithm> type = (Class<? extends MatchmakingAlgorithm>) Optional
+        final var type = (Class<? extends AlgorithmT>) Optional
                 .ofNullable(matchmaker.getServiceType())
                 .map(t -> {
                     try {
@@ -106,7 +125,7 @@ public abstract class V1HandshakeHandler implements HandshakeHandler {
                     }
                 })
                 .filter(t -> {
-                    if (MatchmakingAlgorithm.class.isAssignableFrom(t)) {
+                    if (algorithmClass.isAssignableFrom(t)) {
                         return true;
                     } else {
                         logger.error("Matchmaking algoirthm {} is not assignable from class {}. Using default.",
@@ -115,7 +134,7 @@ public abstract class V1HandshakeHandler implements HandshakeHandler {
                         return false;
                     }
                 })
-                .orElse(MatchmakingAlgorithm.class);
+                .orElse(algorithmClass);
 
         final var name = matchmaker.getServiceName();
 
@@ -130,7 +149,7 @@ public abstract class V1HandshakeHandler implements HandshakeHandler {
         final var state = this.state.updateAndGet(s -> s.matching(matchHandle));
 
         switch (state.phase()) {
-            case MATCHING -> matchHandle.startMatcing();
+            case MATCHING -> matchHandle.startMatching();
             case TERMINATED -> state.leave();
             default -> throw new ProtocolStateException("Unexpected handshake state: " + state.phase());
         }
@@ -251,15 +270,6 @@ public abstract class V1HandshakeHandler implements HandshakeHandler {
     @Inject
     public void setApplicationConfigurationDao(ApplicationConfigurationDao applicationConfigurationDao) {
         this.applicationConfigurationDao = applicationConfigurationDao;
-    }
-
-    public Provider<Transaction> getTransactionProvider() {
-        return transactionProvider;
-    }
-
-    @Inject
-    public void setTransactionProvider(Provider<Transaction> transactionProvider) {
-        this.transactionProvider = transactionProvider;
     }
 
 }

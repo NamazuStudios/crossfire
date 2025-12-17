@@ -1,8 +1,7 @@
 package dev.getelements.elements.crossfire.protocol.v1;
 
-import dev.getelements.elements.crossfire.api.MatchmakingAlgorithm;
+import dev.getelements.elements.crossfire.api.FindMatchmakingAlgorithm;
 import dev.getelements.elements.crossfire.api.model.Version;
-import dev.getelements.elements.crossfire.api.model.error.MultiMatchConfigurationNotFoundException;
 import dev.getelements.elements.crossfire.api.model.error.UnexpectedMessageException;
 import dev.getelements.elements.crossfire.api.model.handshake.FindHandshakeRequest;
 import dev.getelements.elements.crossfire.api.model.handshake.HandshakeRequest;
@@ -10,16 +9,11 @@ import dev.getelements.elements.crossfire.api.model.handshake.JoinHandshakeReque
 import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler;
 import dev.getelements.elements.sdk.model.application.MatchmakingApplicationConfiguration;
 import jakarta.inject.Inject;
-import jakarta.inject.Named;
 import jakarta.websocket.Session;
-
-import java.util.Optional;
-
-import static dev.getelements.elements.crossfire.matchmaker.JoinCodeMatchmakingAlgorithm.NAME;
 
 public class V10HandshakeHandler extends V1HandshakeHandler {
 
-    private MatchmakingAlgorithm<?, ?> defaultMatchmakingAlgorithm;
+    private FindMatchmakingAlgorithm findMatchmakingAlgorithm;
 
     @Override
     public void onMessage(
@@ -42,19 +36,11 @@ public class V10HandshakeHandler extends V1HandshakeHandler {
 
             final var application = auth.profile().getApplication();
 
-            final var applicationConfigurationOptional = getApplicationConfigurationDao().findApplicationConfiguration(
+            final var applicationConfiguration = getApplicationConfigurationDao().getApplicationConfiguration(
                     MatchmakingApplicationConfiguration.class,
                     application.getId(),
                     request.getConfiguration()
             );
-
-            if(applicationConfigurationOptional.isEmpty()) {
-                throw new MultiMatchConfigurationNotFoundException(
-                        "Matchmaking Configuration with name " + request.getConfiguration() +
-                        " not found.");
-            }
-
-            final var applicationConfiguration = applicationConfigurationOptional.get();
 
             final var matchRequest = new V1MatchRequest<>(
                     handler,
@@ -64,11 +50,11 @@ public class V10HandshakeHandler extends V1HandshakeHandler {
                     applicationConfiguration
             );
 
-            final var algorithm = Optional
-                    .ofNullable(applicationConfiguration.getMatchmaker())
-                    .map(this::algorithmFromConfiguration)
-                    .orElseGet(this::getDefaultMatchmakingAlgorithm)
-                    .checked(FindHandshakeRequest.class, JoinHandshakeRequest.class);
+            final var algorithm = getMatchmakingAlgorithm(
+                    FindMatchmakingAlgorithm.class,
+                    applicationConfiguration,
+                    getFindMatchmakingAlgorithm()
+            );
 
             final var pending = algorithm.initialize(matchRequest);
             startMatching(pending);
@@ -93,16 +79,13 @@ public class V10HandshakeHandler extends V1HandshakeHandler {
                     applicationConfiguration
             );
 
-            final var algorithm = Optional
-                    .ofNullable(applicationConfiguration.getMatchmaker())
-                    .map(this::algorithmFromConfiguration)
-                    .orElseGet(this::getDefaultMatchmakingAlgorithm)
-                    .checked(FindHandshakeRequest.class, JoinHandshakeRequest.class);
+            final var algorithm = getMatchmakingAlgorithm(
+                    FindMatchmakingAlgorithm.class,
+                    applicationConfiguration,
+                    getFindMatchmakingAlgorithm()
+            );
 
-            final var pending = algorithm
-                    .checked(FindHandshakeRequest.class, JoinHandshakeRequest.class)
-                    .resume(matchRequest);
-
+            final var pending = algorithm.resume(matchRequest);
             startMatching(pending);
 
         });
@@ -113,13 +96,13 @@ public class V10HandshakeHandler extends V1HandshakeHandler {
         return V1HandshakeStateRecord.create(Version.V_1_0);
     }
 
-    public MatchmakingAlgorithm<?,?> getDefaultMatchmakingAlgorithm() {
-        return defaultMatchmakingAlgorithm;
+    public FindMatchmakingAlgorithm getFindMatchmakingAlgorithm() {
+        return findMatchmakingAlgorithm;
     }
 
     @Inject
-    public void setDefaultMatchmakingAlgorithm(@Named(NAME) MatchmakingAlgorithm<?, ?> defaultMatchmakingAlgorithm) {
-        this.defaultMatchmakingAlgorithm = defaultMatchmakingAlgorithm;
+    public void setFindMatchmakingAlgorithm(final FindMatchmakingAlgorithm findMatchmakingAlgorithm) {
+        this.findMatchmakingAlgorithm = findMatchmakingAlgorithm;
     }
 
 }

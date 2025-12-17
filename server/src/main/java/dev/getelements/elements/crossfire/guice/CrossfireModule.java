@@ -1,10 +1,13 @@
 package dev.getelements.elements.crossfire.guice;
 
 import com.google.inject.PrivateModule;
+import com.google.inject.TypeLiteral;
+import dev.getelements.elements.crossfire.api.FindMatchmakingAlgorithm;
+import dev.getelements.elements.crossfire.api.JoinCodeMatchmakingAlgorithm;
 import dev.getelements.elements.crossfire.api.MatchmakingAlgorithm;
 import dev.getelements.elements.crossfire.api.model.Version;
 import dev.getelements.elements.crossfire.matchmaker.FIFOMatchmakingAlgorithm;
-import dev.getelements.elements.crossfire.matchmaker.JoinCodeMatchmakingAlgorithm;
+import dev.getelements.elements.crossfire.matchmaker.SimpleJoinCodeMatchmakingAlgorithm;
 import dev.getelements.elements.crossfire.protocol.*;
 import dev.getelements.elements.crossfire.protocol.v1.V10HandshakeHandler;
 import dev.getelements.elements.crossfire.protocol.v1.V11HandshakeHandler;
@@ -22,7 +25,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static com.google.inject.name.Names.named;
-import static dev.getelements.elements.crossfire.matchmaker.FIFOMatchmakingAlgorithm.NAME;
 
 public class  CrossfireModule extends PrivateModule {
 
@@ -32,9 +34,10 @@ public class  CrossfireModule extends PrivateModule {
         expose(ControlService.class);
         expose(MatchSignalingService.class);
         expose(ProtocolMessageHandler.class);
-        expose(MatchmakingAlgorithm.class);
-        expose(MatchmakingAlgorithm.class).annotatedWith(named(FIFOMatchmakingAlgorithm.NAME));
-        expose(MatchmakingAlgorithm.class).annotatedWith(named(JoinCodeMatchmakingAlgorithm.NAME));
+        expose(FindMatchmakingAlgorithm.class);
+        expose(JoinCodeMatchmakingAlgorithm.class);
+        expose(FindMatchmakingAlgorithm.class).annotatedWith(named(FIFOMatchmakingAlgorithm.NAME));
+        expose(JoinCodeMatchmakingAlgorithm.class).annotatedWith(named(SimpleJoinCodeMatchmakingAlgorithm.NAME));
 
         bind(Pinger.class)
                 .to(StandardPinger.class);
@@ -68,16 +71,19 @@ public class  CrossfireModule extends PrivateModule {
                 .toProvider(Executors::newSingleThreadScheduledExecutor)
                 .asEagerSingleton();
 
-        bind(MatchmakingAlgorithm.class)
+        bind(FindMatchmakingAlgorithm.class)
                 .to(FIFOMatchmakingAlgorithm.class);
 
-        bind(MatchmakingAlgorithm.class)
+        bind(FindMatchmakingAlgorithm.class)
                 .annotatedWith(named(FIFOMatchmakingAlgorithm.NAME))
                 .to(FIFOMatchmakingAlgorithm.class);
 
-        bind(MatchmakingAlgorithm.class)
-                .annotatedWith(named(JoinCodeMatchmakingAlgorithm.NAME))
-                .to(FIFOMatchmakingAlgorithm.class);
+        bind(JoinCodeMatchmakingAlgorithm.class)
+                .to(SimpleJoinCodeMatchmakingAlgorithm.class);
+
+        bind(JoinCodeMatchmakingAlgorithm.class)
+                .annotatedWith(named(SimpleJoinCodeMatchmakingAlgorithm.NAME))
+                .to(SimpleJoinCodeMatchmakingAlgorithm.class);
 
         bind(Validator.class)
                 .toProvider(() -> {
