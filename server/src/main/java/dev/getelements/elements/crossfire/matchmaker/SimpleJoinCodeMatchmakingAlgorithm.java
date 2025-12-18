@@ -4,6 +4,8 @@ import dev.getelements.elements.crossfire.api.JoinCodeMatchmakingAlgorithm;
 import dev.getelements.elements.crossfire.api.MatchHandle;
 import dev.getelements.elements.crossfire.api.MatchmakingRequest;
 import dev.getelements.elements.crossfire.api.model.handshake.CreateHandshakeRequest;
+import dev.getelements.elements.crossfire.api.model.handshake.CreatedHandshakeResponse;
+import dev.getelements.elements.crossfire.api.model.handshake.HandshakeResponse;
 import dev.getelements.elements.crossfire.api.model.handshake.JoinCodeHandshakeRequest;
 import dev.getelements.elements.crossfire.util.CancelableMatchStateRecord;
 import dev.getelements.elements.crossfire.util.StandardCancelableMatchHandle;
@@ -88,6 +90,15 @@ public class SimpleJoinCodeMatchmakingAlgorithm implements JoinCodeMatchmakingAl
         }
 
         @Override
+        public HandshakeResponse newHandshakeResponse() {
+            final var response = new CreatedHandshakeResponse();
+            response.setMatchId(getResult().getId());
+            response.setJoinCode(getResult().getJoinCode().getId());
+            response.setProfileId(getRequest().getProfile().getId());
+            return response;
+        }
+
+        @Override
         protected void onMatching(final CancelableMatchStateRecord<CreateHandshakeRequest> state) {
             getRequest().getServer().submit(() -> {
                 final var result = getTransactionProvider().get().performAndClose(txn -> {
@@ -104,11 +115,12 @@ public class SimpleJoinCodeMatchmakingAlgorithm implements JoinCodeMatchmakingAl
                         getRequest().getProfile()
                     );
 
-                    final var match = new MultiMatch();
+                    var match = new MultiMatch();
                     match.setConfiguration(getRequest().getApplicationConfiguration());
                     match.setStatus(MultiMatchStatus.OPEN);
 
-                    return dao.createMultiMatch(match, parameters);
+                    match = dao.createMultiMatch(match, parameters);
+                    return dao.addProfile(match.getId(), getRequest().getProfile());
 
                 });
 

@@ -6,6 +6,7 @@ import dev.getelements.elements.crossfire.api.MatchmakingAlgorithm;
 import dev.getelements.elements.crossfire.api.MatchmakingRequest;
 import dev.getelements.elements.crossfire.api.model.error.ProtocolStateException;
 import dev.getelements.elements.crossfire.api.model.handshake.HandshakeRequest;
+import dev.getelements.elements.crossfire.api.model.handshake.HandshakeResponse;
 import dev.getelements.elements.sdk.model.match.MultiMatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

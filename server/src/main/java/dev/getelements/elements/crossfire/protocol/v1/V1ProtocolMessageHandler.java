@@ -354,10 +354,15 @@ public class V1ProtocolMessageHandler implements ProtocolMessageHandler {
                 state.match().getId()
         );
 
-        final var response = new MatchedResponse();
-        response.setMatchId(state.match().getId());
-        response.setProfileId(state.auth().profile().getId());
-        state.session().getAsyncRemote().sendObject(response);
+        final var response = state
+                .match()
+                .matchHandle()
+                .newHandshakeResponse();
+
+        state.session()
+                .getAsyncRemote()
+                .sendObject(response);
+
         getSignalingHandler().start(this, state.session(), state.match(), state.auth());
 
     }

@@ -181,28 +181,32 @@ public class V10SignalingClient implements SignalingClient {
     }
 
     private void onHandshakeMessage(final HandshakeResponse message) {
-        if (ProtocolMessageType.MATCHED.equals(message.getType())) {
-            final var state = this.state.updateAndGet(s -> s.matched(message));
+        switch (message.getType()) {
+            case MATCHED, CREATED -> {
 
-            switch (state.phase()) {
-                case SIGNALING -> {
+                final var state = this.state.updateAndGet(s -> s.matched(message));
 
-                    onHandshake.publish(
-                            message,
-                            m -> logger.debug("Delivered handshake response: {}", message),
-                            onClientError::publish
-                    );
+                switch (state.phase()) {
+                    case SIGNALING -> {
 
-                    logger.info("Handshake successful, matched with ID: {}", message.getMatchId());
+                        onHandshake.publish(
+                                message,
+                                m -> logger.debug("Delivered handshake response: {}", message),
+                                onClientError::publish
+                        );
 
+                        logger.info("Handshake successful, matched with ID: {}", message.getMatchId());
+
+                    }
+                    case TERMINATED -> logger.info("Handshake successful, but session is terminated. Dropping.");
+                    default -> throw new ProtocolStateException("Unexpected message in phase " + state.phase());
                 }
-                case TERMINATED -> logger.info("Handshake successful, but session is terminated. Dropping.");
-                default -> throw new ProtocolStateException("Unexpected message in phase " + state.phase());
-            }
 
-        } else {
-            logger.error("Unexpected handshake message: {}", message.getType());
-            throw new UnexpectedMessageException("Unexpected handshake message: " + message.getType());
+            }
+            default -> {
+                logger.error("Unexpected handshake message: {}", message.getType());
+                throw new UnexpectedMessageException("Unexpected handshake message: " + message.getType());
+            }
         }
     }
 
@@ -260,7 +264,12 @@ public class V10SignalingClient implements SignalingClient {
 
         switch (request.getType()) {
             case FIND, JOIN -> {
-                if (!Version.V_1_0.equals(request.getVersion())) {
+                if (!request.getVersion().isCompatibleWithRequestedVersion(Version.V_1_0)) {
+                    throw new IllegalArgumentException("Invalid protocol version: " + request.getVersion());
+                }
+            }
+            case CREATE, JOIN_CODE -> {
+                if (!request.getVersion().isCompatibleWithRequestedVersion(Version.V_1_1)) {
                     throw new IllegalArgumentException("Invalid protocol version: " + request.getVersion());
                 }
             }

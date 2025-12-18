@@ -7,7 +7,7 @@ import dev.getelements.elements.crossfire.util.CancelableMatchStateRecord;
 import dev.getelements.elements.crossfire.util.StandardCancelableMatchHandle;
 import dev.getelements.elements.sdk.dao.MultiMatchDao;
 import dev.getelements.elements.sdk.dao.Transaction;
-import dev.getelements.elements.sdk.model.exception.MultiMatchNotFoundException;
+import dev.getelements.elements.sdk.model.profile.Profile;
 import jakarta.inject.Provider;
 
 public class StandardJoinCodeMatchHandle extends StandardCancelableMatchHandle<JoinCodeHandshakeRequest> {
@@ -30,22 +30,21 @@ public class StandardJoinCodeMatchHandle extends StandardCancelableMatchHandle<J
 
             final var dao = transaction.getDao(MultiMatchDao.class);
             final var handshakeRequest = getRequest().getHandshakeRequest();
-
-            final var result = dao
-                    .findMultiMatchByJoinCode(handshakeRequest.getJoinCode())
-                    .orElseThrow(MultiMatchNotFoundException::new);
+            final var multiMatchByJoinCode = dao.getMultiMatchByJoinCode(handshakeRequest.getJoinCode());
 
             final var profileId = getRequest().getProfile().getId();
 
-            final var inMatch = dao.getProfiles(result.getId())
+            final var inMatch = dao
+                    .getProfiles(multiMatchByJoinCode.getId())
                     .stream()
-                    .anyMatch(p -> p.getId().equals(profileId));
+                    .map(Profile::getId)
+                    .anyMatch(pid -> pid.equals(profileId));
 
             if (!inMatch) {
-                dao.addProfile(result.getId(), getRequest().getProfile());
+                dao.addProfile(multiMatchByJoinCode.getId(), getRequest().getProfile());
             }
 
-            setResult(result);
+            setResult(multiMatchByJoinCode);
 
         }
     }

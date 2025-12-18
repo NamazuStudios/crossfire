@@ -1,6 +1,8 @@
 package dev.getelements.elements.crossfire.api;
 
 import dev.getelements.elements.crossfire.api.model.handshake.HandshakeRequest;
+import dev.getelements.elements.crossfire.api.model.handshake.HandshakeResponse;
+import dev.getelements.elements.crossfire.api.model.handshake.MatchedResponse;
 import dev.getelements.elements.sdk.annotation.ElementPublic;
 import dev.getelements.elements.sdk.model.match.MultiMatch;
 
@@ -52,6 +54,18 @@ public interface MatchHandle<RequestT extends HandshakeRequest> {
      * been found then this just cancels the pending matchmaking operation.
      */
     void leaveMatch();
+
+    /**
+     * Creates a new handshake response appropriate for this match.
+     *
+     * @return the handshake response
+     */
+    default HandshakeResponse newHandshakeResponse() {
+        final var matchedResponse = new MatchedResponse();
+        matchedResponse.setMatchId(getResult().getId());
+        matchedResponse.setProfileId(getRequest().getProfile().getId());
+        return matchedResponse;
+    }
 
     /**
      * Gets the {@link MultiMatch}, throwing NoSuchElementException if the match is not yet complete or otherwise missing.
