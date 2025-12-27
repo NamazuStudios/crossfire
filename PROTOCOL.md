@@ -4,7 +4,15 @@ The Crossfire protocol is a WebSocket driven protocol to enable signaling and da
 
 It provides a set of messages and operations which can be used to facilitate matchmaking, game session management, and participant communication. For Peer to Peer communication, we use WebRTC as the wire protocol as well as a JSON based signaling protocol for establishing connections. The signaling protocol can also be used to exchange and relay real time game data.
 
-**Note:** At the time of this writing, the only supported protocol version is 1.0. The server uses the literal string `V_1_0` to indicate this version. See [Version.java](common/src/main/java/dev/getelements/elements/crossfire/model/Version.java)
+~~**Note:** At the time of this writing, the only supported protocol version is 1.0. The server uses the literal string `V_1_0` to indicate this version. See [Version.java](common/src/main/java/dev/getelements/elements/crossfire/model/Version.java)~~
+
+With Crossfire 1.1 and beyond, we have incorporated new versions of the protocol. The protocol version is distinct from the version of Crossfire. When referring ot the Version in this document, we are referring to the protocol version. See [Version.java](common/src/main/java/dev/getelements/elements/crossfire/model/Version.java)
+
+* Version 1.0 - `V_1_0`
+* Version 1.1 - `V_1_1`
+
+The protocol version follows Semantic Versioning, with the omission of revision as it makes no sense for a protocol. Therefore, a server supporting a particular minor version must also support all minor versions equal to or less than the latest supported version. All minor versions MUST inherit all message types and behaviors from previous minor versions.
+
 
 ## Operational Overview
 
@@ -47,8 +55,8 @@ For all `HANDSHAKE` messages the following rules apply:
 * All other security and validation rules associated MUST apply. For example the server MUST respect the privacy settings of the profile and MUST NOT leak personally identifiable information to all participants.
 
 **Sources:**
- * [HandshakeRequest.java](common/src/main/java/dev/getelements/elements/crossfire/model/handshake/HandshakeRequest.java)
- * [HandshakeResponse.java](common/src/main/java/dev/getelements/elements/crossfire/model/handshake/HandshakeResponse.java)
+ * [HandshakeRequest.java](api/src/main/java/dev/getelements/elements/crossfire/api/model/handshake/HandshakeRequest.java)
+ * [HandshakeResponse.java](api/src/main/java/dev/getelements/elements/crossfire/api/model/handshake/HandshakeResponse.java)
 
 ### `FIND` (Client to Server)
 
@@ -59,29 +67,29 @@ The `FIND` message is used to find a match and if no Matches are created, the se
 Upon successful match, the server MUST respond with a `MATCHED` message.
 
 The FIND message contains the following fields:
-* `version` - *Required.* The version of the protocol the client is using. This is used to ensure compatibility between client and server. Currently only `V_1_0` is supported.
+* `version` - *Required.* The version of the protocol the client is using. This is used to ensure compatibility between client and server. The server SHOULD reject subsequent messages not compatible with this version. Additionally, the server MUST produce a meaningful error if the version is not supported.
 * `profileId` - *Optional.* The profile ID of the client. _Required only if the `sessionKey` is not bound to a session._
 * `sessionKey` - *Required.* The session key provided by the Elements RESTful API
 * `configuration` *Required.* The name or ID of the MatchmakingApplicationConfiguration used to perform the matchmaking.
 
 **Sources**:
-* [JoinHandshakeRequest.java](common/src/main/java/dev/getelements/elements/crossfire/model/handshake/JoinHandshakeRequest.java)
+* [FindHandshakeRequest.java](api/src/main/java/dev/getelements/elements/crossfire/api/model/handshake/FindHandshakeRequest.java)
 
 ### `JOIN` (Client To Server)
 
 ![alt JOIN Message](diagrams/joining.mmd.png)
 
-The `JOIN` message is used to join an existing match, provided the client already knows the match ID. Typically this is used to re-join a match that the client previously joined by may have disconnected.
+The `JOIN` message is used to join an existing match, provided the client already knows the match ID. Typically, this is used to re-join a match that the client previously joined by may have disconnected.
 
 Upon successful match, the server MUST respond with a `MATCHED` message.
-
-**Sources**:
-* [FindHandshakeRequest.java](common/src/main/java/dev/getelements/elements/crossfire/model/handshake/FindHandshakeRequest.java)
 
 * `version` - *Required.* The version of the protocol the client is using. This is used to ensure compatibility between client and server. Currently only `V_1_0` is supported.
 * `profileId` - *Optional.* The profile ID of the client. _Required only if the `sessionKey` is not bound to a session._
 * `sessionKey` - *Required.* The session key provided by the Elements RESTful API
 * `matchId` - *Required.* The match ID.
+
+**Sources**:
+* [JoinHandshakeRequest.java](api/src/main/java/dev/getelements/elements/crossfire/api/model/handshake/JoinHandshakeRequest.java)
 
 ### `MATCHED` (Server to Client)
 
@@ -91,7 +99,42 @@ The server MUST send a `MATCHED` message to the client when the client has been 
 * `profilId` - *Required.* The profile ID of the client which connected.
 
 **Sources**:
-* [MatchedResponse.java](common/src/main/java/dev/getelements/elements/crossfire/model/handshake/MatchedResponse.java)
+* [MatchedResponse.java](api/src/main/java/dev/getelements/elements/crossfire/api/model/handshake/MatchedResponse.java)
+
+### `CREATE' (Client to Server)
+
+The `CREATE` message is used to create a match with the intention of inviting others to join. The server MUST create a match in the database permitting the user to invite others to join. The server MUST respond with a `CREATED` message containing the match ID and participant information.
+
+* `version` - *Required.* The version of the protocol the client is using. This is used to ensure compatibility between client and server. The server SHOULD reject subsequent messages not compatible with this version. Additionally, the server MUST produce a meaningful error if the version is not supported.
+* `profileId` - *Optional.* The profile ID of the client. _Required only if the `sessionKey` is not bound to a session._
+* `sessionKey` - *Required.* The session key provided by the Elements RESTful API
+* `configuration` *Required.* The name or ID of the MatchmakingApplicationConfiguration used to perform the matchmaking.
+
+**Sources**:
+* [CreateHandshakeRequest.java](api/src/main/java/dev/getelements/elements/crossfire/api/model/handshake/CreateHandshakeRequest.java)
+
+### `CREATED` (Server to Client)
+
+The `CREATED` message is sent in response to a `CREATE` message indicating that the match has been successfully created. The `CREATED` message contains information about the match, including the match ID and join code. The creator then shares the join code with other participants to allow them to join the match.
+
+* `matchId` - *Required.* The unique identifier for the match.
+* `joinCode` - *Required.* The join code that other participants can use to join the match.
+* `profileId` - *Required.* The profile ID of the client which connected.
+
+**Sources**:
+* [CreatedHandshakeResponse.java](api/src/main/java/dev/getelements/elements/crossfire/api/model/handshake/CreatedHandshakeResponse.java)
+
+### `JOIN_CODE` (Client to Server)
+
+The `JOIN_CODE` message is used to join an existing match using a join code. This is typically used when a participant has received a join code from the match creator and wants to join the match. The server MUST respond with a `MATCHED` message upon successful join, or the server MUST produce a meaningful error if the join code is invalid or the match is not joinable.
+
+* `version` - *Required.* The version of the protocol the client is using. This is used to ensure compatibility between client and server. The server SHOULD reject subsequent messages not compatible with this version. Additionally, the server MUST produce a meaningful error if the version is not supported.
+* `profileId` - *Optional.* The profile ID of the client. _Required only if the `sessionKey` is not bound to a session._
+* `joinCode` - *Required.* The join code provided by the match creator.
+* `sessionKey` - *Required.* The session key provided by the Elements RESTful API
+
+**Sources**:
+* [JoinCodeHandshakeRequest.java](api/src/main/java/dev/getelements/elements/crossfire/api/model/handshake/JoinCodeHandshakeRequest.java)
 
 ## Signaling
 
