@@ -116,6 +116,6 @@ jobs:
           mvn versions:set -DnewVersion=${{ steps.version.outputs.next_version }} -B
           mvn versions:commit
           git commit -am "Start next iteration: ${{ steps.version.outputs.next_version }}"
-          git push origin main
+          git push origin "${{ github.ref_name }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
