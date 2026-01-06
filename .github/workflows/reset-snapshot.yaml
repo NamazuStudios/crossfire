@@ -66,7 +66,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git commit -am "Reset to ${{ steps.next_version.outputs.next }}"
-          git push origin main
+          git push origin "${{ github.ref_name }}"
 
       - name: Confirm
         run: echo "Main branch has been reset to ${{ steps.next_version.outputs.next }}"
