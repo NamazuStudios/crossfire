@@ -2,7 +2,7 @@ name: Publish Snapshot to Sonatype
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, "maintenance/*" ]
 
 jobs:
 
