@@ -8,6 +8,7 @@ import dev.getelements.elements.sdk.ElementRegistry;
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.annotation.ElementDefaultAttribute;
 import dev.getelements.elements.sdk.annotation.ElementEventConsumer;
+import dev.getelements.elements.sdk.annotation.ElementServiceReference;
 import dev.getelements.elements.sdk.dao.MultiMatchDao;
 import dev.getelements.elements.sdk.model.exception.ForbiddenException;
 import dev.getelements.elements.sdk.model.exception.InvalidMultiMatchPhaseException;
@@ -228,7 +229,7 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
         this.multiMatchDao = mongoMultiMatchDao;
     }
 
-    @ElementEventConsumer(MULTI_MATCH_DELETED)
+    @ElementEventConsumer(value = MULTI_MATCH_DELETED, via = @ElementServiceReference(MatchSignalingService.class))
     public void onMatchDeleted(final MultiMatch multiMatch) {
 
         final var existing = matches.remove(multiMatch.getId());

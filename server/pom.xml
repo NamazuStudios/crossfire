@@ -120,6 +120,10 @@
                 <version>3.2.5</version>
                 <configuration>
                     <workingDirectory>${project.basedir}</workingDirectory>
+                    <systemPropertyVariables>
+                        <project.version>${project.version}</project.version>
+                        <project.groupId>${project.groupId}</project.groupId>
+                    </systemPropertyVariables>
                 </configuration>
             </plugin>
 

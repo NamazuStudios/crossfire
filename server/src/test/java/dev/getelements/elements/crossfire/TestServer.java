@@ -42,6 +42,10 @@ public class TestServer {
 
     private static final String TEST_APPLICATION_NAME = "integration_test";
 
+    private static final String PROJECT_VERSION = System.getProperty("project.version");
+
+    private static final String PROJECT_GROUP_ID = System.getProperty("project.groupId");
+
     private static final String TEST_TEST_SERVER_WS_URL = "ws://localhost:8080/app/ws/crossfire/match";
 
     private static final ShutdownHooks shutdownHooks = new ShutdownHooks(TestServer.class);
@@ -64,19 +68,21 @@ public class TestServer {
         mongoTestInstance.start();
 
         final var properties = System.getProperties();
-        final var pathSeparator = System.getProperty("path.separator");
 
         final var workingDirectory = Path.of(".");
         logger.info("Working Directory: {}", workingDirectory.toAbsolutePath().normalize().toString());
 
         properties.put(MONGO_CLIENT_URI, format("mongodb://127.0.0.1:%d", TEST_MONGO_PORT));
 
+        final var elmArtifact = "%s:server:elm:%s".formatted(PROJECT_GROUP_ID, PROJECT_VERSION);
+
         elementsLocal = ElementsLocalBuilder.getDefault()
                 .withSourceRoot()
                 .withProperties(properties)
                 .withDeployment(builder -> builder
+                        .useDefaultRepositories(true)
                         .elementPackage()
-                        .elmArtifact("dev.getelements.elements.crossfire:api:1.1.0-SNAPSHOT")
+                        .elmArtifact(elmArtifact)
                         .endElementPackage()
                         .build()
                 )
