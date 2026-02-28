@@ -362,7 +362,7 @@ public class TestBasicMatchmaking {
             );
 
             assertTrue(client.findPeer().isPresent(), "Expected client to be present for: " + receivedTestMessage.protocol());
-            client.findPeer().get().send(responseTestMessage.toString());
+            assertEquals(client.findPeer().get().send(responseTestMessage.toString()), SENT);
 
         }
 
@@ -378,8 +378,9 @@ public class TestBasicMatchmaking {
                 .getSupportedProtocols()
                 .size() * (TEST_PLAYER_COUNT - 1);
 
-        for (int i = 0; i < count - 1; ++i) {
-            final var msg = context.messages().take();
+        for (int i = 0; i < count; ++i) {
+            final var msg = context.messages().poll(30, SECONDS);
+            Assert.assertNotNull(msg, "Timed out waiting for binary message " + (i + 1) + " of " + count);
             final var testMessage = TestMessage.from(msg.data());
             assertEquals(testMessage.protocol(), msg.peer().getProtocol());
             assertEquals(testMessage.action(), TestAction.CLIENT_REPLY_MESSAGE);
@@ -400,7 +401,8 @@ public class TestBasicMatchmaking {
                 .size() * (TEST_PLAYER_COUNT - 1);
 
         for (int i = 0; i < count; ++i) {
-            final var msg = context.stringMessages().take();
+            final var msg = context.stringMessages().poll(30, SECONDS);
+            Assert.assertNotNull(msg, "Timed out waiting for string message " + (i + 1) + " of " + count);
             final var testMessage = TestMessage.from(msg.data());
             assertEquals(testMessage.protocol(), msg.peer().getProtocol());
             assertEquals(testMessage.action(), TestAction.CLIENT_REPLY_MESSAGE);
