@@ -2,7 +2,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>dev.getelements.elements.crossfire</groupId>
   <artifactId>crossfire</artifactId>
-  <version>1.1.1-SNAPSHOT</version>
+  <version>1.1.1</version>
   <packaging>pom</packaging>
   <name>Namazu Elements Crossfire</name>
   <description>Real-time networking (Crossfire) for Elements-based games</description>
