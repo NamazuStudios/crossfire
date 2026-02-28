@@ -25,7 +25,6 @@ import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static dev.getelements.elements.sdk.local.maven.MavenElementsLocalBuilder.ELEMENT_CLASSPATH;
 import static dev.getelements.elements.sdk.mongo.MongoConfigurationService.MONGO_CLIENT_URI;
 import static java.lang.String.format;
 import static java.util.concurrent.TimeUnit.DAYS;
@@ -68,14 +67,19 @@ public class TestServer {
         final var pathSeparator = System.getProperty("path.separator");
 
         final var workingDirectory = Path.of(".");
-        logger.info("Element Classpath: {}", ELEMENT_CLASSPATH);
         logger.info("Working Directory: {}", workingDirectory.toAbsolutePath().normalize().toString());
 
         properties.put(MONGO_CLIENT_URI, format("mongodb://127.0.0.1:%d", TEST_MONGO_PORT));
 
         elementsLocal = ElementsLocalBuilder.getDefault()
+                .withSourceRoot()
                 .withProperties(properties)
-                .withElementNamed(TEST_APPLICATION_NAME, "dev.getelements.elements.crossfire")
+                .withDeployment(builder -> builder
+                        .elementPackage()
+                        .elmArtifact("dev.getelements.elements.crossfire:api:1.1.0-SNAPSHOT")
+                        .endElementPackage()
+                        .build()
+                )
                 .build();
 
         application = buildApplication();

@@ -17,27 +17,10 @@
     <packaging>jar</packaging>
 
     <properties>
-        <rs.api>4.0.0</rs.api>
-        <webrtc.version>0.13.0</webrtc.version>
-        <testng.version>7.11.0</testng.version>
-        <rocoto.version>6.2</rocoto.version>
-        <surefire.version>3.0.0-M9</surefire.version>
-        <maven.compiler.version>3.11.0</maven.compiler.version>
-        <servlet.api>6.1.0</servlet.api>
-        <guice.version>7.0.0</guice.version>
-        <java.version>21</java.version>
-        <jain.version>1.2.269</jain.version>
-        <slf4j.version>1.7.32</slf4j.version>
-        <jetty.version>12.0.12</jetty.version>
-        <logback.version>1.2.3</logback.version>
-        <jakarta.inject.version>2.0.1.MR</jakarta.inject.version>
-        <element.sdk.version>2.2.0-SNAPSHOT</element.sdk.version>
-        <jakarta.websocket.version>2.1.0</jakarta.websocket.version>
-        <jakarta.servlet.version>6.0.0</jakarta.servlet.version>
-        <guice.version>7.0.0</guice.version>
-        <jackson.version>2.18.2</jackson.version>
-        <jakarta.validation.api.version>3.1.0</jakarta.validation.api.version>
-        <jetty.version>12.0.12</jetty.version>
+        <elm.staging.dir>
+            ${project.build.directory}/${project.groupId}.${project.artifactId}-${project.version}
+        </elm.staging.dir>
+        <elm.element.dir>${elm.staging.dir}/${project.groupId}.${project.artifactId}</elm.element.dir>
     </properties>
 
     <dependencies>
@@ -74,6 +57,11 @@
         <dependency>
             <groupId>dev.getelements.elements.crossfire</groupId>
             <artifactId>api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.getelements.elements.crossfire</groupId>
+            <artifactId>api</artifactId>
+            <classifier>${api.classifier}</classifier>
         </dependency>
         <dependency>
             <groupId>dev.getelements.elements.crossfire</groupId>
@@ -129,76 +117,123 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.2.5</version> <!-- Use a recent version -->
+                <version>3.2.5</version>
                 <configuration>
-                    <!-- Set the working directory to a specific path -->
                     <workingDirectory>${project.basedir}</workingDirectory>
                 </configuration>
             </plugin>
 
-            <!-- Deploys at the end of the build -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-deploy-plugin</artifactId>
-                <version>3.1.1</version>
-                <configuration>
-                    <classifiers>
-                        <classifier>element</classifier>
-                    </classifiers>
-                </configuration>
-            </plugin>
-
-            <!-- Adds just the dependencies for the Element -->
+            <!-- Copy dependencies into ELM staging subdirectories -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
                 <version>3.6.0</version>
                 <executions>
+                    <!-- API classifier jars → api/ -->
                     <execution>
-                        <id>copy-element-deps</id>
-                        <phase>generate-resources</phase>
-                        <goals>
-                            <goal>copy-dependencies</goal>
-                        </goals>
+                        <id>elm-copy-api-deps</id>
+                        <phase>prepare-package</phase>
+                        <goals><goal>copy-dependencies</goal></goals>
                         <configuration>
-                            <excludeScope>test</excludeScope>
-                            <excludeScope>provided</excludeScope>
-                            <excludeGroupIds>ch.qos.logback</excludeGroupIds>
+                            <outputDirectory>${elm.element.dir}/api</outputDirectory>
+                            <includeGroupIds>${project.groupId}</includeGroupIds>
+                            <includeClassifiers>${api.classifier}</includeClassifiers>
                             <prependGroupId>true</prependGroupId>
-                            <excludeArtifactIds>sdk-local,sdk-local-maven,sdk-logback</excludeArtifactIds>
-                            <outputDirectory>${project.build.directory}/element-libs</outputDirectory>
+                        </configuration>
+                    </execution>
+                    <!-- Runtime (non-provided) jars → lib/ -->
+                    <execution>
+                        <id>elm-copy-lib-deps</id>
+                        <phase>prepare-package</phase>
+                        <goals><goal>copy-dependencies</goal></goals>
+                        <configuration>
+                            <outputDirectory>${elm.element.dir}/lib</outputDirectory>
+                            <excludeScope>provided</excludeScope>
+                            <prependGroupId>true</prependGroupId>
                         </configuration>
                     </execution>
                 </executions>
             </plugin>
 
+            <!-- Stage classes/resources, write manifest, and zip into .elm -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>3.5.1</version>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.1.0</version>
                 <executions>
                     <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
+                        <id>elm-stage-classpath</id>
+                        <phase>prepare-package</phase>
+                        <goals><goal>run</goal></goals>
                         <configuration>
+                            <target>
+                                <copy todir="${elm.element.dir}/classpath" failonerror="false">
+                                    <fileset dir="${project.build.outputDirectory}"
+                                             erroronmissingdir="false" includes="**/*"/>
+                                </copy>
+                                <copy todir="${elm.element.dir}/classpath" failonerror="false">
+                                    <fileset dir="${basedir}/src/main/resources"
+                                             erroronmissingdir="false" includes="**/*"/>
+                                </copy>
+                            </target>
+                        </configuration>
+                    </execution>
+                    <!-- Write build metadata into the element manifest -->
+                    <execution>
+                        <id>elm-write-manifest</id>
+                        <phase>prepare-package</phase>
+                        <goals><goal>run</goal></goals>
+                        <configuration>
+                            <target>
+                                <mkdir dir="${elm.element.dir}"/>
+                                <exec executable="git" outputproperty="git.revision"
+                                      failifexecutionfails="false" errorproperty="git.error">
+                                    <arg value="rev-parse"/>
+                                    <arg value="HEAD"/>
+                                </exec>
+                                <property name="git.revision" value="unknown"/>
+                                <echo file="${elm.element.dir}/dev.getelements.element.manifest.properties"
+                                      append="false">
+Element-Version=${project.version}
+Element-Build-Time=${maven.build.timestamp}
+Element-Revision=${git.revision}
+Element-Builtin-Spis=DEFAULT
+                                </echo>
+                            </target>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>elm-create-archive</id>
+                        <phase>package</phase>
+                        <goals><goal>run</goal></goals>
+                        <configuration>
+                            <target>
+                                <mkdir dir="${elm.element.dir}/api"/>
+                                <mkdir dir="${elm.element.dir}/lib"/>
+                                <mkdir dir="${elm.element.dir}/classpath"/>
+                                <zip destfile="${elm.staging.dir}.elm" basedir="${elm.staging.dir}"/>
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
 
-                            <shadedClassifierName>element</shadedClassifierName>
-                            <shadedArtifactAttached>true</shadedArtifactAttached>
-                            <createDependencyReducedPom>false</createDependencyReducedPom>
-
-                            <filters>
-                                <filter>
-                                    <artifact>*:*</artifact>
-                                    <excludes>
-                                        <exclude>META-INF/*.SF</exclude>
-                                        <exclude>META-INF/*.DSA</exclude>
-                                        <exclude>META-INF/*.RSA</exclude>
-                                    </excludes>
-                                </filter>
-                            </filters>
-
+            <!-- Attach the .elm file as a Maven artifact -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>attach-elm</id>
+                        <phase>package</phase>
+                        <goals><goal>attach-artifact</goal></goals>
+                        <configuration>
+                            <artifacts>
+                                <artifact>
+                                    <file>${elm.staging.dir}.elm</file>
+                                    <type>elm</type>
+                                </artifact>
+                            </artifacts>
                         </configuration>
                     </execution>
                 </executions>

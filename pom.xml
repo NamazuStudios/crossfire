@@ -38,6 +38,7 @@
     <module>client</module>
     <module>server</module>
     <module>util</module>
+    <module>debug</module>
   </modules>
   <properties>
     <rs.api>4.0.0</rs.api>
@@ -47,7 +48,7 @@
     <surefire.version>3.0.0-M9</surefire.version>
     <maven.compiler.version>3.11.0</maven.compiler.version>
     <servlet.api>6.1.0</servlet.api>
-    <elements.version>3.6.15</elements.version>
+    <elements.version>3.7.11</elements.version>
     <guice.version>7.0.0</guice.version>
     <java.version>21</java.version>
     <jain.version>1.2.269</jain.version>
@@ -63,6 +64,8 @@
     <jetty.version>12.0.12</jetty.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    <api.classifier>${project.groupId}.api</api.classifier>
+    <maven.build.timestamp.format>yyyy-MM-dd'T'HH:mm:ss'Z'</maven.build.timestamp.format>
   </properties>
   <dependencyManagement>
     <dependencies>
@@ -91,45 +94,48 @@
         <artifactId>client</artifactId>
         <version>${project.version}</version>
       </dependency>
+      <!-- SDK BOM: supplies versions for all dev.getelements.elements artifacts -->
       <dependency>
         <groupId>dev.getelements.elements</groupId>
-        <artifactId>sdk</artifactId>
+        <artifactId>sdk-bom</artifactId>
         <version>${elements.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <!-- Crossfire API: unclassified (compile-time only) -->
+      <dependency>
+        <groupId>dev.getelements.elements.crossfire</groupId>
+        <artifactId>api</artifactId>
+        <version>${project.version}</version>
+        <scope>provided</scope>
+      </dependency>
+      <!-- Crossfire API: classified jar (copied into elm/api/) -->
+      <dependency>
+        <groupId>dev.getelements.elements.crossfire</groupId>
+        <artifactId>api</artifactId>
+        <version>${project.version}</version>
+        <classifier>${api.classifier}</classifier>
+        <scope>provided</scope>
       </dependency>
       <dependency>
-        <groupId>dev.getelements.elements</groupId>
-        <artifactId>sdk-util</artifactId>
-        <version>${elements.version}</version>
+        <groupId>dev.getelements.elements.crossfire</groupId>
+        <artifactId>util</artifactId>
+        <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>dev.getelements.elements</groupId>
-        <artifactId>sdk-dao</artifactId>
-        <version>${elements.version}</version>
+        <groupId>dev.getelements.elements.crossfire</groupId>
+        <artifactId>common</artifactId>
+        <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>dev.getelements.elements</groupId>
-        <artifactId>sdk-model</artifactId>
-        <version>${elements.version}</version>
+        <groupId>dev.getelements.elements.crossfire</groupId>
+        <artifactId>server</artifactId>
+        <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>dev.getelements.elements</groupId>
-        <artifactId>sdk-dev.getelements.elements.crossfire.model</artifactId>
-        <version>${elements.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>dev.getelements.elements</groupId>
-        <artifactId>sdk-spi</artifactId>
-        <version>${elements.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>dev.getelements.elements</groupId>
-        <artifactId>sdk-spi-guice</artifactId>
-        <version>${elements.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>dev.getelements.elements</groupId>
-        <artifactId>sdk-logback</artifactId>
-        <version>${elements.version}</version>
+        <groupId>dev.getelements.elements.crossfire</groupId>
+        <artifactId>client</artifactId>
+        <version>${project.version}</version>
       </dependency>
       <dependency>
         <groupId>com.google.inject</groupId>
@@ -140,11 +146,6 @@
         <groupId>ch.qos.logback</groupId>
         <artifactId>logback-classic</artifactId>
         <version>${logback.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>dev.getelements.elements</groupId>
-        <artifactId>sdk-local-maven</artifactId>
-        <version>${elements.version}</version>
       </dependency>
       <dependency>
         <groupId>org.99soft.guice</groupId>
@@ -166,13 +167,6 @@
         <artifactId>slf4j-api</artifactId>
         <version>${slf4j.version}</version>
       </dependency>
-      <!-- Provided Dependencies -->
-      <dependency>
-        <groupId>dev.getelements.elements</groupId>
-        <artifactId>sdk-local</artifactId>
-        <version>${elements.version}</version>
-        <scope>provided</scope>
-      </dependency>
       <dependency>
         <groupId>jakarta.validation</groupId>
         <artifactId>jakarta.validation-api</artifactId>
@@ -193,12 +187,6 @@
         <groupId>org.testng</groupId>
         <artifactId>testng</artifactId>
         <version>${testng.version}</version>
-        <scope>test</scope>
-      </dependency>
-      <dependency>
-        <groupId>dev.getelements.elements</groupId>
-        <artifactId>sdk-mongo-test</artifactId>
-        <version>${elements.version}</version>
         <scope>test</scope>
       </dependency>
       <dependency>
