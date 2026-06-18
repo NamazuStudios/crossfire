@@ -63,10 +63,10 @@ public abstract class V1HandshakeHandler implements HandshakeHandler {
     public void stop(final ProtocolMessageHandler handler,
                      final Session session) {
 
-        final var state = this.state.updateAndGet(V1HandshakeStateRecord::terminate);
+        final var previous = this.state.getAndUpdate(V1HandshakeStateRecord::terminate);
 
-        if (MATCHING.equals(state.phase())) {
-            state.leave();
+        if (MATCHING.equals(previous.phase())) {
+            previous.leave();
         }
 
     }
