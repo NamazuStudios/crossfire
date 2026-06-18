@@ -7,6 +7,7 @@ import dev.getelements.elements.crossfire.util.CancelableMatchStateRecord;
 import dev.getelements.elements.crossfire.util.StandardCancelableMatchHandle;
 import dev.getelements.elements.sdk.dao.MultiMatchDao;
 import dev.getelements.elements.sdk.dao.Transaction;
+import dev.getelements.elements.sdk.model.match.MultiMatch;
 import dev.getelements.elements.sdk.model.profile.Profile;
 import jakarta.inject.Provider;
 
