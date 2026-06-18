@@ -12,7 +12,6 @@ import dev.getelements.elements.sdk.model.profile.Profile;
 import dev.getelements.elements.sdk.model.session.SessionCreation;
 import dev.getelements.elements.sdk.model.user.User;
 import dev.onvoid.webrtc.RTCConfiguration;
-import dev.onvoid.webrtc.RTCIceTransportPolicy;
 import jakarta.websocket.WebSocketContainer;
 import org.eclipse.jetty.util.BlockingArrayQueue;
 import org.slf4j.Logger;
@@ -20,8 +19,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.BlockingQueue;
 
-import static dev.getelements.elements.crossfire.client.Crossfire.Mode.SIGNALING_CLIENT;
-import static dev.getelements.elements.crossfire.client.Crossfire.Mode.SIGNALING_HOST;
+import static dev.getelements.elements.crossfire.client.Crossfire.Mode.WEBRTC_CLIENT;
+import static dev.getelements.elements.crossfire.client.Crossfire.Mode.WEBRTC_HOST;
 import static dev.getelements.elements.sdk.model.user.User.Level.USER;
 
 public record TestContext(
@@ -77,27 +76,13 @@ public record TestContext(
         final var crossfire = new StandardCrossfire.Builder()
                 .withDefaultUri(server.getTestTestServerWsUrl())
                 .withWebSocketContainer(webSocketContainer)
-                // The WebRTC Clients have some issues with memory management so those tests are disabled
-                // for now until we can figure out the memory corruption issues with the Java WebRTC
-                // client library. This does a full signaling test and we can manually run the WebRTC
-                // tests to ensure that connectivity is working.
-//                            .withDefaultProtocol(Protocol.WEBRTC)
-//                            .withSupportedModes(WEBRTC_HOST, WEBRTC_CLIENT)
-                .withDefaultProtocol(Protocol.SIGNALING)
-                .withSupportedModes(SIGNALING_HOST, SIGNALING_CLIENT)
+                .withDefaultProtocol(Protocol.WEBRTC)
+                .withSupportedModes(WEBRTC_HOST, WEBRTC_CLIENT)
                 .withWebRTCHostBuilder(() -> new WebRTCMatchHost.Builder()
-                        .withPeerConfigurationProvider(profileId -> {
-                            final var rtcConfiguration = new RTCConfiguration();
-                            rtcConfiguration.iceTransportPolicy = RTCIceTransportPolicy.NO_HOST;
-                            return rtcConfiguration;
-                        })
+                        .withPeerConfigurationProvider(profileId -> new RTCConfiguration())
                 )
                 .withWebRTCClientBuilder(() -> new WebRTCMatchClient.Builder()
-                        .withPeerConfigurationProvider(profileId -> {
-                            final var rtcConfiguration = new RTCConfiguration();
-                            rtcConfiguration.iceTransportPolicy = RTCIceTransportPolicy.NO_HOST;
-                            return rtcConfiguration;
-                        })
+                        .withPeerConfigurationProvider(profileId -> new RTCConfiguration())
                 )
                 .build()
                 .connect();

@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
+import java.util.concurrent.Executor;
 import java.util.function.Function;
 
 import static java.util.Objects.requireNonNull;
@@ -43,7 +44,7 @@ public class WebRTCAnsweringPeer extends WebRTCPeer {
     };
 
     public WebRTCAnsweringPeer(final Record peerRecord) {
-        super(peerRecord.signaling, peerRecord.onPeerStatus);
+        super(peerRecord.signaling, peerRecord.onPeerStatus, peerRecord.executor);
 
         logger.debug("Creating answering peer for {} -> {}",
                 peerRecord.localProfileId(),
@@ -57,23 +58,25 @@ public class WebRTCAnsweringPeer extends WebRTCPeer {
     }
 
     public void connect() {
+        executor.execute(() -> {
 
-        final var connection = new SimpleLazyValue<>(() -> peerRecord.peerConnectionConstructor.apply(peerConnectionObserver));
+            final var connection = new SimpleLazyValue<>(() -> peerRecord.peerConnectionConstructor.apply(peerConnectionObserver));
 
-        final var result = peerConnectionState.updateAndGet(existing -> existing.connection() == null
-                ? existing.connect(connection.get())
-                : existing
-        );
+            final var result = updateAndGet(existing -> existing.connection() == null
+                    ? existing.connect(connection.get())
+                    : existing
+            );
 
-        connection.getOptional()
-                .filter(c -> result.connection() != c)
-                .ifPresent(RTCPeerConnection::close);
+            connection.getOptional()
+                    .filter(c -> result.connection() != c)
+                    .ifPresent(RTCPeerConnection::close);
 
-        peerRecord
-                .signaling()
-                .backlog()
-                .forEach(this::onSignal);
+            peerRecord
+                    .signaling()
+                    .backlog()
+                    .forEach(this::onSignal);
 
+        });
     }
 
     @Override
@@ -290,6 +293,7 @@ public class WebRTCAnsweringPeer extends WebRTCPeer {
             SignalingClient signaling,
             RTCAnswerOptions answerOptions,
             Publisher<PeerStatus> onPeerStatus,
+            Executor executor,
             Function<PeerConnectionObserver, RTCPeerConnection> peerConnectionConstructor) {
 
         public Record {
@@ -298,6 +302,7 @@ public class WebRTCAnsweringPeer extends WebRTCPeer {
             requireNonNull(answerOptions, "answerOptions must not be null");
             requireNonNull(peerConnectionConstructor, "peerConnectionConstructor must not be null");
             requireNonNull(onPeerStatus, "onPeerStatus must not be null");
+            requireNonNull(executor, "executor must not be null");
         }
 
         public String localProfileId() {

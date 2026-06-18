@@ -20,6 +20,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -54,6 +55,8 @@ public class WebRTCMatchHost implements MatchHost {
 
     private final Supplier<RTCDataChannelInit> dataChannelInitSupplier;
 
+    private final Executor executor;
+
     private final Publisher<PeerStatus> onPeerStatus = new ConcurrentDequePublisher<>();
 
     private final ConcurrentMap<String, WebRTCOfferingPeer> connections = new ConcurrentHashMap<>();
@@ -62,13 +65,15 @@ public class WebRTCMatchHost implements MatchHost {
                            final PeerConnectionFactory peerConnectionFactory,
                            final Supplier<RTCOfferOptions> offerOptionsSupplier,
                            final Supplier<RTCDataChannelInit> dataChannelInitSupplier,
-                           final Function<String, RTCConfiguration> peerConfigurationProvider) {
+                           final Function<String, RTCConfiguration> peerConfigurationProvider,
+                           final Executor executor) {
         logger.debug("Creating match host for profile id {}", signalingClient.getState().getProfileId());
         this.signaling = requireNonNull(signalingClient, "signalingClient");
         this.peerConnectionFactory = requireNonNull(peerConnectionFactory, "peerConnectionFactory");
         this.offerOptionsSupplier = requireNonNull(offerOptionsSupplier, "offerOptionsSupplier");
         this.dataChannelInitSupplier = requireNonNull(dataChannelInitSupplier, "dataChannelInitSupplier");
         this.peerConfigurationProvider = requireNonNull(peerConfigurationProvider, "peerConfigurationProvider");
+        this.executor = requireNonNull(executor, "executor");
         this.subscription = Subscription.begin()
                 .chain(this.signaling.onSignal(this::onSignal))
                 .chain(this.signaling.onClientError(this::onClientError));
@@ -124,6 +129,7 @@ public class WebRTCMatchHost implements MatchHost {
                         offerOptionsSupplier.get(),
                         dataChannelInitSupplier.get(),
                         onPeerStatus,
+                        executor,
                         observer -> {
                             final var configuration = peerConfigurationProvider.apply(remoteProfileId);
                             return peerConnectionFactory.createPeerConnection(configuration, observer);
@@ -209,6 +215,8 @@ public class WebRTCMatchHost implements MatchHost {
 
         private Function<String, RTCConfiguration> peerConfigurationProvider = pid -> new RTCConfiguration();
 
+        private Executor executor;
+
         /**
          * Specifies the ICE servers to use when connecting matches. If not specified, the default value will be
          * used.
@@ -285,6 +293,18 @@ public class WebRTCMatchHost implements MatchHost {
         }
 
         /**
+         * Specifies the {@link Executor} to use for serializing WebRTC API calls. If not specified, the
+         * shared singleton executor is used.
+         *
+         * @param executor the executor
+         * @return this instance
+         */
+        public Builder withExecutor(final Executor executor) {
+            this.executor = executor;
+            return this;
+        }
+
+        /**
          * Builds the {@link WebRTCMatchHost} instance.
          *
          * @return the new WebRTCMatchHost instance
@@ -295,12 +315,15 @@ public class WebRTCMatchHost implements MatchHost {
                 throw new IllegalStateException("All parameters must be set before building WebRTCMatchHost");
             }
 
-            // We check for the null value of the connection factory here to avoid static initialization
-            // in case the user provides their own instance.
+            // We check for null values here to avoid static initialization in case the user provides their own instances.
 
             final var pcf = peerConnectionFactory == null
                     ? SharedPeerConnectionFactory.getInstance()
                     : peerConnectionFactory;
+
+            final var exec = executor == null
+                    ? SharedWebRTCExecutor.getInstance().getExecutor()
+                    : executor;
 
             return new WebRTCMatchHost(
                     signalingClient,
@@ -310,7 +333,8 @@ public class WebRTCMatchHost implements MatchHost {
                     peerConfigurationProvider.andThen(peerConfiguration -> {
                         peerConfiguration.iceServers = iceServers;
                         return peerConfiguration;
-                    })
+                    }),
+                    exec
             );
 
         }

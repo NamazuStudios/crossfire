@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
+import java.util.concurrent.Executor;
 import java.util.function.Function;
 
 import static java.util.Objects.requireNonNull;
@@ -31,7 +32,7 @@ public class WebRTCOfferingPeer extends WebRTCPeer {
     private final PeerConnectionObserver peerConnectionObserver = new WebRTCPeer.ConnectionObserver(WebRTCAnsweringPeer.class);
 
     public WebRTCOfferingPeer(final Record peerRecord) {
-        super(peerRecord.signaling, peerRecord.onPeerStatus);
+        super(peerRecord.signaling, peerRecord.onPeerStatus, peerRecord.executor);
 
         logger.debug("Creating offering peer for {} -> {}",
                 peerRecord.localProfileId(),
@@ -80,50 +81,52 @@ public class WebRTCOfferingPeer extends WebRTCPeer {
     }
 
     public void connect() {
+        executor.execute(() -> {
 
-        final var connection = new SimpleLazyValue<>(() -> peerRecord
-                .peerConnectionConstructor
-                .apply(peerConnectionObserver)
-        );
-
-        final var dataChannel = new SimpleLazyValue<>(() -> {
-
-            final var dc = connection.get().createDataChannel(
-                    peerRecord.dataChannelLabel,
-                    peerRecord.dataChannelInit
+            final var connection = new SimpleLazyValue<>(() -> peerRecord
+                    .peerConnectionConstructor
+                    .apply(peerConnectionObserver)
             );
 
-            final var dataChannelObserver = newDataChannelObserver(dc);
-            dc.registerObserver(dataChannelObserver);
+            final var dataChannel = new SimpleLazyValue<>(() -> {
 
-            return dc;
+                final var dc = connection.get().createDataChannel(
+                        peerRecord.dataChannelLabel,
+                        peerRecord.dataChannelInit
+                );
+
+                final var dataChannelObserver = newDataChannelObserver(dc);
+                dc.registerObserver(dataChannelObserver);
+
+                return dc;
+
+            });
+
+            final var result = updateAndGet(state -> state.connection() == null
+                ? state.connect(connection.get(), dataChannel.get())
+                : state
+            );
+
+            // This should never happen. But if it does, we close the new connection to avoid leaks.
+
+            dataChannel
+                    .getOptional()
+                    .filter(d -> result.channel() != d)
+                    .ifPresent(RTCDataChannel::close);
+
+            connection
+                    .getOptional()
+                    .filter(c -> result.connection() != c)
+                    .ifPresent(RTCPeerConnection::close);
+
+            peerRecord
+                    .signaling()
+                    .backlog()
+                    .forEach(this::onSignal);
+
+            createAndSendOffer();
 
         });
-
-        final var result = peerConnectionState.updateAndGet(state -> state.connection() == null
-            ? state.connect(connection.get(), dataChannel.get())
-            : state
-        );
-
-        // This should never happen. But if it does, we close the new connection to avoid leaks.
-
-        dataChannel
-                .getOptional()
-                .filter(d -> result.channel() != d)
-                .ifPresent(RTCDataChannel::close);
-
-        connection
-                .getOptional()
-                .filter(c -> result.connection() != c)
-                .ifPresent(RTCPeerConnection::close);
-
-        peerRecord
-                .signaling()
-                .backlog()
-                .forEach(this::onSignal);
-
-        createAndSendOffer();
-
     }
 
     private void createAndSendOffer() {
@@ -292,6 +295,7 @@ public class WebRTCOfferingPeer extends WebRTCPeer {
            RTCOfferOptions offerOptions,
            RTCDataChannelInit dataChannelInit,
            Publisher<PeerStatus> onPeerStatus,
+           Executor executor,
            Function<PeerConnectionObserver, RTCPeerConnection> peerConnectionConstructor) {
 
         public Record {
@@ -302,6 +306,7 @@ public class WebRTCOfferingPeer extends WebRTCPeer {
             requireNonNull(dataChannelInit, "dataChannelInit");
             requireNonNull(peerConnectionConstructor, "peerConnectionConstructor");
             requireNonNull(onPeerStatus, "onPeerStatus");
+            requireNonNull(executor, "executor");
         }
 
         public String localProfileId() {

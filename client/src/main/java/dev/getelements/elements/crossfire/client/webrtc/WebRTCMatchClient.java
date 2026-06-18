@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -48,7 +49,8 @@ public class WebRTCMatchClient implements MatchClient {
             final SignalingClient signaling,
             final PeerConnectionFactory peerConnectionFactory,
             final Function<String, RTCConfiguration> peerConfigurationProvider,
-            final Supplier<RTCAnswerOptions> answerOptionsSupplier) {
+            final Supplier<RTCAnswerOptions> answerOptionsSupplier,
+            final Executor executor) {
 
         logger.debug("Creating match client for profile id {}", signaling.getState().getProfileId());
 
@@ -56,6 +58,7 @@ public class WebRTCMatchClient implements MatchClient {
         requireNonNull(peerConnectionFactory, "peerConnectionFactory");
         requireNonNull(peerConfigurationProvider, "peerConfigurationProvider");
         requireNonNull(answerOptionsSupplier, "answerOptionsSupplier");
+        requireNonNull(executor, "executor");
 
         this.subscription = Subscription.begin()
                 .chain(signaling.onSignal(this::onSignal))
@@ -66,6 +69,7 @@ public class WebRTCMatchClient implements MatchClient {
                 signaling,
                 answerOptionsSupplier.get(),
                 onPeerStatus,
+                executor,
                 observer -> {
                     final var configuration = peerConfigurationProvider.apply(remoteProfileId);
                     return peerConnectionFactory.createPeerConnection(configuration, observer);
@@ -143,6 +147,8 @@ public class WebRTCMatchClient implements MatchClient {
 
         private Function<String, RTCConfiguration> peerConfigurationProvider = pid -> new RTCConfiguration();
 
+        private Executor executor;
+
         /**
          * Specifies the ICE servers to use when connecting matches. If not specified, the default value will be
          * used.
@@ -210,18 +216,33 @@ public class WebRTCMatchClient implements MatchClient {
         }
 
         /**
+         * Specifies the {@link Executor} to use for serializing WebRTC API calls. If not specified, the
+         * shared singleton executor is used.
+         *
+         * @param executor the executor
+         * @return this builder
+         */
+        public Builder withExecutor(final Executor executor) {
+            this.executor = executor;
+            return this;
+        }
+
+        /**
          * Builds the WebRTCMatchClient.
          *
          * @return the newly built instance
          */
         public WebRTCMatchClient build() {
 
-            // We check for the null value of the connection factory here to avoid static initialization
-            // in case the user provides their own instance.
+            // We check for null values here to avoid static initialization in case the user provides their own instances.
 
             final var pcf = peerConnectionFactory == null
                     ? SharedPeerConnectionFactory.getInstance()
                     : peerConnectionFactory;
+
+            final var exec = executor == null
+                    ? SharedWebRTCExecutor.getInstance().getExecutor()
+                    : executor;
 
             return new WebRTCMatchClient(
                     remoteProfileId,
@@ -231,7 +252,8 @@ public class WebRTCMatchClient implements MatchClient {
                         peerConfiguration.iceServers = iceServers;
                         return peerConfiguration;
                     }),
-                    answerOptionsSupplier
+                    answerOptionsSupplier,
+                    exec
             );
 
         }
