@@ -26,11 +26,14 @@ public class StandardJoinCodeMatchHandle extends StandardCancelableMatchHandle<J
     }
 
     private void doFind() {
+
+        final MultiMatch multiMatchByJoinCode;
+
         try (final var transaction = getTransactionProvider().get()) {
 
             final var dao = transaction.getDao(MultiMatchDao.class);
             final var handshakeRequest = getRequest().getHandshakeRequest();
-            final var multiMatchByJoinCode = dao.getMultiMatchByJoinCode(handshakeRequest.getJoinCode());
+            multiMatchByJoinCode = dao.getMultiMatchByJoinCode(handshakeRequest.getJoinCode());
 
             final var profileId = getRequest().getProfile().getId();
 
@@ -44,9 +47,12 @@ public class StandardJoinCodeMatchHandle extends StandardCancelableMatchHandle<J
                 dao.addProfile(multiMatchByJoinCode.getId(), getRequest().getProfile());
             }
 
-            setResult(multiMatchByJoinCode);
-
         }
+
+        // setResult() must be called after the transaction commits so that broadcasting
+        // (MemoryMatchSignalingService.join → getProfiles) sees the committed addProfile write.
+        setResult(multiMatchByJoinCode);
+
     }
 
 }
