@@ -264,10 +264,7 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
 
             @Override
             public void onBufferedAmountChange(final long previousAmount) {
-                logger.debug("Data channel buffer size changed from {} -> {}",
-                        previousAmount,
-                        dataChannel.getBufferedAmount()
-                );
+                logger.debug("Data channel buffer size changed, previous: {}", previousAmount);
             }
 
         };

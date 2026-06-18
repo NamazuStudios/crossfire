@@ -34,7 +34,10 @@ public class WebRTCAnsweringPeer extends WebRTCPeer {
         public void onDataChannel(final RTCDataChannel dataChannel) {
             final var dataChannelObserver = newDataChannelObserver(dataChannel);
             dataChannel.registerObserver(dataChannelObserver);
-            peerConnectionState.updateAndGet(s -> s.channel(dataChannel));
+            final var result = peerConnectionState.updateAndGet(s -> s.channel(dataChannel));
+            if (result.channel() != dataChannel) {
+                dataChannel.close();
+            }
         }
 
     };
@@ -146,6 +149,11 @@ public class WebRTCAnsweringPeer extends WebRTCPeer {
             @Override
             public void onSuccess() {
 
+                if (!peerConnectionState.get().open()) {
+                    logger.debug("Peer closed before setRemoteDescription callback fired. Dropping.");
+                    return;
+                }
+
                 logger.debug("Successfully set {}'s remote session description for {}",
                         WebRTCAnsweringPeer.this.getClass().getSimpleName(),
                         getProfileId()
@@ -196,6 +204,11 @@ public class WebRTCAnsweringPeer extends WebRTCPeer {
                 @Override
                 public void onSuccess(final RTCSessionDescription description) {
 
+                    if (!peerConnectionState.get().open()) {
+                        logger.debug("Peer closed before createAnswer callback fired. Dropping.");
+                        return;
+                    }
+
                     logger.debug("Successfully {}'s set local session description for {}.",
                             WebRTCAnsweringPeer.this.getClass().getSimpleName(),
                             getProfileId()
@@ -229,6 +242,11 @@ public class WebRTCAnsweringPeer extends WebRTCPeer {
         connection.setLocalDescription(description, new SetSessionDescriptionObserver() {
             @Override
             public void onSuccess() {
+
+                if (!peerConnectionState.get().open()) {
+                    logger.debug("Peer closed before setLocalDescription callback fired. Dropping.");
+                    return;
+                }
 
                 final var signal = new SdpAnswerDirectSignal();
                 signal.setPeerSdp(description.sdp);

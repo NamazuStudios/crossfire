@@ -138,6 +138,11 @@ public class WebRTCOfferingPeer extends WebRTCPeer {
                     @Override
                     public void onSuccess(final RTCSessionDescription description) {
 
+                        if (!peerConnectionState.get().open()) {
+                            logger.debug("Peer closed before createOffer callback fired. Dropping.");
+                            return;
+                        }
+
                         logger.debug("Created {}'s {} session description for remote peer {}:\n{}",
                                 WebRTCOfferingPeer.class.getSimpleName(),
                                 description.sdpType,
@@ -177,6 +182,11 @@ public class WebRTCOfferingPeer extends WebRTCPeer {
 
             @Override
             public void onSuccess() {
+
+                if (!peerConnectionState.get().open()) {
+                    logger.debug("Peer closed before setLocalDescription callback fired. Dropping.");
+                    return;
+                }
 
                 logger.debug("Set {}'s local {} session description for profile {}:\n{}",
                         WebRTCOfferingPeer.this.getClass().getSimpleName(),
