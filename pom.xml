@@ -1,9 +1,14 @@
-<?xml version="1.0" encoding="UTF-8"?><project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
   <modelVersion>4.0.0</modelVersion>
   <groupId>dev.getelements.elements.crossfire</groupId>
   <artifactId>crossfire</artifactId>
   <version>1.1.5-SNAPSHOT</version>
   <packaging>pom</packaging>
+
   <name>Namazu Elements Crossfire</name>
   <description>Real-time networking (Crossfire) for Elements-based games</description>
   <url>https://github.com/NamazuStudios/crossfire</url>
@@ -13,6 +18,7 @@
     <developerConnection>scm:git:ssh://git@github.com/NamazuStudios/crossfire.git</developerConnection>
     <tag>HEAD</tag>
   </scm>
+
   <developers>
     <developer>
       <name>Keith Hudnall</name>
@@ -25,6 +31,7 @@
       <organization>Elemental Computing Inc.</organization>
     </developer>
   </developers>
+
   <licenses>
     <license>
       <name>MIT License</name>
@@ -32,6 +39,7 @@
       <distribution>repo</distribution>
     </license>
   </licenses>
+
   <modules>
     <module>api</module>
     <module>common</module>
@@ -40,6 +48,7 @@
     <module>util</module>
     <module>debug</module>
   </modules>
+
   <properties>
     <rs.api>4.0.0</rs.api>
     <webrtc.version>0.13.0</webrtc.version>
@@ -67,6 +76,7 @@
     <api.classifier>${project.groupId}.api</api.classifier>
     <maven.build.timestamp.format>yyyy-MM-dd'T'HH:mm:ss'Z'</maven.build.timestamp.format>
   </properties>
+
   <dependencyManagement>
     <dependencies>
       <dependency>
@@ -202,6 +212,7 @@
       </dependency>
     </dependencies>
   </dependencyManagement>
+
   <build>
     <pluginManagement>
       <plugins>
@@ -273,6 +284,7 @@
       </plugins>
     </pluginManagement>
   </build>
+
   <profiles>
     <profile>
       <id>central-publish</id>
@@ -346,4 +358,5 @@
       </build>
     </profile>
   </profiles>
+
 </project>
