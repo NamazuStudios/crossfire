@@ -429,7 +429,7 @@ public class V1ProtocolMessageHandler implements ProtocolMessageHandler {
 
         } while (!state.compareAndSet(curent, curent.terminate()));
 
-        final var result = state.updateAndGet(V1ConnectionStateRecord::terminate);
+        final var result = curent.terminate();
         final var session = result.session();
 
         if (th == null) {

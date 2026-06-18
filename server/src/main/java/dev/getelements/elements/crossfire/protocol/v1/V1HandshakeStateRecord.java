@@ -77,7 +77,10 @@ public record V1HandshakeStateRecord(
     }
 
     public V1HandshakeStateRecord terminate() {
-        return new V1HandshakeStateRecord(TERMINATED, session(), auth(), match(), pending(), version());
+        return switch (phase()) {
+            case TERMINATED -> this;
+            default -> new V1HandshakeStateRecord(TERMINATED, session(), auth(), match(), pending(), version());
+        };
     }
 
     public void leave() {
