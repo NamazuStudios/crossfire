@@ -51,7 +51,7 @@
 
   <properties>
     <rs.api>4.0.0</rs.api>
-    <webrtc.version>0.13.0</webrtc.version>
+    <webrtc.version>0.14.0</webrtc.version>
     <testng.version>7.11.0</testng.version>
     <rocoto.version>6.2</rocoto.version>
     <surefire.version>3.0.0-M9</surefire.version>
