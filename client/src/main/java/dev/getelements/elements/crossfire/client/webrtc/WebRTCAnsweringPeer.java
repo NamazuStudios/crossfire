@@ -263,7 +263,11 @@ public class WebRTCAnsweringPeer extends WebRTCPeer {
                         signal.getPeerSdp()
                 );
 
-                peerRecord.signaling.signal(signal);
+                try {
+                    peerRecord.signaling.signal(signal);
+                } catch (final IllegalStateException e) {
+                    logger.debug("Signaling client not in SIGNALING phase, dropping SDP answer: {}", e.getMessage());
+                }
 
             }
 

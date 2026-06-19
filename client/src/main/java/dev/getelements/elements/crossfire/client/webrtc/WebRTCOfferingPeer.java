@@ -203,7 +203,11 @@ public class WebRTCOfferingPeer extends WebRTCPeer {
                 signal.setProfileId(peerRecord.localProfileId());
                 signal.setRecipientProfileId(peerRecord.remoteProfileId());
 
-                peerRecord.signaling().signal(signal);
+                try {
+                    peerRecord.signaling().signal(signal);
+                } catch (final IllegalStateException e) {
+                    logger.debug("Signaling client not in SIGNALING phase, dropping SDP offer: {}", e.getMessage());
+                }
 
             }
 

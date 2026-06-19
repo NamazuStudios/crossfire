@@ -306,7 +306,12 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
                 signal.getCandidate()
         );
 
-        signaling.signal(signal);
+        try {
+            signaling.signal(signal);
+        } catch (final IllegalStateException e) {
+            logger.debug("Signaling client not in SIGNALING phase, dropping ICE candidate {} -> {}: {}",
+                    localProfileId, remoteProfileId, e.getMessage());
+        }
 
     }
 
