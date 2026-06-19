@@ -95,7 +95,7 @@ public class TeaVMCrossfire extends AbstractCrossfire {
             return new TeaVMCrossfire(
                     defaultProtocol,
                     supportedModes,
-                    null,
+                    new TeaVMSignalingClient(),
                     () -> capturedUri
             );
         }
