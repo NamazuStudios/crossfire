@@ -100,7 +100,7 @@
         </dependency>
         <dependency>
             <groupId>dev.getelements.elements.crossfire</groupId>
-            <artifactId>client</artifactId>
+            <artifactId>client-onvoid</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>

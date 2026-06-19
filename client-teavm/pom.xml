@@ -9,23 +9,30 @@
         <version>1.1.5-SNAPSHOT</version>
     </parent>
 
-    <artifactId>client</artifactId>
-    <name>Namazu Elements Crossfire - Client</name>
+    <artifactId>client-teavm</artifactId>
+    <name>Namazu Elements Crossfire - Client (TeaVM browser)</name>
 
     <dependencies>
         <dependency>
-            <groupId>dev.getelements.elements</groupId>
-            <artifactId>sdk</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-            <scope>provided</scope>
+            <groupId>dev.getelements.elements.crossfire</groupId>
+            <artifactId>client</artifactId>
         </dependency>
         <dependency>
             <groupId>dev.getelements.elements.crossfire</groupId>
             <artifactId>api</artifactId>
         </dependency>
+        <dependency>
+            <groupId>dev.getelements.elements</groupId>
+            <artifactId>sdk</artifactId>
+        </dependency>
+        <!--
+          TeaVM interop dependency — uncomment when browser WebRTC bindings are implemented.
+          <dependency>
+            <groupId>org.teavm</groupId>
+            <artifactId>teavm-interop</artifactId>
+            <version>${teavm.version}</version>
+          </dependency>
+        -->
     </dependencies>
 
 </project>

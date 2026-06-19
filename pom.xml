@@ -44,6 +44,8 @@
     <module>api</module>
     <module>common</module>
     <module>client</module>
+    <module>client-onvoid</module>
+    <module>client-teavm</module>
     <module>server</module>
     <module>util</module>
     <module>debug</module>
@@ -104,6 +106,16 @@
         <artifactId>client</artifactId>
         <version>${project.version}</version>
       </dependency>
+      <dependency>
+        <groupId>dev.getelements.elements.crossfire</groupId>
+        <artifactId>client-onvoid</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>dev.getelements.elements.crossfire</groupId>
+        <artifactId>client-teavm</artifactId>
+        <version>${project.version}</version>
+      </dependency>
       <!-- SDK BOM: supplies versions for all dev.getelements.elements artifacts -->
       <dependency>
         <groupId>dev.getelements.elements</groupId>
@@ -145,6 +157,16 @@
       <dependency>
         <groupId>dev.getelements.elements.crossfire</groupId>
         <artifactId>client</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>dev.getelements.elements.crossfire</groupId>
+        <artifactId>client-onvoid</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>dev.getelements.elements.crossfire</groupId>
+        <artifactId>client-teavm</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>

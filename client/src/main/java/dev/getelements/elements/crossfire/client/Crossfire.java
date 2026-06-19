@@ -4,6 +4,7 @@ import dev.getelements.elements.crossfire.api.model.Protocol;
 import dev.getelements.elements.sdk.Subscription;
 
 import java.net.URI;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiConsumer;
@@ -200,5 +201,29 @@ public interface Crossfire extends AutoCloseable {
      * @param <T>
      */
     record OpenStatus<T>(boolean open, T object) {}
+
+    /**
+     * Builder for creating a {@link Crossfire} instance. Obtain via
+     * {@link CrossfireClientProvider#newBuilder()} or directly from an implementation.
+     */
+    interface Builder {
+
+        Builder withDefaultUri(URI uri);
+
+        Builder withDefaultProtocol(Protocol protocol);
+
+        Builder withSupportedModes(Set<Mode> modes);
+
+        Builder withSupportedModes(Mode... modes);
+
+        Builder withIceServers(List<CrossfireIceServer> iceServers);
+
+        Builder withOfferOptions(CrossfireOfferOptions options);
+
+        Builder withDataChannelConfig(CrossfireDataChannelConfig config);
+
+        Crossfire build();
+
+    }
 
 }

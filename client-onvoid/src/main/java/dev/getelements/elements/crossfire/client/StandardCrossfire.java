@@ -6,6 +6,10 @@ import dev.getelements.elements.crossfire.client.v10.V10SignalingClient;
 import dev.getelements.elements.crossfire.client.webrtc.WebRTCMatchClient;
 import dev.getelements.elements.crossfire.client.webrtc.WebRTCMatchHost;
 import dev.getelements.elements.crossfire.api.model.Protocol;
+import dev.onvoid.webrtc.RTCDataChannelInit;
+import dev.onvoid.webrtc.RTCIceServer;
+import dev.onvoid.webrtc.RTCOfferOptions;
+import dev.onvoid.webrtc.TlsCertPolicy;
 import dev.getelements.elements.crossfire.api.model.error.ProtocolError;
 import dev.getelements.elements.crossfire.api.model.signal.HostBroadcastSignal;
 import dev.getelements.elements.crossfire.api.model.signal.Signal;
@@ -379,7 +383,7 @@ public class StandardCrossfire implements Crossfire {
     /**
      * Builder class for creating instances of {@link StandardCrossfire}.
      */
-    public static class Builder {
+    public static class Builder implements Crossfire.Builder {
 
         /** The default protocol used for communication. */
         private Protocol defaultProtocol = WEBRTC;
@@ -419,12 +423,22 @@ public class StandardCrossfire implements Crossfire {
         /** A supplier for creating WebRTC match client builders. */
         private Supplier<WebRTCMatchClient.Builder> webrtcClientBuilder = WebRTCMatchClient.Builder::new;
 
+        /** ICE servers expressed using the implementation-agnostic wrapper type. */
+        private List<CrossfireIceServer> iceServers = CrossfireIceServer.googleDefaults();
+
+        /** Offer options expressed using the implementation-agnostic wrapper type. */
+        private CrossfireOfferOptions offerOptions = CrossfireOfferOptions.defaults();
+
+        /** Data channel configuration expressed using the implementation-agnostic wrapper type. */
+        private CrossfireDataChannelConfig dataChannelConfig = CrossfireDataChannelConfig.defaults();
+
         /**
          * Sets the default URI supplier.
          *
          * @param uri a URI to use as the default
          * @return the current Builder instance
          */
+        @Override
         public Builder withDefaultUri(final URI uri) {
             return withDefaultUriSupplier(() -> uri);
         }
@@ -468,6 +482,7 @@ public class StandardCrossfire implements Crossfire {
          * @param defaultProtocol the default protocol to use
          * @return the current Builder instance
          */
+        @Override
         public Builder withDefaultProtocol(final Protocol defaultProtocol) {
             requireNonNull(defaultProtocol, "Default protocol must be specified.");
             this.defaultProtocol = defaultProtocol;
@@ -480,6 +495,7 @@ public class StandardCrossfire implements Crossfire {
          * @param supportedModes the set of supported modes
          * @return the current Builder instance
          */
+        @Override
         public Builder withSupportedModes(final Mode ... supportedModes) {
             return withSupportedModes(Set.of(supportedModes));
         }
@@ -490,6 +506,7 @@ public class StandardCrossfire implements Crossfire {
          * @param supportedModes the set of supported modes
          * @return the current Builder instance
          */
+        @Override
         public Builder withSupportedModes(final Set<Mode> supportedModes) {
 
             requireNonNull(supportedModes, "Supported modes must be specified.");
@@ -516,7 +533,9 @@ public class StandardCrossfire implements Crossfire {
         }
 
         /**
-         * Sets the WebRTC match host builder supplier.
+         * Sets the WebRTC match host builder supplier. When set, {@link #withIceServers},
+         * {@link #withOfferOptions}, and {@link #withDataChannelConfig} still apply and are
+         * passed through to the returned builder.
          *
          * @param webrtcHostBuilder the supplier for WebRTC match host builders
          * @return the current Builder instance
@@ -528,7 +547,8 @@ public class StandardCrossfire implements Crossfire {
         }
 
         /**
-         * Sets the WebRTC match client builder supplier.
+         * Sets the WebRTC match client builder supplier. When set, {@link #withIceServers}
+         * still applies and is passed through to the returned builder.
          *
          * @param webrtcClientBuilder the supplier for WebRTC match client builders
          * @return the current Builder instance
@@ -539,13 +559,49 @@ public class StandardCrossfire implements Crossfire {
             return this;
         }
 
+        @Override
+        public Builder withIceServers(final List<CrossfireIceServer> iceServers) {
+            requireNonNull(iceServers, "ICE servers must be specified.");
+            this.iceServers = iceServers;
+            return this;
+        }
+
+        @Override
+        public Builder withOfferOptions(final CrossfireOfferOptions options) {
+            requireNonNull(options, "Offer options must be specified.");
+            this.offerOptions = options;
+            return this;
+        }
+
+        @Override
+        public Builder withDataChannelConfig(final CrossfireDataChannelConfig config) {
+            requireNonNull(config, "Data channel config must be specified.");
+            this.dataChannelConfig = config;
+            return this;
+        }
+
         /**
          * Builds and returns a new {@link StandardCrossfire} instance.
          *
          * @return a new StandardCrossfire instance
          * @throws IllegalArgumentException if any required field is null
          */
+        @Override
         public StandardCrossfire build() {
+
+            final var rtcIceServers = toRtcIceServers(iceServers);
+            final var capturedOfferOptions = offerOptions;
+            final var capturedDataChannelConfig = dataChannelConfig;
+
+            final Supplier<WebRTCMatchHost.Builder> effectiveHostBuilder = () ->
+                    webrtcHostBuilder.get()
+                            .withIceServers(rtcIceServers)
+                            .withRtcOfferOptionsSupplier(() -> toRtcOfferOptions(capturedOfferOptions))
+                            .withDataChanelInitSupplier(() -> toRtcDataChannelInit(capturedDataChannelConfig));
+
+            final Supplier<WebRTCMatchClient.Builder> effectiveClientBuilder = () ->
+                    webrtcClientBuilder.get()
+                            .withIceServers(rtcIceServers);
 
             final var websocketContainer = webSocketContainerSupplier == null
                     ? SharedWebSocketContainer.getInstance()
@@ -557,11 +613,47 @@ public class StandardCrossfire implements Crossfire {
                     signalingClientSupplier.get(),
                     websocketContainer,
                     defaultUriSupplier,
-                    webrtcHostBuilder,
-                    webrtcClientBuilder
+                    effectiveHostBuilder,
+                    effectiveClientBuilder
             );
 
         }
+
+        private static List<RTCIceServer> toRtcIceServers(final List<CrossfireIceServer> crossfireIceServers) {
+            return crossfireIceServers.stream().map(cs -> {
+                final var server = new RTCIceServer();
+                server.urls = cs.urls();
+                if (cs.username() != null) server.username = cs.username();
+                if (cs.password() != null) server.password = cs.password();
+                if (cs.hostname() != null) server.hostname = cs.hostname();
+                if (cs.tlsCertPolicy() != null) {
+                    server.tlsCertPolicy = switch (cs.tlsCertPolicy()) {
+                        case SECURE -> TlsCertPolicy.SECURE;
+                        case INSECURE_NO_CHECK -> TlsCertPolicy.INSECURE_NO_CHECK;
+                    };
+                }
+                return server;
+            }).toList();
+        }
+
+        private static RTCOfferOptions toRtcOfferOptions(final CrossfireOfferOptions options) {
+            final var rtc = new RTCOfferOptions();
+            rtc.iceRestart = options.iceRestart();
+            rtc.voiceActivityDetection = options.voiceActivityDetection();
+            return rtc;
+        }
+
+        private static RTCDataChannelInit toRtcDataChannelInit(final CrossfireDataChannelConfig config) {
+            final var rtc = new RTCDataChannelInit();
+            rtc.ordered = config.ordered();
+            rtc.negotiated = config.negotiated();
+            rtc.maxPacketLifeTime = config.maxPacketLifeTime();
+            rtc.maxRetransmits = config.maxRetransmits();
+            rtc.id = config.id();
+            if (config.protocol() != null) rtc.protocol = config.protocol();
+            return rtc;
+        }
+
     }
 
 }
