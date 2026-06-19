@@ -1,9 +1,6 @@
 package dev.getelements.elements.crossfire;
 
 import dev.getelements.elements.crossfire.client.*;
-import dev.getelements.elements.crossfire.client.webrtc.WebRTCMatchClient;
-import dev.getelements.elements.crossfire.client.webrtc.WebRTCMatchHost;
-import dev.getelements.elements.crossfire.api.model.Protocol;
 import dev.getelements.elements.crossfire.api.model.signal.BroadcastSignal;
 import dev.getelements.elements.crossfire.api.model.signal.DirectSignal;
 import dev.getelements.elements.crossfire.api.model.signal.Signal;
@@ -11,7 +8,6 @@ import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.model.profile.Profile;
 import dev.getelements.elements.sdk.model.session.SessionCreation;
 import dev.getelements.elements.sdk.model.user.User;
-import dev.onvoid.webrtc.RTCConfiguration;
 import jakarta.websocket.WebSocketContainer;
 import org.eclipse.jetty.util.BlockingArrayQueue;
 import org.slf4j.Logger;
@@ -19,8 +15,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.BlockingQueue;
 
-import static dev.getelements.elements.crossfire.client.Crossfire.Mode.WEBRTC_CLIENT;
-import static dev.getelements.elements.crossfire.client.Crossfire.Mode.WEBRTC_HOST;
 import static dev.getelements.elements.sdk.model.user.User.Level.USER;
 
 public record TestContext(
@@ -76,14 +70,6 @@ public record TestContext(
         final var crossfire = new StandardCrossfire.Builder()
                 .withDefaultUri(server.getTestTestServerWsUrl())
                 .withWebSocketContainer(webSocketContainer)
-                .withDefaultProtocol(Protocol.WEBRTC)
-                .withSupportedModes(WEBRTC_HOST, WEBRTC_CLIENT)
-                .withWebRTCHostBuilder(() -> new WebRTCMatchHost.Builder()
-                        .withPeerConfigurationProvider(profileId -> new RTCConfiguration())
-                )
-                .withWebRTCClientBuilder(() -> new WebRTCMatchClient.Builder()
-                        .withPeerConfigurationProvider(profileId -> new RTCConfiguration())
-                )
                 .build()
                 .connect();
 
