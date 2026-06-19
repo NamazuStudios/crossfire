@@ -7,7 +7,7 @@ public class OnvoidCrossfireClientProvider implements CrossfireClientProvider {
 
     @Override
     public Crossfire.Builder newBuilder() {
-        return new StandardCrossfire.Builder();
+        return new OnvoidCrossfire.Builder();
     }
 
 }

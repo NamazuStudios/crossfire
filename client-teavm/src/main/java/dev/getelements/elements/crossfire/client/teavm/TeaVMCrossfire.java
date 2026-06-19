@@ -1,100 +1,76 @@
 package dev.getelements.elements.crossfire.client.teavm;
 
 import dev.getelements.elements.crossfire.api.model.Protocol;
+import dev.getelements.elements.crossfire.api.model.signal.HostBroadcastSignal;
 import dev.getelements.elements.crossfire.client.*;
-import dev.getelements.elements.sdk.Subscription;
 
 import java.net.URI;
+import java.util.EnumSet;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 import java.util.Set;
-import java.util.function.BiConsumer;
 
 /**
- * Skeleton {@link Crossfire} implementation for TeaVM browser targets.
+ * Skeleton {@link AbstractCrossfire} for TeaVM browser targets.
  * Browser WebRTC bindings (RTCPeerConnection JS interop) are not yet implemented.
  */
-public class TeaVMCrossfire implements Crossfire {
+public class TeaVMCrossfire extends AbstractCrossfire {
+
+    public TeaVMCrossfire(final Protocol defaultProtocol,
+                          final Set<Mode> supportedModes,
+                          final SignalingClient signaling,
+                          final java.util.function.Supplier<URI> defaultUriSupplier) {
+        super(defaultProtocol, supportedModes, signaling, defaultUriSupplier);
+    }
 
     @Override
-    public Mode getMode() {
+    public TeaVMCrossfire connect(final URI uri) {
         throw new UnsupportedOperationException("TeaVM WebRTC not yet implemented");
     }
 
     @Override
-    public Set<Mode> getSupportedModes() {
+    protected void populateHosts(final Map<Protocol, MatchHost> hosts,
+                                  final EnumSet<Mode> modes,
+                                  final HostBroadcastSignal signal) {
         throw new UnsupportedOperationException("TeaVM WebRTC not yet implemented");
     }
 
     @Override
-    public Crossfire connect() {
+    protected void populateClients(final Map<Protocol, MatchClient> clients,
+                                    final EnumSet<Mode> modes,
+                                    final HostBroadcastSignal signal) {
         throw new UnsupportedOperationException("TeaVM WebRTC not yet implemented");
-    }
-
-    @Override
-    public Crossfire connect(final URI uri) {
-        throw new UnsupportedOperationException("TeaVM WebRTC not yet implemented");
-    }
-
-    @Override
-    public SignalingClient getSignalingClient() {
-        throw new UnsupportedOperationException("TeaVM WebRTC not yet implemented");
-    }
-
-    @Override
-    public Optional<MatchHost> findMatchHost() {
-        throw new UnsupportedOperationException("TeaVM WebRTC not yet implemented");
-    }
-
-    @Override
-    public Optional<MatchClient> findMatchClient() {
-        throw new UnsupportedOperationException("TeaVM WebRTC not yet implemented");
-    }
-
-    @Override
-    public Optional<MatchHost> findMatchHost(final Protocol protocol) {
-        throw new UnsupportedOperationException("TeaVM WebRTC not yet implemented");
-    }
-
-    @Override
-    public Optional<MatchClient> findMatchClient(final Protocol protocol) {
-        throw new UnsupportedOperationException("TeaVM WebRTC not yet implemented");
-    }
-
-    @Override
-    public Subscription onHostOpenStatus(final BiConsumer<Subscription, OpenStatus<MatchHost>> onHostOpenStatus) {
-        throw new UnsupportedOperationException("TeaVM WebRTC not yet implemented");
-    }
-
-    @Override
-    public Subscription onClientOpenStatus(final BiConsumer<Subscription, OpenStatus<MatchClient>> onClientOpenStatus) {
-        throw new UnsupportedOperationException("TeaVM WebRTC not yet implemented");
-    }
-
-    @Override
-    public void close() {
-        // no-op stub
     }
 
     public static class Builder implements Crossfire.Builder {
 
+        private Protocol defaultProtocol = Protocol.WEBRTC;
+
+        private Set<Mode> supportedModes = EnumSet.allOf(Mode.class);
+
+        private URI defaultUri;
+
         @Override
         public Builder withDefaultUri(final URI uri) {
+            this.defaultUri = uri;
             return this;
         }
 
         @Override
         public Builder withDefaultProtocol(final Protocol protocol) {
+            this.defaultProtocol = protocol;
             return this;
         }
 
         @Override
         public Builder withSupportedModes(final Set<Mode> modes) {
+            this.supportedModes = modes;
             return this;
         }
 
         @Override
         public Builder withSupportedModes(final Mode... modes) {
+            this.supportedModes = Set.of(modes);
             return this;
         }
 
@@ -115,7 +91,13 @@ public class TeaVMCrossfire implements Crossfire {
 
         @Override
         public Crossfire build() {
-            return new TeaVMCrossfire();
+            final var capturedUri = defaultUri;
+            return new TeaVMCrossfire(
+                    defaultProtocol,
+                    supportedModes,
+                    null,
+                    () -> capturedUri
+            );
         }
 
     }

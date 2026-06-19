@@ -68,7 +68,7 @@ public record TestContext(
         final var profile = server.createProfile(user, "test_%d_profile".formatted(i));
         final var session = server.newSessionForUser(user, profile);
 
-        final var crossfire = new StandardCrossfire.Builder()
+        final var crossfire = new OnvoidCrossfire.Builder()
                 .withDefaultUri(server.getTestTestServerWsUrl())
                 .withWebSocketContainer(webSocketContainer)
                 .withDefaultProtocol(Protocol.SIGNALING)
