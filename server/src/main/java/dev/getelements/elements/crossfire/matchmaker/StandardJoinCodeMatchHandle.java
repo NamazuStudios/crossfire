@@ -48,10 +48,10 @@ public class StandardJoinCodeMatchHandle extends StandardCancelableMatchHandle<J
                 dao.addProfile(multiMatchByJoinCode.getId(), getRequest().getProfile());
             }
 
+            transaction.commit();
+
         }
 
-        // setResult() must be called after the transaction commits so that broadcasting
-        // (MemoryMatchSignalingService.join → getProfiles) sees the committed addProfile write.
         setResult(multiMatchByJoinCode);
 
     }
