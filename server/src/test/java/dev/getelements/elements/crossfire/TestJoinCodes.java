@@ -12,6 +12,7 @@ import jakarta.websocket.ContainerProvider;
 import jakarta.websocket.WebSocketContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -99,6 +100,12 @@ public class TestJoinCodes {
         final var createdResponse = (CreatedHandshakeResponse) response;
         joinCode = createdResponse.getJoinCode();
 
+    }
+
+    @AfterClass(alwaysRun = true)
+    public void tearDown() {
+        testCreator.crossfire().close();
+        testJoiners.forEach(ctx -> ctx.crossfire().close());
     }
 
     @Test(dependsOnMethods = "testCreateMatch", dataProvider = "allJoiners")

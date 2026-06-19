@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.UnaryOperator;
@@ -48,6 +49,8 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
 
     private final Publisher<PeerStatus> onPeerStatus;
 
+    protected final Executor executor;
+
     /**
      * The message publisher which will relay binary messages received from the data channel.
      */
@@ -70,9 +73,11 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
 
     public WebRTCPeer(
             final SignalingClient signaling,
-            final Publisher<PeerStatus> onPeerStatus) {
+            final Publisher<PeerStatus> onPeerStatus,
+            final Executor executor) {
         this.signaling = signaling;
         this.onPeerStatus = onPeerStatus;
+        this.executor = executor;
     }
 
     /**
@@ -158,12 +163,16 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
             return;
         }
 
-        if (Objects.equals(existing.description(), replacement.description())) {
-            logger.debug("{} not starting ICE: Session description unchanged.", getClass().getSimpleName());
-            addCandidates(replacement);
-        } else {
-            logger.debug("{} starting ICE.", getClass().getSimpleName());
+        final boolean connectionJustSet = existing.connection() == null;
+        final boolean descriptionChanged = !Objects.equals(existing.description(), replacement.description());
+
+        if (connectionJustSet || descriptionChanged) {
+            logger.debug("{} starting ICE (connectionJustSet={}, descriptionChanged={}).",
+                    getClass().getSimpleName(), connectionJustSet, descriptionChanged);
             startICE(replacement);
+        } else {
+            logger.debug("{} not starting ICE: connection and description unchanged.", getClass().getSimpleName());
+            addCandidates(replacement);
         }
 
     }
@@ -264,10 +273,7 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
 
             @Override
             public void onBufferedAmountChange(final long previousAmount) {
-                logger.debug("Data channel buffer size changed from {} -> {}",
-                        previousAmount,
-                        dataChannel.getBufferedAmount()
-                );
+                logger.debug("Data channel buffer size changed, previous: {}", previousAmount);
             }
 
         };
@@ -300,7 +306,12 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
                 signal.getCandidate()
         );
 
-        signaling.signal(signal);
+        try {
+            signaling.signal(signal);
+        } catch (final IllegalStateException e) {
+            logger.debug("Signaling client not in SIGNALING phase, dropping ICE candidate {} -> {}: {}",
+                    localProfileId, remoteProfileId, e.getMessage());
+        }
 
     }
 
@@ -346,7 +357,9 @@ public abstract class WebRTCPeer implements Peer, AutoCloseable {
             replacement = operation.apply(existing);
         } while (!peerConnectionState.compareAndSet(existing, replacement));
 
-        onStateChange(existing, replacement);
+        final var e = existing;
+        final var r = replacement;
+        executor.execute(() -> onStateChange(e, r));
 
         return replacement;
 

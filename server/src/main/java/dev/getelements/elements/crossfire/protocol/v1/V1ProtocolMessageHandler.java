@@ -361,9 +361,15 @@ public class V1ProtocolMessageHandler implements ProtocolMessageHandler {
 
         state.session()
                 .getAsyncRemote()
-                .sendObject(response);
-
-        getSignalingHandler().start(this, state.session(), state.match(), state.auth());
+                .sendObject(response, result -> {
+                    if (result.isOK()) {
+                        getSignalingHandler().start(this, state.session(), state.match(), state.auth());
+                    } else {
+                        logger.error("Failed to send handshake response for session {}, closing: {}",
+                                state.sessionId(), result.getException().getMessage());
+                        terminate(result.getException());
+                    }
+                });
 
     }
 

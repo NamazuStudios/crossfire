@@ -20,6 +20,7 @@ import jakarta.websocket.WebSocketContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -425,6 +426,11 @@ public class TestBasicMatchmaking {
         final var status = context.crossfire().getSignalingClient().waitForDisconnect();
         assertFalse(status.error(), "Closed with error: " + status.message());
 
+    }
+
+    @AfterClass(alwaysRun = true)
+    public void tearDown() {
+        testContextList.forEach(ctx -> ctx.crossfire().close());
     }
 
     private record TestMessage(Protocol protocol,

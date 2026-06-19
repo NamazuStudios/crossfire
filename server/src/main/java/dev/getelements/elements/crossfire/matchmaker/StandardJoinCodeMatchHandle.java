@@ -7,6 +7,7 @@ import dev.getelements.elements.crossfire.util.CancelableMatchStateRecord;
 import dev.getelements.elements.crossfire.util.StandardCancelableMatchHandle;
 import dev.getelements.elements.sdk.dao.MultiMatchDao;
 import dev.getelements.elements.sdk.dao.Transaction;
+import dev.getelements.elements.sdk.model.match.MultiMatch;
 import dev.getelements.elements.sdk.model.profile.Profile;
 import jakarta.inject.Provider;
 
@@ -26,11 +27,14 @@ public class StandardJoinCodeMatchHandle extends StandardCancelableMatchHandle<J
     }
 
     private void doFind() {
+
+        final MultiMatch multiMatchByJoinCode;
+
         try (final var transaction = getTransactionProvider().get()) {
 
             final var dao = transaction.getDao(MultiMatchDao.class);
             final var handshakeRequest = getRequest().getHandshakeRequest();
-            final var multiMatchByJoinCode = dao.getMultiMatchByJoinCode(handshakeRequest.getJoinCode());
+            multiMatchByJoinCode = dao.getMultiMatchByJoinCode(handshakeRequest.getJoinCode());
 
             final var profileId = getRequest().getProfile().getId();
 
@@ -44,9 +48,12 @@ public class StandardJoinCodeMatchHandle extends StandardCancelableMatchHandle<J
                 dao.addProfile(multiMatchByJoinCode.getId(), getRequest().getProfile());
             }
 
-            setResult(multiMatchByJoinCode);
+            transaction.commit();
 
         }
+
+        setResult(multiMatchByJoinCode);
+
     }
 
 }

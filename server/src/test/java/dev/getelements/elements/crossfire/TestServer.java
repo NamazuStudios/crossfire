@@ -66,6 +66,7 @@ public class TestServer {
 
         mongoTestInstance = new DockerMongoTestInstance(TEST_MONGO_PORT);
         mongoTestInstance.start();
+        shutdownHooks.add(mongoTestInstance::stop);
 
         final var properties = System.getProperties();
 
@@ -88,10 +89,9 @@ public class TestServer {
                 )
                 .build();
 
+        shutdownHooks.add(elementsLocal::close);
         application = buildApplication();
         elementsLocal.start();
-        shutdownHooks.add(elementsLocal::close);
-        shutdownHooks.add(mongoTestInstance::stop);
 
         final var container = ContainerProvider.getWebSocketContainer();
 

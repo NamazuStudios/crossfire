@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
+import java.util.concurrent.Executor;
 import java.util.function.Function;
 
 import static java.util.Objects.requireNonNull;
@@ -34,13 +35,16 @@ public class WebRTCAnsweringPeer extends WebRTCPeer {
         public void onDataChannel(final RTCDataChannel dataChannel) {
             final var dataChannelObserver = newDataChannelObserver(dataChannel);
             dataChannel.registerObserver(dataChannelObserver);
-            peerConnectionState.updateAndGet(s -> s.channel(dataChannel));
+            final var result = peerConnectionState.updateAndGet(s -> s.channel(dataChannel));
+            if (result.channel() != dataChannel) {
+                dataChannel.close();
+            }
         }
 
     };
 
     public WebRTCAnsweringPeer(final Record peerRecord) {
-        super(peerRecord.signaling, peerRecord.onPeerStatus);
+        super(peerRecord.signaling, peerRecord.onPeerStatus, peerRecord.executor);
 
         logger.debug("Creating answering peer for {} -> {}",
                 peerRecord.localProfileId(),
@@ -54,23 +58,25 @@ public class WebRTCAnsweringPeer extends WebRTCPeer {
     }
 
     public void connect() {
+        executor.execute(() -> {
 
-        final var connection = new SimpleLazyValue<>(() -> peerRecord.peerConnectionConstructor.apply(peerConnectionObserver));
+            final var connection = new SimpleLazyValue<>(() -> peerRecord.peerConnectionConstructor.apply(peerConnectionObserver));
 
-        final var result = peerConnectionState.updateAndGet(existing -> existing.connection() == null
-                ? existing.connect(connection.get())
-                : existing
-        );
+            final var result = updateAndGet(existing -> existing.connection() == null
+                    ? existing.connect(connection.get())
+                    : existing
+            );
 
-        connection.getOptional()
-                .filter(c -> result.connection() != c)
-                .ifPresent(RTCPeerConnection::close);
+            connection.getOptional()
+                    .filter(c -> result.connection() != c)
+                    .ifPresent(RTCPeerConnection::close);
 
-        peerRecord
-                .signaling()
-                .backlog()
-                .forEach(this::onSignal);
+            peerRecord
+                    .signaling()
+                    .backlog()
+                    .forEach(this::onSignal);
 
+        });
     }
 
     @Override
@@ -146,6 +152,11 @@ public class WebRTCAnsweringPeer extends WebRTCPeer {
             @Override
             public void onSuccess() {
 
+                if (!peerConnectionState.get().open()) {
+                    logger.debug("Peer closed before setRemoteDescription callback fired. Dropping.");
+                    return;
+                }
+
                 logger.debug("Successfully set {}'s remote session description for {}",
                         WebRTCAnsweringPeer.this.getClass().getSimpleName(),
                         getProfileId()
@@ -196,6 +207,11 @@ public class WebRTCAnsweringPeer extends WebRTCPeer {
                 @Override
                 public void onSuccess(final RTCSessionDescription description) {
 
+                    if (!peerConnectionState.get().open()) {
+                        logger.debug("Peer closed before createAnswer callback fired. Dropping.");
+                        return;
+                    }
+
                     logger.debug("Successfully {}'s set local session description for {}.",
                             WebRTCAnsweringPeer.this.getClass().getSimpleName(),
                             getProfileId()
@@ -230,6 +246,11 @@ public class WebRTCAnsweringPeer extends WebRTCPeer {
             @Override
             public void onSuccess() {
 
+                if (!peerConnectionState.get().open()) {
+                    logger.debug("Peer closed before setLocalDescription callback fired. Dropping.");
+                    return;
+                }
+
                 final var signal = new SdpAnswerDirectSignal();
                 signal.setPeerSdp(description.sdp);
                 signal.setProfileId(peerRecord.localProfileId());
@@ -242,7 +263,11 @@ public class WebRTCAnsweringPeer extends WebRTCPeer {
                         signal.getPeerSdp()
                 );
 
-                peerRecord.signaling.signal(signal);
+                try {
+                    peerRecord.signaling.signal(signal);
+                } catch (final IllegalStateException e) {
+                    logger.debug("Signaling client not in SIGNALING phase, dropping SDP answer: {}", e.getMessage());
+                }
 
             }
 
@@ -272,6 +297,7 @@ public class WebRTCAnsweringPeer extends WebRTCPeer {
             SignalingClient signaling,
             RTCAnswerOptions answerOptions,
             Publisher<PeerStatus> onPeerStatus,
+            Executor executor,
             Function<PeerConnectionObserver, RTCPeerConnection> peerConnectionConstructor) {
 
         public Record {
@@ -280,6 +306,7 @@ public class WebRTCAnsweringPeer extends WebRTCPeer {
             requireNonNull(answerOptions, "answerOptions must not be null");
             requireNonNull(peerConnectionConstructor, "peerConnectionConstructor must not be null");
             requireNonNull(onPeerStatus, "onPeerStatus must not be null");
+            requireNonNull(executor, "executor must not be null");
         }
 
         public String localProfileId() {

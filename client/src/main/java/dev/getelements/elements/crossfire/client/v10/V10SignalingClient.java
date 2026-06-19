@@ -1,10 +1,6 @@
 package dev.getelements.elements.crossfire.client.v10;
 
-import dev.getelements.elements.crossfire.client.SignalingClient;
-import dev.getelements.elements.crossfire.common.jackson.JacksonEncoder;
-import dev.getelements.elements.crossfire.common.jackson.JacksonProtocolMessageDecoder;
 import dev.getelements.elements.crossfire.api.model.ProtocolMessage;
-import dev.getelements.elements.crossfire.api.model.ProtocolMessageType;
 import dev.getelements.elements.crossfire.api.model.Version;
 import dev.getelements.elements.crossfire.api.model.control.ControlMessage;
 import dev.getelements.elements.crossfire.api.model.error.ProtocolError;
@@ -16,6 +12,9 @@ import dev.getelements.elements.crossfire.api.model.signal.HostBroadcastSignal;
 import dev.getelements.elements.crossfire.api.model.signal.JoinBroadcastSignal;
 import dev.getelements.elements.crossfire.api.model.signal.LeaveBroadcastSignal;
 import dev.getelements.elements.crossfire.api.model.signal.Signal;
+import dev.getelements.elements.crossfire.client.SignalingClient;
+import dev.getelements.elements.crossfire.common.jackson.JacksonEncoder;
+import dev.getelements.elements.crossfire.common.jackson.JacksonProtocolMessageDecoder;
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.util.ConcurrentDequePublisher;
 import dev.getelements.elements.sdk.util.Publisher;
@@ -37,7 +36,6 @@ import static dev.getelements.elements.crossfire.client.SignalingClientPhase.HAN
 import static dev.getelements.elements.crossfire.client.SignalingClientPhase.TERMINATED;
 import static dev.getelements.elements.crossfire.client.v10.V10SignalingClientState.create;
 import static jakarta.websocket.CloseReason.CloseCodes.NORMAL_CLOSURE;
-import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static java.util.Optional.ofNullable;
 
@@ -107,6 +105,10 @@ public class V10SignalingClient implements SignalingClient {
 
     @OnOpen
     public void onOpen(final Session session) throws IOException {
+
+        // Disable idle timeout: matchmaking can take longer than 30s (Jetty's default), so a connected
+        // client waiting in queue would be erroneously dropped before a match is found.
+        session.setMaxIdleTimeout(0);
 
         final var state = this.state.updateAndGet(s -> s.connected(session));
 
