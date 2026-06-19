@@ -50,7 +50,10 @@ jobs:
           gpg-passphrase: GPG_PASSPHRASE
 
       - name: Install native dependencies
-        run: sudo apt-get install -y libpulse0
+        run: |
+          sudo apt-get install -y libpulse0 pulseaudio
+          pulseaudio --start --exit-idle-time=-1
+          pactl load-module module-null-sink
 
       - name: Build and Publish Snapshot
         run: mvn -B -Pcentral-publish clean deploy
