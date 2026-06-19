@@ -106,6 +106,10 @@ public class V10SignalingClient implements SignalingClient {
     @OnOpen
     public void onOpen(final Session session) throws IOException {
 
+        // Disable idle timeout: matchmaking can take longer than 30s (Jetty's default), so a connected
+        // client waiting in queue would be erroneously dropped before a match is found.
+        session.setMaxIdleTimeout(0);
+
         final var state = this.state.updateAndGet(s -> s.connected(session));
 
         if (TERMINATED.equals(state.phase())) {
