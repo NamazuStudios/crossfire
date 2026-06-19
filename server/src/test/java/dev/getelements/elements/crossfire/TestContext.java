@@ -1,6 +1,7 @@
 package dev.getelements.elements.crossfire;
 
 import dev.getelements.elements.crossfire.client.*;
+import dev.getelements.elements.crossfire.api.model.Protocol;
 import dev.getelements.elements.crossfire.api.model.signal.BroadcastSignal;
 import dev.getelements.elements.crossfire.api.model.signal.DirectSignal;
 import dev.getelements.elements.crossfire.api.model.signal.Signal;
@@ -70,6 +71,8 @@ public record TestContext(
         final var crossfire = new StandardCrossfire.Builder()
                 .withDefaultUri(server.getTestTestServerWsUrl())
                 .withWebSocketContainer(webSocketContainer)
+                .withDefaultProtocol(Protocol.SIGNALING)
+                .withSupportedModes(Crossfire.Mode.SIGNALING_HOST, Crossfire.Mode.SIGNALING_CLIENT)
                 .build()
                 .connect();
 
