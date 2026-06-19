@@ -54,4 +54,19 @@
         </dependency>
     </dependencies>
 
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!-- TestWebRTCDirectPeer crashes the JVM via SIGABRT due to libwebrtc JNI issues (issue #2) -->
+                    <excludes>
+                        <exclude>**/TestWebRTCDirectPeer.java</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
 </project>
