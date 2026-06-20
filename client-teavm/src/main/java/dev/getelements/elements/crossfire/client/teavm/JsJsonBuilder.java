@@ -22,4 +22,7 @@ final class JsJsonBuilder {
 
     @JSBody(params = {"json"}, script = "return JSON.parse(json)")
     static native JsMessage parseMessage(String json);
+
+    @JSBody(params = {"obj", "key", "value"}, script = "obj[key] = value")
+    static native void setInt(JSObject obj, String key, int value);
 }

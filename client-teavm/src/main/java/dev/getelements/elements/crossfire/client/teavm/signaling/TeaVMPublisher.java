@@ -10,11 +10,11 @@ import java.util.function.BiConsumer;
  * Simple ArrayList-backed event publisher for TeaVM browser targets.
  * No concurrency primitives — JS is single-threaded.
  */
-final class TeaVMPublisher<T> {
+public final class TeaVMPublisher<T> {
 
     private final List<Entry<T>> entries = new ArrayList<>();
 
-    Subscription subscribe(final BiConsumer<Subscription, T> listener) {
+    public Subscription subscribe(final BiConsumer<Subscription, T> listener) {
         final var entry = new Entry<>(listener);
         entries.add(entry);
         final Subscription sub = () -> entries.remove(entry);
@@ -22,11 +22,11 @@ final class TeaVMPublisher<T> {
         return sub;
     }
 
-    void publish(final T value) {
+    public void publish(final T value) {
         for (var e : List.copyOf(entries)) e.listener.accept(e.subscription, value);
     }
 
-    void clear() {
+    public void clear() {
         entries.clear();
     }
 

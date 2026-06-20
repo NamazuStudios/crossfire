@@ -167,6 +167,30 @@ class TeaVMV10SignalingClient implements SignalingClient {
                 addToBacklog(signal);
                 publishSignal(signal);
             }
+            case SDP_OFFER -> {
+                final var signal = new SdpOfferDirectSignal();
+                signal.setProfileId(msg.getProfileId());
+                signal.setRecipientProfileId(msg.getRecipientProfileId());
+                signal.setPeerSdp(msg.getPeerSdp());
+                addToBacklog(signal);
+                publishSignal(signal);
+            }
+            case SDP_ANSWER -> {
+                final var signal = new SdpAnswerDirectSignal();
+                signal.setProfileId(msg.getProfileId());
+                signal.setRecipientProfileId(msg.getRecipientProfileId());
+                signal.setPeerSdp(msg.getPeerSdp());
+                publishSignal(signal);
+            }
+            case CANDIDATE -> {
+                final var signal = new CandidateDirectSignal();
+                signal.setProfileId(msg.getProfileId());
+                signal.setRecipientProfileId(msg.getRecipientProfileId());
+                signal.setMid(msg.getMid());
+                signal.setMidIndex(msg.getMidIndex());
+                signal.setCandidate(msg.getCandidate());
+                publishSignal(signal);
+            }
             case ERROR -> handleError(msg);
             default    -> {}
         }
@@ -363,6 +387,14 @@ class TeaVMV10SignalingClient implements SignalingClient {
                     Base64.getEncoder().encodeToString(((BinaryBroadcastSignal)  signal).getPayload()));
             case BINARY_RELAY     -> JsJsonBuilder.set(obj, "payload",
                     Base64.getEncoder().encodeToString(((BinaryRelayDirectSignal) signal).getPayload()));
+            case SDP_OFFER        -> JsJsonBuilder.set(obj, "peerSdp", ((SdpOfferDirectSignal)    signal).getPeerSdp());
+            case SDP_ANSWER       -> JsJsonBuilder.set(obj, "peerSdp", ((SdpAnswerDirectSignal)   signal).getPeerSdp());
+            case CANDIDATE -> {
+                final var c = (CandidateDirectSignal) signal;
+                JsJsonBuilder.set(obj,    "mid",       c.getMid());
+                JsJsonBuilder.set(obj,    "candidate", c.getCandidate());
+                JsJsonBuilder.setInt(obj, "midIndex",  c.getMidIndex());
+            }
             default -> {}
         }
         return JsJsonBuilder.stringify(obj);

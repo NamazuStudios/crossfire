@@ -29,4 +29,12 @@ interface JsMessage extends JSObject {
     @JSProperty String getVersion();
 
     @JSProperty String getJoinCode();
+
+    @JSProperty String getPeerSdp();
+
+    @JSProperty String getMid();
+
+    @JSProperty String getCandidate();
+
+    @JSProperty int getMidIndex();
 }
