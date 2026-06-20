@@ -25,14 +25,10 @@
             <groupId>dev.getelements.elements</groupId>
             <artifactId>sdk</artifactId>
         </dependency>
-        <!--
-          TeaVM interop dependency — uncomment when browser WebRTC bindings are implemented.
-          <dependency>
+        <dependency>
             <groupId>org.teavm</groupId>
-            <artifactId>teavm-interop</artifactId>
-            <version>${teavm.version}</version>
-          </dependency>
-        -->
+            <artifactId>teavm-jso</artifactId>
+        </dependency>
     </dependencies>
 
 </project>

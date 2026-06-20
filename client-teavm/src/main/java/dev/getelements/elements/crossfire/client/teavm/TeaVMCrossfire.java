@@ -3,6 +3,8 @@ package dev.getelements.elements.crossfire.client.teavm;
 import dev.getelements.elements.crossfire.api.model.Protocol;
 import dev.getelements.elements.crossfire.api.model.signal.HostBroadcastSignal;
 import dev.getelements.elements.crossfire.client.*;
+import dev.getelements.elements.crossfire.client.teavm.signaling.TeaVMSignalingMatchClient;
+import dev.getelements.elements.crossfire.client.teavm.signaling.TeaVMSignalingMatchHost;
 
 import java.net.URI;
 import java.util.EnumSet;
@@ -10,14 +12,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static dev.getelements.elements.crossfire.api.model.Protocol.SIGNALING;
+
 /**
- * Skeleton {@link AbstractCrossfire} for TeaVM browser targets.
- * Browser WebRTC bindings (RTCPeerConnection JS interop) are not yet implemented.
+ * {@link AbstractCrossfire} implementation for TeaVM browser targets.
+ * Supports signaling-relay mode; browser WebRTC is not yet implemented.
  */
 public class TeaVMCrossfire extends AbstractCrossfire {
 
     public TeaVMCrossfire(final Protocol defaultProtocol,
-                          final Set<Mode> supportedModes,
+                          final Set<Crossfire.Mode> supportedModes,
                           final SignalingClient signaling,
                           final java.util.function.Supplier<URI> defaultUriSupplier) {
         super(defaultProtocol, supportedModes, signaling, defaultUriSupplier);
@@ -25,28 +29,35 @@ public class TeaVMCrossfire extends AbstractCrossfire {
 
     @Override
     public TeaVMCrossfire connect(final URI uri) {
-        throw new UnsupportedOperationException("TeaVM WebRTC not yet implemented");
+        final var ws = TeaVMWebSocket.create(uri.toString());
+        ((TeaVMV10SignalingClient) getSignalingClient()).connect(ws);
+        return this;
     }
 
     @Override
     protected void populateHosts(final Map<Protocol, MatchHost> hosts,
-                                  final EnumSet<Mode> modes,
+                                  final EnumSet<Crossfire.Mode> modes,
                                   final HostBroadcastSignal signal) {
-        throw new UnsupportedOperationException("TeaVM WebRTC not yet implemented");
+        if (modes.contains(Crossfire.Mode.SIGNALING_HOST)) {
+            hosts.put(SIGNALING, new TeaVMSignalingMatchHost(getSignalingClient()));
+        }
     }
 
     @Override
     protected void populateClients(final Map<Protocol, MatchClient> clients,
-                                    final EnumSet<Mode> modes,
+                                    final EnumSet<Crossfire.Mode> modes,
                                     final HostBroadcastSignal signal) {
-        throw new UnsupportedOperationException("TeaVM WebRTC not yet implemented");
+        if (modes.contains(Crossfire.Mode.SIGNALING_CLIENT)) {
+            clients.put(SIGNALING, new TeaVMSignalingMatchClient(getSignalingClient()));
+        }
     }
 
     public static class Builder implements Crossfire.Builder {
 
-        private Protocol defaultProtocol = Protocol.WEBRTC;
+        private Protocol defaultProtocol = Protocol.SIGNALING;
 
-        private Set<Mode> supportedModes = EnumSet.allOf(Mode.class);
+        private Set<Crossfire.Mode> supportedModes =
+                EnumSet.of(Crossfire.Mode.SIGNALING_HOST, Crossfire.Mode.SIGNALING_CLIENT);
 
         private URI defaultUri;
 
@@ -63,13 +74,13 @@ public class TeaVMCrossfire extends AbstractCrossfire {
         }
 
         @Override
-        public Builder withSupportedModes(final Set<Mode> modes) {
+        public Builder withSupportedModes(final Set<Crossfire.Mode> modes) {
             this.supportedModes = modes;
             return this;
         }
 
         @Override
-        public Builder withSupportedModes(final Mode... modes) {
+        public Builder withSupportedModes(final Crossfire.Mode... modes) {
             this.supportedModes = Set.of(modes);
             return this;
         }
@@ -95,7 +106,7 @@ public class TeaVMCrossfire extends AbstractCrossfire {
             return new TeaVMCrossfire(
                     defaultProtocol,
                     supportedModes,
-                    new TeaVMSignalingClient(),
+                    new TeaVMV10SignalingClient(),
                     () -> capturedUri
             );
         }
