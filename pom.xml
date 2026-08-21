@@ -368,9 +368,6 @@
             <configuration>
               <doclint>none</doclint>
               <failOnError>false</failOnError>
-              <addStylesheets>
-                <addStylesheet>namazu-overrides.css</addStylesheet>
-              </addStylesheets>
             </configuration>
           </plugin>
         </plugins>
