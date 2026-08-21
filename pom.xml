@@ -368,9 +368,9 @@
             <configuration>
               <doclint>none</doclint>
               <failOnError>false</failOnError>
-              <additionalOptions>
-                <additionalOption>-stylesheetfile ${maven.multiModuleProjectDirectory}/src/main/javadoc/stylesheet.css</additionalOption>
-              </additionalOptions>
+              <addStylesheets>
+                <addStylesheet>namazu-overrides.css</addStylesheet>
+              </addStylesheets>
             </configuration>
           </plugin>
         </plugins>
