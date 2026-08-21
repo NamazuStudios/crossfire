@@ -134,8 +134,8 @@ jobs:
         if: ${{ success() && github.event.inputs.dry_run != 'true' }}
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_APIDOCS_ROLE_ARN }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          role-to-assume: arn:aws:iam::308044622771:role/apidocs-ci
+          aws-region: us-east-1
 
       - name: Publish versioned docs to S3
         if: ${{ success() && github.event.inputs.dry_run != 'true' }}
