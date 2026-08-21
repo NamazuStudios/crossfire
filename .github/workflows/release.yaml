@@ -144,3 +144,7 @@ jobs:
           VERSION="${{ steps.version.outputs.release_version }}"
           aws s3 sync target/site/apidocs/ "s3://namazu-apidocs/crossfire/${VERSION}/" --delete
           aws s3 sync target/site/apidocs/ "s3://namazu-apidocs/crossfire/latest/" --delete
+
+      - name: Invalidate CloudFront cache
+        if: ${{ success() && github.event.inputs.dry_run != 'true' }}
+        run: aws cloudfront create-invalidation --distribution-id E30XJUM7BR8918 --paths "/crossfire/*"

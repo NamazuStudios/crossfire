@@ -78,3 +78,6 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           SHORT_SHA="${GITHUB_SHA:0:7}"
           aws s3 sync target/site/apidocs/ "s3://namazu-apidocs/crossfire/${VERSION}-${SHORT_SHA}/" --delete
+
+      - name: Invalidate CloudFront cache
+        run: aws cloudfront create-invalidation --distribution-id E30XJUM7BR8918 --paths "/crossfire/*"
