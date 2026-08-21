@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write
 
     steps:
 
@@ -61,3 +62,19 @@ jobs:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
           CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
           CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
+
+      - name: Generate API documentation
+        run: mvn -B javadoc:aggregate -Pdocs -pl '!debug'
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_APIDOCS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Publish snapshot docs to S3
+        run: |
+          set -e
+          VERSION="${{ steps.version.outputs.version }}"
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+          aws s3 sync target/site/apidocs/ "s3://namazu-apidocs/crossfire/${VERSION}-${SHORT_SHA}/" --delete

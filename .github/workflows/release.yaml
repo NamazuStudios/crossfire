@@ -125,3 +125,22 @@ jobs:
           git push origin "${{ github.ref_name }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate API documentation
+        if: ${{ success() && github.event.inputs.dry_run != 'true' }}
+        run: mvn -B javadoc:aggregate -Pdocs -pl '!debug'
+
+      - name: Configure AWS credentials
+        if: ${{ success() && github.event.inputs.dry_run != 'true' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_APIDOCS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Publish versioned docs to S3
+        if: ${{ success() && github.event.inputs.dry_run != 'true' }}
+        run: |
+          set -e
+          VERSION="${{ steps.version.outputs.release_version }}"
+          aws s3 sync target/site/apidocs/ "s3://namazu-apidocs/crossfire/${VERSION}/" --delete
+          aws s3 sync target/site/apidocs/ "s3://namazu-apidocs/crossfire/latest/" --delete
