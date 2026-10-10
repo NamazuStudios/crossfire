@@ -114,7 +114,7 @@ jobs:
           ARTIFACT_ID=$(mvn help:evaluate -Dexpression=project.artifactId -q -DforceStdout)
           aws cloudfront create-invalidation \
             --distribution-id E1GZC3BATLVXG0 \
-            --paths "/${GROUP_PATH}/${ARTIFACT_ID}*"
+            --paths "/${GROUP_PATH}/*"
         env:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
