@@ -98,7 +98,28 @@ jobs:
           pulseaudio --start --exit-idle-time=-1
           pactl load-module module-null-sink
 
-      - name: Build and Publish Release
+      - name: Assume AWS role for S3 publishing
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::308044622771:role/github-oidc
+          aws-region: us-east-1
+
+      - name: Publish release to maven.namazustudios.com (S3)
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          mvn -B -Pgpg-sign clean deploy -DaltDeploymentRepository=staging::default::file:./staging
+          aws s3 sync --no-progress staging/ s3://namazu-maven-repo/
+          GROUP_PATH=$(mvn help:evaluate -Dexpression=project.groupId -q -DforceStdout | tr '.' '/')
+          ARTIFACT_ID=$(mvn help:evaluate -Dexpression=project.artifactId -q -DforceStdout)
+          aws cloudfront create-invalidation \
+            --distribution-id E1GZC3BATLVXG0 \
+            --paths "/${GROUP_PATH}/${ARTIFACT_ID}*"
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Build and Publish Release (Maven Central, optional)
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        continue-on-error: true
         run: mvn -B -Pcentral-publish clean deploy
         env:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
