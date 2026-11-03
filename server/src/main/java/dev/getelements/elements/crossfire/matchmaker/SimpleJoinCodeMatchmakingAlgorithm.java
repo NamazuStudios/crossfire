@@ -41,6 +41,8 @@ public class SimpleJoinCodeMatchmakingAlgorithm implements JoinCodeMatchmakingAl
 
     private Provider<Transaction> transactionProvider;
 
+    private Provider<MultiMatchDao> multiMatchDaoProvider;
+
     @Override
     public String getName() {
         return NAME;
@@ -53,7 +55,16 @@ public class SimpleJoinCodeMatchmakingAlgorithm implements JoinCodeMatchmakingAl
 
     @Override
     public MatchHandle<JoinCodeHandshakeRequest> resume(final MatchmakingRequest<JoinCodeHandshakeRequest> request) {
-        return new StandardJoinCodeMatchHandle(this, request, getTransactionProvider());
+        return new StandardJoinCodeMatchHandle(this, request, getTransactionProvider(), getMultiMatchDaoProvider());
+    }
+
+    public Provider<MultiMatchDao> getMultiMatchDaoProvider() {
+        return multiMatchDaoProvider;
+    }
+
+    @Inject
+    public void setMultiMatchDaoProvider(final Provider<MultiMatchDao> multiMatchDaoProvider) {
+        this.multiMatchDaoProvider = multiMatchDaoProvider;
     }
 
     public Provider<Transaction> getTransactionProvider() {
