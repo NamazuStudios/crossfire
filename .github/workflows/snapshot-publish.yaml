@@ -50,6 +50,11 @@ jobs:
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg-passphrase: GPG_PASSPHRASE
 
+      - name: Test (server-gated, matches ci.yaml/rc-publish.yaml)
+        run: |
+          mvn -B install -DskipTests
+          mvn -B test -pl server
+
       - name: Install native dependencies
         run: |
           sudo apt-get update
@@ -57,8 +62,8 @@ jobs:
           pulseaudio --start --exit-idle-time=-1
           pactl load-module module-null-sink
 
-      - name: Build and Publish Snapshot
-        run: mvn -B -Pcentral-publish clean deploy
+      - name: Build and Publish Snapshot (skip tests; gated by step above)
+        run: mvn -B -Pcentral-publish clean deploy -DskipTests
         env:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
           CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
