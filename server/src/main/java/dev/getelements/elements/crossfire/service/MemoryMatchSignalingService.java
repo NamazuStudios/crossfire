@@ -50,7 +50,7 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
     @Override
     public void send(final String matchId, final BroadcastSignal signal) {
 
-        logger.info("__SIG_B__ match={} sender={} type={}",
+        logger.debug("__SIG_B__ match={} sender={} type={}",
                 matchId, signal.getProfileId(), signal.getType());
 
         final var match = getSignalableMatch(matchId);
@@ -72,7 +72,7 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
     @Override
     public void send(final String matchId, final DirectSignal signal) {
 
-        logger.info("__SIG_D__ match={} sender={} recipient={} type={}",
+        logger.debug("__SIG_D__ match={} sender={} recipient={} type={}",
                 matchId, signal.getProfileId(), signal.getRecipientProfileId(), signal.getType());
 
         final var match = getSignalableMatch(matchId);
