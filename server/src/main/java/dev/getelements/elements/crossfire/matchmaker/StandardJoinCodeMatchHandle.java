@@ -3,7 +3,6 @@ package dev.getelements.elements.crossfire.matchmaker;
 import dev.getelements.elements.crossfire.api.MatchmakingAlgorithm;
 import dev.getelements.elements.crossfire.api.MatchmakingRequest;
 import dev.getelements.elements.crossfire.api.model.handshake.JoinCodeHandshakeRequest;
-import dev.getelements.elements.sdk.annotation.ElementDefaultAttribute;
 import dev.getelements.elements.crossfire.util.CancelableMatchStateRecord;
 import dev.getelements.elements.crossfire.util.StandardCancelableMatchHandle;
 import dev.getelements.elements.sdk.dao.MultiMatchDao;
@@ -11,8 +10,6 @@ import dev.getelements.elements.sdk.dao.Transaction;
 import dev.getelements.elements.sdk.model.exception.MultiMatchNotFoundException;
 import dev.getelements.elements.sdk.model.match.MultiMatch;
 import dev.getelements.elements.sdk.model.profile.Profile;
-import jakarta.inject.Inject;
-import jakarta.inject.Named;
 import jakarta.inject.Provider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,33 +19,12 @@ public class StandardJoinCodeMatchHandle extends StandardCancelableMatchHandle<J
     private static final Logger logger = LoggerFactory.getLogger(StandardJoinCodeMatchHandle.class);
 
     /**
-     * Bounded number of transactional attempts used to locate a match by its join code.
-     * mongod may serve a transaction read from a snapshot which does not yet include a commit
-     * made moments earlier by an unrelated party (session/other client), yielding a transient
-     * {@link MultiMatchNotFoundException} even though the join code is committed and visible to
-     * ordinary (out-of-transaction) reads. See NamazuStudios/crossfire#20 and the linked upstream
-     * MongoDB filing recorded in the Crossfire design notebook.
-     */
-    @ElementDefaultAttribute("5")
-    public static final String JOIN_CODE_LOOKUP_ATTEMPTS = "dev.getelements.elements.crossfire.matchmaker.join.code.lookup.attempts";
-
-    /**
-     * Milliseconds to wait between failed transactional join-code lookup attempts.
-     */
-    @ElementDefaultAttribute("250")
-    public static final String JOIN_CODE_LOOKUP_BACKOFF_MILLIS = "dev.getelements.elements.crossfire.matchmaker.join.code.lookup.backoff.millis";
-
-    /**
      * The {@link MultiMatchDao} bound directly to this Element's own (non transaction scoped) Datastore.
-     * Committing a transaction makes its writes immediately visible to out-of-transaction reads, so a
-     * final fallback read using this DAO resolves committed join codes even in the transient window the
-     * transactional path may miss.
+     * Committing a transaction makes its writes immediately visible to out-of-transaction reads, so the
+     * fallback read (see {@link #locateAndJoin(String)}) using this DAO resolves committed join codes even
+     * in the transient window the transactional path may miss.
      */
     private Provider<MultiMatchDao> multiMatchDaoProvider;
-
-    private int joinCodeLookupAttempts;
-
-    private long joinCodeLookupBackoffMillis;
 
     public StandardJoinCodeMatchHandle(
             final MatchmakingAlgorithm<?,?> algorithm,
@@ -61,7 +37,6 @@ public class StandardJoinCodeMatchHandle extends StandardCancelableMatchHandle<J
 
     @Override
     protected void onMatching(final CancelableMatchStateRecord<JoinCodeHandshakeRequest> state) {
-
         getRequest().getServer().submit(this::doFind);
     }
 
@@ -75,57 +50,56 @@ public class StandardJoinCodeMatchHandle extends StandardCancelableMatchHandle<J
 
     }
 
+    /**
+     * <p>Locates the match for the supplied join code and joins the requesting profile to it.</p>
+     *
+     * <p>The lookup is first attempted transactionally — the correct, consistent path. However, mongod
+     * may serve a transaction read from a snapshot which does not yet include a commit made moments
+     * earlier by an unrelated party whose pooled logical session had just committed, yielding a transient
+     * {@link MultiMatchNotFoundException} even though the join code is committed and visible to ordinary
+     * (out-of-transaction) reads. See NamazuStudios/crossfire#20 and the upstream MongoDB filing recorded
+     * in NamazuStudios/elements#207.</p>
+     *
+     * <p>On that first miss, a single out-of-transaction read observes committed state directly
+     * (out-of-transaction reads were verified clean in every condition tested, including committed
+     * codes missed by transactional reads for up to ~20s after the commit). If the code is genuinely
+     * dead or never existed, that read rethrows the {@link MultiMatchNotFoundException} exactly as the
+     * transactional path would have, so failure semantics for invalid codes are unchanged and remain
+     * immediate.</p>
+     *
+     * <p>Note there is intentionally no retry loop: a bounded retry with backoff could cover only a
+     * fraction of the observed window (and would block this connection's executor thread for the
+     * latency of each sleep), while the fallback resolves the miss deterministically on the first
+     * attempt.</p>
+     */
     private MultiMatch locateAndJoin(final String joinCode) {
 
-        final var failure = new StringBuilder();
+        try (final var transaction = getTransactionProvider().get()) {
 
-        for (int attempt = 0; attempt < getJoinCodeLookupAttempts(); ++attempt) {
+            final var dao = transaction.getDao(MultiMatchDao.class);
+            final var multiMatch = attemptToJoin(dao, joinCode);
 
-            if (attempt > 0) {
-                try {
-                    Thread.sleep(getJoinCodeLookupBackoffMillis());
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    throw new IllegalStateException("Interrupted during join code lookup.", e);
-                }
-            }
+            transaction.commit();
 
-            try (final var transaction = getTransactionProvider().get()) {
+            return multiMatch;
 
-                final var dao = transaction.getDao(MultiMatchDao.class);
-                final var multiMatch = attemptToJoin(dao, joinCode);
+        } catch (MultiMatchNotFoundException e) {
 
-                transaction.commit();
+            logger.debug(
+                    "Transactional join-code lookup did not find join code {}. Reason: {}.",
+                    joinCode, e.getMessage() == null ? "not found" : e.getMessage());
 
-                return multiMatch;
+            // Most likely a transaction snapshot which predated the join code's own commit. An
+            // out-of-transaction read observes committed state directly, so give it one shot before
+            // declaring the code not found. If this truly is a dead (or never-existed) code, this
+            // read rethrows the MultiMatchNotFoundException exactly as the original single-attempt
+            // implementation did.
 
-            } catch (MultiMatchNotFoundException e) {
-
-                logger.debug(
-                        "Attempt {}/{} did not find join code {}. Reason: {}.",
-                        attempt + 1, getJoinCodeLookupAttempts(), joinCode, e.getMessage() == null ? "not found" : e.getMessage());
-
-                failure.append(e.getMessage() == null ? e.getClass().getName() : e.getMessage());
-
-                if (attempt > 0) failure.append("; ");
-
-            }
+            final var multiMatch = getMultiMatchDaoProvider().get().getMultiMatchByJoinCode(joinCode);
+            joinInNewTransaction(multiMatch);
+            return multiMatch;
 
         }
-
-        // All transactional attempts missed the join code, most likely against a snapshot which
-        // predated the join code's own commit. An out-of-transaction read observes committed
-        // state directly, so give it one shot before declaring the code not found. If this
-        // truly is a dead (or never-existed) code, this read rethrows the MultiMatchNotFoundException
-        // exactly as the original single-attempt implementation did.
-
-        logger.debug(
-                "Join code lookup exhausted {} transactional attempts. Attempting out-of-transaction read for join code {}.",
-                getJoinCodeLookupAttempts(), joinCode);
-
-        final var multiMatch = getMultiMatchDaoProvider().get().getMultiMatchByJoinCode(joinCode);
-        joinInNewTransaction(multiMatch);
-        return multiMatch;
 
     }
 
@@ -181,24 +155,6 @@ public class StandardJoinCodeMatchHandle extends StandardCancelableMatchHandle<J
 
     public Provider<MultiMatchDao> getMultiMatchDaoProvider() {
         return multiMatchDaoProvider;
-    }
-
-    public int getJoinCodeLookupAttempts() {
-        return joinCodeLookupAttempts;
-    }
-
-    @Inject
-    public void setJoinCodeLookupAttempts(@Named(JOIN_CODE_LOOKUP_ATTEMPTS) int joinCodeLookupAttempts) {
-        this.joinCodeLookupAttempts = joinCodeLookupAttempts;
-    }
-
-    public long getJoinCodeLookupBackoffMillis() {
-        return joinCodeLookupBackoffMillis;
-    }
-
-    @Inject
-    public void setJoinCodeLookupBackoffMillis(@Named(JOIN_CODE_LOOKUP_BACKOFF_MILLIS) long joinCodeLookupBackoffMillis) {
-        this.joinCodeLookupBackoffMillis = joinCodeLookupBackoffMillis;
     }
 
 }

@@ -39,10 +39,11 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 /**
- * Unit test for the crossfire#20 mitigation in StandardJoinCodeMatchHandle: when the
+ * Test for the crossfire#20 mitigation in StandardJoinCodeMatchHandle: when the
  * transactional join-code lookup transiently misses a just-committed join code, the handle
- * must retry (fresh transaction each attempt = fresh snapshot) and finally fall back to an
- * out-of-transaction read, after which the guest still joins.
+ * must fall back to a single out-of-transaction read (after which the guest still joins),
+ * while a dead join code propagates {@link MultiMatchNotFoundException} immediately with the
+ * original failure semantics. There is intentionally no retry loop and no thread blocking.
  */
 public class StandardJoinCodeMatchHandleRetryTest {
 
@@ -99,37 +100,35 @@ public class StandardJoinCodeMatchHandleRetryTest {
                 () -> new TransactionStub(transactionDao),
                 () -> mainDao);
 
-        handle.setJoinCodeLookupAttempts(3);
-        handle.setJoinCodeLookupBackoffMillis(1);
-
     }
 
     @Test
-    public void testTransactionalRetryPathJoinsOnceCodeAppears() {
+    public void testTransactionalLookupJoinsDirectly() {
 
-        // Transaction attempt 1 misses the committed code (stale snapshot), attempts 2 and 3 see it.
-        final var attempt = new AtomicInteger(0);
-        transactionDao.setFindMultiMatchByJoinCode(index -> attempt.getAndIncrement() < 1
-                ? Optional.empty()
-                : Optional.of(transactionDao.match));
+        // Transaction attempt sees the committed code (no anomaly present): the guest joins
+        // on the transactional path alone, with no fallback read.
+
+        transactionDao.setFindMultiMatchByJoinCode(index -> Optional.of(transactionDao.match));
 
         simulateJoinAttempt();
 
         assertEquals(profilesAdded.size(), 1, "Guest must have been added exactly once");
-        assertEquals(transactionDao.reads.get(), 2, "Exactly two transactional read attempts expected");
+        assertEquals(transactionDao.reads.get(), 1, "Exactly one transactional read attempt expected");
+        assertEquals(mainDao.reads.get(), 0, "No out-of-transaction fallback read expected");
 
     }
 
     @Test
-    public void testFallbackReadJoinsWhenEveryTransactionalAttemptMisses() {
+    public void testFallbackReadJoinsWhenTransactionalAttemptMisses() {
 
-        // Every transactional read misses; the out-of-transaction fallback read observes the
-        // committed code and the guest joins in a fresh transaction.
+        // The first (and only) transactional read misses the committed code (stale snapshot);
+        // the out-of-transaction fallback read observes the committed code and the guest joins
+        // in a fresh transaction. No retries, no sleeps, single fallback read.
 
         simulateJoinAttempt();
 
         assertEquals(profilesAdded.size(), 1, "Guest must have joined via the fallback path");
-        assertEquals(transactionDao.reads.get(), 3, "All three transactional attempts must have missed");
+        assertEquals(transactionDao.reads.get(), 1, "Exactly one transactional read attempt expected");
         assertEquals(mainDao.reads.get(), 1, "Exactly one out-of-transaction fallback read expected");
 
     }
