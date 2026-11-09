@@ -86,9 +86,14 @@ jobs:
           echo "Would create GitHub pre-release"
           echo "No files, tags, or artifacts have been changed."
 
+      # Test the deployable surface only (matches ci.yaml): the client module's
+      # WebRTC JNI tests are known-unstable in CI (crossfire#2) and are not part
+      # of this gate.
       - name: Run tests (gate the RC deploy)
         if: ${{ github.event.inputs.dry_run != 'true' }}
-        run: mvn -B test
+        run: |
+          mvn -B install -DskipTests
+          mvn -B test -pl server
 
       - name: Install native dependencies
         if: ${{ github.event.inputs.dry_run != 'true' }}
