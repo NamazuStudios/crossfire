@@ -1,0 +1,150 @@
+name: Cut RC Build
+
+# Manually dispatched, S3-only release candidate. Produces a stable,
+# testable version of main (e.g. 1.1.6-rc-1) tagged as a pre-release,
+# published to maven.namazustudios.com. Never commits to main and
+# never deploys to Maven Central.
+
+on:
+  workflow_dispatch:
+    inputs:
+      rc_version:
+        description: 'Full RC version to cut (e.g. 1.1.6-rc-1). Must be X.Y.Z-rc-N.'
+        required: true
+        type: string
+      dry_run:
+        description: 'Perform a dry run (no commits, tags, or publishing)'
+        required: false
+        default: 'false'
+
+jobs:
+  rc:
+    name: Cut RC
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write  # needed to push the tag
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 21 and Maven Credentials
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+          server-id: central
+          server-username: CENTRAL_USERNAME
+          server-password: CENTRAL_PASSWORD
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: GPG_PASSPHRASE
+
+      - name: Validate RC version input
+        id: validate
+        run: |
+          set -x
+          RC_VERSION="${{ github.event.inputs.rc_version }}"
+
+          if ! [[ "$RC_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-rc-[0-9]+$ ]]; then
+            echo "::error::Invalid rc_version '$RC_VERSION'. Expected format X.Y.Z-rc-N (e.g. 1.1.6-rc-1)."
+            exit 1
+          fi
+
+          if [[ "$RC_VERSION" == *"-SNAPSHOT" ]]; then
+            echo "::error::rc_version must not be a snapshot."
+            exit 1
+          fi
+
+          if git rev-parse -q --verify "refs/tags/v${RC_VERSION}" >/dev/null; then
+            echo "::error::Tag v${RC_VERSION} already exists. Choose a different RC version."
+            exit 1
+          fi
+
+          POM_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          BASE_VERSION="${RC_VERSION%-rc-*}"
+
+          if [[ "$POM_VERSION" != "$BASE_VERSION-SNAPSHOT" ]]; then
+            echo "::warning::Pom version is '$POM_VERSION' but rc_version base is '$BASE_VERSION'."
+            echo "::warning::Cutting an RC whose base does not match the pom version is usually unintended."
+          fi
+
+          echo "rc_version=$RC_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Show planned actions (dry run output)
+        if: ${{ github.event.inputs.dry_run == 'true' }}
+        run: |
+          echo "==== DRY RUN MODE ===="
+          echo "RC version:        ${{ steps.validate.outputs.rc_version }}"
+          echo "Would run: mvn server tests + full build"
+          echo "Would tag: v${{ steps.validate.outputs.rc_version }}"
+          echo "Would publish to maven.namazustudios.com (S3)"
+          echo "Would create GitHub pre-release"
+          echo "No files, tags, or artifacts have been changed."
+
+      - name: Run tests (gate the RC deploy)
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: mvn -B test
+
+      - name: Install native dependencies
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libpulse0 pulseaudio
+          pulseaudio --start --exit-idle-time=-1
+          pactl load-module module-null-sink
+
+      # The RC version is applied only in the ephemeral workspace: nothing is
+      # committed back to main (its pom stays X.Y.Z-SNAPSHOT), so the tag below
+      # marks the exact source commit while the published artifacts carry the
+      # RC version in their pom metadata.
+      - name: Set RC version in workspace
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          set -x
+          mvn versions:set -DnewVersion=${{ steps.validate.outputs.rc_version }} -B
+          mvn versions:commit
+
+      - name: Assume AWS role for S3 publishing
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::308044622771:role/github-oidc
+          aws-region: us-east-1
+
+      - name: Publish RC to maven.namazustudios.com (S3)
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          mvn -B -Pgpg-sign clean deploy -DaltDeploymentRepository=staging::default::file:./staging
+          aws s3 sync --no-progress staging/ s3://namazu-maven-repo/
+          GROUP_PATH=$(mvn help:evaluate -Dexpression=project.groupId -q -DforceStdout | tr '.' '/')
+          aws cloudfront create-invalidation \
+            --distribution-id E1GZC3BATLVXG0 \
+            --paths "/${GROUP_PATH}/*"
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Tag the RC
+        if: ${{ success() && github.event.inputs.dry_run != 'true' }}
+        run: |
+          set -x
+          RC_VERSION="${{ steps.validate.outputs.rc_version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "v${RC_VERSION}" -m "Release candidate ${RC_VERSION}"
+          git push origin "v${RC_VERSION}"
+
+      - name: Create GitHub pre-release
+        if: ${{ success() && github.event.inputs.dry_run != 'true' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.validate.outputs.rc_version }}
+          name: Release Candidate ${{ steps.validate.outputs.rc_version }}
+          prerelease: true
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
