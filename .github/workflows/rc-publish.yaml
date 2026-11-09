@@ -24,6 +24,7 @@ jobs:
 
     permissions:
       contents: write  # needed to push the tag
+      id-token: write  # needed for S3 publishing via AWS OIDC
 
     steps:
 
