@@ -108,9 +108,20 @@ public class MemoryMatchState {
 
         public void publish(final DirectSignal signal) {
             try (var mon = Monitor.enter(read)) {
-                Optional.ofNullable(sessionStates.get(signal.getRecipientProfileId()))
-                        .map(SessionState::getSubscriptionRecord)
-                        .ifPresent(subscriptionRecord -> subscriptionRecord.onMessage(signal));
+
+                final var recipientState = sessionStates.get(signal.getRecipientProfileId());
+
+                if (recipientState == null) {
+                    logger.warn("Dropping ONCE direct signal: recipient {} has not joined match.",
+                            signal.getRecipientProfileId());
+                } else if (recipientState.getSubscriptionRecord() == null) {
+                    logger.warn("Dropping ONCE direct signal: recipient {} joined but is not currently "
+                            + "connected (no active subscription). Sender {}, match {}.",
+                            signal.getRecipientProfileId(), signal.getProfileId(), parameters.matchId());
+                } else {
+                    recipientState.getSubscriptionRecord().onMessage(signal);
+                }
+
             }
         }
 
@@ -136,9 +147,16 @@ public class MemoryMatchState {
                 final var backlog = sessionStates.computeIfAbsent(signal.getProfileId(), SessionState::new);
                 backlog.append(signal);
 
-                Optional.ofNullable(sessionStates.get(signal.getRecipientProfileId()))
-                        .map(SessionState::getSubscriptionRecord)
-                        .ifPresent(subscriptionRecord -> subscriptionRecord.onMessage(signal));
+                final var recipientState = sessionStates.get(signal.getRecipientProfileId());
+
+                if (recipientState == null) {
+                    // Persisted in the sender's outbox; the recipient will receive it on connect.
+                    logger.debug("Recipient {} not joined for SIGNAL/MATCH direct signal; deferred to connect.",
+                            signal.getRecipientProfileId());
+                } else {
+                    Optional.ofNullable(recipientState.getSubscriptionRecord())
+                            .ifPresent(subscriptionRecord -> subscriptionRecord.onMessage(signal));
+                }
 
             }
         }
