@@ -1,0 +1,78 @@
+name: CI Flake Repro (crossfire#22)
+
+# Repro/targeted harness for crossfire#22: TestBasicMatchmaking.testHostReceiveSignal*
+# intermittently times out on ubuntu-latest (GitHub migrating ubuntu-latest to Ubuntu 26 —
+# runner-images#14748) while passing on ubuntu-24.04 and locally. Runs the flaky test class
+# repeatedly on a chosen runner label to quantify reproducibility and capture timing evidence.
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: 'Runner label to execute on: ubuntu-latest, ubuntu-24.04, ubuntu-22.04, or a custom label.'
+        required: true
+        default: 'ubuntu-24.04'
+      iterations:
+        description: 'How many TestBasicMatchmaking runs to execute.'
+        required: false
+        default: '3'
+
+jobs:
+  repro:
+    name: Flaky-repro on (${{ github.event.inputs.runner }})
+    runs-on: ${{ github.event.inputs.runner }}
+
+    permissions:
+      contents: read
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log runner environment (OS, CPU, memory, disk)
+        run: |
+          uname -a
+          cat /etc/os-release
+          nproc
+          free -m
+          df -h /tmp
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Install native dependencies (client module WebRTC tests)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libpulse0 pulseaudio
+          pulseaudio --start --exit-idle-time=-1
+          pactl load-module module-null-sink
+
+      - name: Build without tests so repro iterations start from a warm build
+        run: mvn -B install -DskipTests
+
+      - name: Run TestBasicMatchmaking iterations
+        id: repro
+        run: |
+          set -o pipefail
+          ITERATIONS=${{ github.event.inputs.iterations }}
+          for i in $(seq 1 "$ITERATIONS"); do
+            echo "=== iteration $i / $ITERATIONS ==="
+            mvn -B test -pl server -Dtest=TestBasicMatchmaking | tee "repro-log-$i.txt"
+            if [ ${PIPESTATUS[0]} -ne 0 ]; then
+              echo "iteration_$i=failed" >> $GITHUB_OUTPUT
+            else
+              echo "iteration_$i=passed" >> $GITHUB_OUTPUT
+            fi
+          done
+
+      - name: Upload repro logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: repro-log-${{ github.event.inputs.runner }}
+          path: repro-log-*.txt
