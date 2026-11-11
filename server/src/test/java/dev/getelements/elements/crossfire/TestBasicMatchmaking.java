@@ -381,6 +381,10 @@ public class TestBasicMatchmaking {
 
         for (int i = 0; i < count; ++i) {
             final var msg = context.messages().poll(30, SECONDS);
+            logger.info("__RECV_B__ {}/{} from {} in context {}",
+                    i + 1, count,
+                    msg == null ? "TIMEOUT" : msg.peer().getProfileId(),
+                    context.signalingClient().getState().getMatchId());
             Assert.assertNotNull(msg, "Timed out waiting for binary message " + (i + 1) + " of " + count);
             final var testMessage = TestMessage.from(msg.data());
             assertEquals(testMessage.protocol(), msg.peer().getProtocol());
@@ -403,6 +407,10 @@ public class TestBasicMatchmaking {
 
         for (int i = 0; i < count; ++i) {
             final var msg = context.stringMessages().poll(30, SECONDS);
+            logger.info("__RECV_S__ {}/{} from {} in context {}",
+                    i + 1, count,
+                    msg == null ? "TIMEOUT" : msg.peer().getProfileId(),
+                    context.signalingClient().getState().getMatchId());
             Assert.assertNotNull(msg, "Timed out waiting for string message " + (i + 1) + " of " + count);
             final var testMessage = TestMessage.from(msg.data());
             assertEquals(testMessage.protocol(), msg.peer().getProtocol());
