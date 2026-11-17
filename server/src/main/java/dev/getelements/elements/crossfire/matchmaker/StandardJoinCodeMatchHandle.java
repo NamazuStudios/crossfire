@@ -1,5 +1,6 @@
 package dev.getelements.elements.crossfire.matchmaker;
 
+import com.mongodb.MongoException;
 import dev.getelements.elements.crossfire.api.MatchmakingAlgorithm;
 import dev.getelements.elements.crossfire.api.MatchmakingRequest;
 import dev.getelements.elements.crossfire.api.model.handshake.JoinCodeHandshakeRequest;
@@ -44,11 +45,54 @@ public class StandardJoinCodeMatchHandle extends StandardCancelableMatchHandle<J
 
         final var joinCode = getRequest().getHandshakeRequest().getJoinCode();
 
-        final var multiMatchByJoinCode = locateAndJoin(joinCode);
+        // Concurrent JOIN_CODE guests each mutate the same match document (one addProfile per
+        // transaction). Under a burst (e.g. a code dropped into Twitch chat) those transactions
+        // collide with MongoDB WriteConflict (112, errorLabel TransientTransactionError) —
+        // harness testing on Elements 3.9.0-rc-9 measured an 80% join failure rate for a
+        // simultaneous 7-guest burst. MongoDB mandates retrying such errors; the addProfile is
+        // idempotent (the in-match check re-reads on every attempt), so a bounded retry is safe.
+        // Backoff is short and capped — unlike the lookup retry deliberately absent above, this
+        // covers a genuine transient conflict, not an unbounded snapshot-staleness window.
+        long backoffMillis = TRANSIENT_TXN_BACKOFF_INITIAL_MS;
 
-        setResult(multiMatchByJoinCode);
+        for (int attempt = 1; ; attempt++) {
+
+            try {
+                setResult(locateAndJoin(joinCode));
+                return;
+            } catch (final MongoException e) {
+
+                final var transientConflict = e.hasErrorLabel("TransientTransactionError");
+                final var unknownCommit = e.hasErrorLabel("UnknownTransactionCommitResult");
+
+                if ((!transientConflict && !unknownCommit) || attempt >= MAX_TRANSIENT_TXN_RETRIES) {
+                    throw e;
+                }
+
+                logger.warn(
+                        "Transient MongoDB error joining match by join code {} (attempt {}/{}). " +
+                        "Retrying in {}ms: {}",
+                        joinCode, attempt, MAX_TRANSIENT_TXN_RETRIES, backoffMillis, e.getMessage()
+                );
+
+                try {
+                    Thread.sleep(backoffMillis);
+                } catch (final InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException("Interrupted while retrying transient MongoDB error", ie);
+                }
+
+                backoffMillis = Math.min(backoffMillis * 2, TRANSIENT_TXN_BACKOFF_MAX_MS);
+
+            }
+
+        }
 
     }
+
+    private static final int MAX_TRANSIENT_TXN_RETRIES = 8;
+    private static final long TRANSIENT_TXN_BACKOFF_INITIAL_MS = 25L;
+    private static final long TRANSIENT_TXN_BACKOFF_MAX_MS = 500L;
 
     /**
      * <p>Locates the match for the supplied join code and joins the requesting profile to it.</p>
