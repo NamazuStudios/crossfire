@@ -1,6 +1,5 @@
 package dev.getelements.elements.crossfire.matchmaker;
 
-import com.mongodb.MongoException;
 import dev.getelements.elements.crossfire.api.MatchmakingAlgorithm;
 import dev.getelements.elements.crossfire.api.MatchmakingRequest;
 import dev.getelements.elements.crossfire.api.model.handshake.JoinCodeHandshakeRequest;
@@ -60,12 +59,9 @@ public class StandardJoinCodeMatchHandle extends StandardCancelableMatchHandle<J
             try {
                 setResult(locateAndJoin(joinCode));
                 return;
-            } catch (final MongoException e) {
+            } catch (final RuntimeException e) {
 
-                final var transientConflict = e.hasErrorLabel("TransientTransactionError");
-                final var unknownCommit = e.hasErrorLabel("UnknownTransactionCommitResult");
-
-                if ((!transientConflict && !unknownCommit) || attempt >= MAX_TRANSIENT_TXN_RETRIES) {
+                if (!isTransientTransactionError(e) || attempt >= MAX_TRANSIENT_TXN_RETRIES) {
                     throw e;
                 }
 
@@ -93,6 +89,43 @@ public class StandardJoinCodeMatchHandle extends StandardCancelableMatchHandle<J
     private static final int MAX_TRANSIENT_TXN_RETRIES = 8;
     private static final long TRANSIENT_TXN_BACKOFF_INITIAL_MS = 25L;
     private static final long TRANSIENT_TXN_BACKOFF_MAX_MS = 500L;
+
+    /**
+     * Detects a MongoDB transient transaction error (WriteConflict / 112, errorLabel
+     * TransientTransactionError; or UnknownTransactionCommitResult) without linking the driver.
+     * The driver is provided by the host platform and is not visible to this Element's
+     * classloader in every runtime — sdk-local test mode loads the Element in isolation, where a
+     * direct catch of com.mongodb.MongoException throws NoClassDefFoundError on method entry
+     * (breaking every join-code handshake in the integration tests). The platform's DAOs still
+     * throw the driver's exception types across the boundary as ordinary Throwables, so a
+     * name-guarded reflective probe works everywhere without a compile- or link-time dependency.
+     */
+    private static boolean isTransientTransactionError(final Throwable t) {
+
+        if (t == null || !t.getClass().getName().startsWith("com.mongodb.")) {
+            return false;
+        }
+
+        final boolean labelled;
+
+        try {
+            final var hasErrorLabel = t.getClass().getMethod("hasErrorLabel", String.class);
+            labelled = Boolean.TRUE.equals(hasErrorLabel.invoke(t, "TransientTransactionError"))
+                    || Boolean.TRUE.equals(hasErrorLabel.invoke(t, "UnknownTransactionCommitResult"));
+        } catch (final ReflectiveOperationException ex) {
+            // Not a MongoException-shaped type (or the method moved) — fall through to the
+            // message probe below rather than guessing.
+            return isWriteConflictMessage(t);
+        }
+
+        return labelled || isWriteConflictMessage(t);
+
+    }
+
+    private static boolean isWriteConflictMessage(final Throwable t) {
+        final var message = t.getMessage();
+        return message != null && message.contains("WriteConflict");
+    }
 
     /**
      * <p>Locates the match for the supplied join code and joins the requesting profile to it.</p>
