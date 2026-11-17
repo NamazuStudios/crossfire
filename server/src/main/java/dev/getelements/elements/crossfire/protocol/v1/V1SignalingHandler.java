@@ -22,6 +22,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import static dev.getelements.elements.crossfire.protocol.v1.V1SignalingState.create;
+import static dev.getelements.elements.crossfire.protocol.SignalingPhase.TERMINATED;
 
 public class V1SignalingHandler implements SignalingHandler {
 
@@ -94,6 +95,18 @@ public class V1SignalingHandler implements SignalingHandler {
             final ProtocolMessageHandler handler,
             final Session session,
             final BroadcastSignal signal) {
+        onMessage(handler, session, signal, 0);
+    }
+
+    private void onMessage(
+            final ProtocolMessageHandler handler,
+            final Session session,
+            final BroadcastSignal signal,
+            final int deferrals) {
+
+        if (deferUntilSignalingStarted(handler, () -> onMessage(handler, session, signal, deferrals + 1), deferrals)) {
+            return;
+        }
 
         final var state = this.state.get();
         checkAuth(state, signal::getProfileId);
@@ -111,6 +124,18 @@ public class V1SignalingHandler implements SignalingHandler {
             final ProtocolMessageHandler handler,
             final Session session,
             final DirectSignal signal) {
+        onMessageDirect(handler, session, signal, 0);
+    }
+
+    private void onMessageDirect(
+            final ProtocolMessageHandler handler,
+            final Session session,
+            final DirectSignal signal,
+            final int deferrals) {
+
+        if (deferUntilSignalingStarted(handler, () -> onMessageDirect(handler, session, signal, deferrals + 1), deferrals)) {
+            return;
+        }
 
         final var state = this.state.get();
         checkAuth(state, signal::getProfileId);
@@ -129,6 +154,18 @@ public class V1SignalingHandler implements SignalingHandler {
             final ProtocolMessageHandler handler,
             final Session session,
             final ControlMessage message) {
+        onMessageControl(handler, session, message, 0);
+    }
+
+    private void onMessageControl(
+            final ProtocolMessageHandler handler,
+            final Session session,
+            final ControlMessage message,
+            final int deferrals) {
+
+        if (deferUntilSignalingStarted(handler, () -> onMessageControl(handler, session, message, deferrals + 1), deferrals)) {
+            return;
+        }
 
         final var state = this.state.get();
         checkAuth(state, message::getProfileId);
@@ -143,6 +180,58 @@ public class V1SignalingHandler implements SignalingHandler {
         }
 
     }
+
+    // The handshake response (MATCHED/CREATED) is written to the client's socket BEFORE start()
+    // finishes joining the signaling roster: V1ProtocolMessageHandler writes it asynchronously and
+    // invokes start() in the send callback, which then performs two MongoDB reads (join + connect).
+    // A client that fires its first signal the instant MATCHED arrives can therefore land here
+    // while this handler's auth record is still null, and checkAuth() used to NPE and kill the
+    // session (100% reproducible with an immediate post-MATCHED broadcast on 1.1.6-rc-1). Defer
+    // such messages briefly on the connection's executor instead — until start() completes or the
+    // session terminates — rather than NPE-ing the session or silently dropping the signal.
+    private boolean deferUntilSignalingStarted(
+            final ProtocolMessageHandler handler,
+            final Runnable dispatch,
+            final int deferrals) {
+
+        final var state = this.state.get();
+
+        if (state.auth() != null || state.phase() == TERMINATED) {
+            return false;
+        }
+
+        if (deferrals >= MAX_SIGNALING_START_DEFERRALS) {
+            logger.warn(
+                    "Signaling start still pending after {}ms ({} deferrals); dropping message.",
+                    MAX_SIGNALING_START_DEFERRALS * SIGNALING_START_DEFERRAL_MILLIS,
+                    deferrals
+            );
+            return true;
+        }
+
+        logger.debug("Signaling start pending; deferring message (deferral {}/{}).",
+                deferrals + 1, MAX_SIGNALING_START_DEFERRALS);
+
+        try {
+            handler.submit(() -> {
+                try {
+                    Thread.sleep(SIGNALING_START_DEFERRAL_MILLIS);
+                } catch (final InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+                dispatch.run();
+            });
+        } catch (final Exception ex) {
+            logger.debug("Could not defer message pending signaling start: {}", ex.getMessage());
+        }
+
+        return true;
+
+    }
+
+    private static final int MAX_SIGNALING_START_DEFERRALS = 200;
+    private static final long SIGNALING_START_DEFERRAL_MILLIS = 10L;
 
     private void process(final ControlService.Result action,
                          final Session session,
