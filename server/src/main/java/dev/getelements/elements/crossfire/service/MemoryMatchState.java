@@ -1,11 +1,11 @@
 package dev.getelements.elements.crossfire.service;
 
+import dev.getelements.elements.crossfire.api.HostOrchestrationStrategy;
 import dev.getelements.elements.crossfire.api.model.ProtocolMessage;
 import dev.getelements.elements.crossfire.api.model.error.DuplicateConnectionException;
 import dev.getelements.elements.crossfire.api.model.error.MessageBufferOverrunException;
 import dev.getelements.elements.crossfire.api.model.error.UnexpectedMessageException;
 import dev.getelements.elements.crossfire.api.model.signal.*;
-import dev.getelements.elements.sdk.ElementRegistry;
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.util.Monitor;
 import org.slf4j.Logger;
@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.util.Objects.requireNonNull;
@@ -57,6 +58,21 @@ public class MemoryMatchState {
 
     public void error(final Throwable th) {
         memoryMatchBacklog.error(th);
+    }
+
+    /**
+     * Re-runs host selection for this match against the currently connected participants, using
+     * the configured strategy. A strategy may decline (return empty) to leave the current host.
+     */
+    public void assignHost() {
+        memoryMatchBacklog.assignHost();
+    }
+
+    /**
+     * Explicitly designates the given profile as host, provided it has joined the match.
+     */
+    public void assignHost(final String profileId) {
+        memoryMatchBacklog.assignHost(profileId);
     }
 
     public boolean join(final String profileId) {
@@ -229,8 +245,28 @@ public class MemoryMatchState {
                 // be put into the queue as well when the call to "host" is made below.
 
                 if (host == null) {
-                    state.host();
-                    host = state;
+
+                    // The connecting profile is the first candidate even though its subscription does
+                    // not exist yet (subscribe happens below, after the backlog replay). Preserves
+                    // the old "first to connect becomes host" behavior exactly — when host is null
+                    // no other participant is currently subscribed.
+                    final var connected = new LinkedHashSet<String>();
+                    connected.add(profileId);
+                    sessionStates.entrySet()
+                            .stream()
+                            .filter(e -> !e.getKey().equals(profileId)
+                                    && e.getValue().getSubscriptionRecord() != null)
+                            .map(Map.Entry::getKey)
+                            .forEach(connected::add);
+
+                    parameters.hostOrchestrationStrategy()
+                            .selectHost(parameters.matchId(), connected, Optional.empty())
+                            .map(sessionStates::get)
+                            .ifPresent(s -> {
+                                s.host();
+                                host = s;
+                            });
+
                 }
 
                 // Process the full backlog for this profile which includes the connection message we just added above
@@ -270,6 +306,37 @@ public class MemoryMatchState {
                 }
             }
 
+        }
+
+        public void assignHost() {
+            try (var mon = Monitor.enter(write)) {
+
+                final var connected = sessionStates.entrySet()
+                        .stream()
+                        .filter(e -> e.getValue().getSubscriptionRecord() != null)
+                        .map(Map.Entry::getKey)
+                        .collect(Collectors.toCollection(LinkedHashSet::new));
+
+                parameters.hostOrchestrationStrategy()
+                        .selectHost(parameters.matchId(), connected,
+                                Optional.ofNullable(host).map(SessionState::getProfileId))
+                        .map(sessionStates::get)
+                        .ifPresent(s -> {
+                            s.host();
+                            host = s;
+                        });
+
+            }
+        }
+
+        public void assignHost(final String profileId) {
+            try (var mon = Monitor.enter(write)) {
+                final var state = sessionStates.get(profileId);
+                if (state != null) {
+                    state.host();
+                    host = state;
+                }
+            }
         }
 
         /**
@@ -442,16 +509,19 @@ public class MemoryMatchState {
              */
             private void reassignHostIfNecessary() {
 
-                // TODO: Host re-assignment needs to happen externally to this class so that we can implement features
-                // TODO: like authoritative orchestration in the future.
-
                 if (host == this) {
 
-                    host = MemoryMatchBacklog.this.sessionStates
-                            .values()
+                    // sessionStates iterates in profile-id order; the default strategy promotes the
+                    // first still-connected remaining participant, exactly as the old hardcode did.
+                    final var connected = sessionStates.entrySet()
                             .stream()
-                            .filter(s -> s != this && s.subscription.get() != null)
-                            .findFirst()
+                            .filter(e -> e.getValue() != this && e.getValue().getSubscriptionRecord() != null)
+                            .map(Map.Entry::getKey)
+                            .collect(Collectors.toCollection(LinkedHashSet::new));
+
+                    host = parameters.hostOrchestrationStrategy()
+                            .selectHost(parameters.matchId(), connected, Optional.of(getProfileId()))
+                            .map(sessionStates::get)
                             .orElse(null);
 
                     if (host != null)
@@ -468,7 +538,7 @@ public class MemoryMatchState {
     public record Parameters(
             String matchId,
             int matchBacklogSize,
-            ElementRegistry registry,
+            HostOrchestrationStrategy hostOrchestrationStrategy,
             Consumer<MemoryMatchState> onAllParticipantsLeft,
             Consumer<MemoryMatchState> onAllParticipantsDisconnected) {}
 

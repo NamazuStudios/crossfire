@@ -1,15 +1,18 @@
 package dev.getelements.elements.crossfire.service;
 
+import dev.getelements.elements.crossfire.api.HostOrchestrationStrategy;
 import dev.getelements.elements.crossfire.api.model.ProtocolMessage;
+import dev.getelements.elements.crossfire.api.model.error.InvalidConfigurationException;
 import dev.getelements.elements.crossfire.api.model.error.MatchDeletedException;
 import dev.getelements.elements.crossfire.api.model.signal.BroadcastSignal;
 import dev.getelements.elements.crossfire.api.model.signal.DirectSignal;
-import dev.getelements.elements.sdk.ElementRegistry;
+import dev.getelements.elements.sdk.ElementRegistrySupplier;
 import dev.getelements.elements.sdk.Subscription;
 import dev.getelements.elements.sdk.annotation.ElementDefaultAttribute;
 import dev.getelements.elements.sdk.annotation.ElementEventConsumer;
 import dev.getelements.elements.sdk.annotation.ElementServiceReference;
 import dev.getelements.elements.sdk.dao.MultiMatchDao;
+import dev.getelements.elements.sdk.model.application.MatchmakingApplicationConfiguration;
 import dev.getelements.elements.sdk.model.exception.ForbiddenException;
 import dev.getelements.elements.sdk.model.exception.InvalidMultiMatchPhaseException;
 import dev.getelements.elements.sdk.model.exception.MultiMatchNotFoundException;
@@ -40,7 +43,7 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
 
     private MultiMatchDao multiMatchDao;
 
-    private ElementRegistry elementRegistry;
+    private HostOrchestrationStrategy defaultHostOrchestrationStrategy;
 
     @Override
     public Optional<String> findHost() {
@@ -64,7 +67,7 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
             throw new ForbiddenException("Profile with id " + signal.getProfileId() + " does not exist");
         }
 
-        matches.computeIfAbsent(match.getId(), this::newMemoryMatchState)
+        matches.computeIfAbsent(match.getId(), id -> newMemoryMatchState(match))
                .send(signal);
 
     }
@@ -92,7 +95,7 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
             throw new ForbiddenException("Recipient profile with id " + signal.getRecipientProfileId() + " does not exist");
         }
 
-        matches.computeIfAbsent(match.getId(), this::newMemoryMatchState)
+        matches.computeIfAbsent(match.getId(), id -> newMemoryMatchState(match))
                .send(signal);
 
     }
@@ -111,7 +114,7 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
             throw new ForbiddenException("Profile " + profileId + " is not part of match " + matchId);
 
         return matches
-                .computeIfAbsent(match.getId(), this::newMemoryMatchState)
+                .computeIfAbsent(match.getId(), id -> newMemoryMatchState(match))
                 .join(profileId);
 
     }
@@ -134,7 +137,7 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
             throw new ForbiddenException("Profile " + profileId + " is not part of match " + matchId);
 
         return matches
-                .computeIfAbsent(match.getId(), this::newMemoryMatchState)
+                .computeIfAbsent(match.getId(), id -> newMemoryMatchState(match))
                 .connect(profileId, onMessage, onError);
 
     }
@@ -151,17 +154,76 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
 
     }
 
-    private MemoryMatchState newMemoryMatchState(final String matchId) {
+    private MemoryMatchState newMemoryMatchState(final MultiMatch match) {
+
+        final var strategy = resolveHostOrchestrationStrategy(match.getConfiguration());
 
         final var parameters = new MemoryMatchState.Parameters(
-                matchId,
+                match.getId(),
                 getMaxBacklogSize(),
-                getElementRegistry(),
+                strategy,
                 this::onAllParticipantsLeft,
                 this::onnAllParticipantsDisconnected
         );
 
         return new MemoryMatchState(parameters);
+    }
+
+    private HostOrchestrationStrategy resolveHostOrchestrationStrategy(
+            final MatchmakingApplicationConfiguration configuration) {
+
+        final var reference = configuration.getHostOrchestration();
+
+        if (reference == null) {
+            return defaultHostOrchestrationStrategy;
+        }
+
+        // Mirrors V1HandshakeHandler.algorithmFromConfiguration(): locate the named Element in the
+        // registry, resolve the service class from its own classloader, then get the (optionally
+        // named) service instance from the Element's service locator.
+        final var element = ElementRegistrySupplier
+                .getElementLocal(getClass())
+                .get()
+                .stream()
+                .filter(e -> e.getElementRecord().definition().name().endsWith(reference.getElementName()))
+                .findFirst()
+                .orElseThrow(() -> new InvalidConfigurationException(
+                        "No element found with name: " + reference.getElementName()));
+
+        final var type = resolveServiceType(element, reference);
+
+        return reference.getServiceName() == null
+                ? element.getServiceLocator().getInstance(type)
+                : element.getServiceLocator().getInstance(type, reference.getServiceName());
+
+    }
+
+    private Class<? extends HostOrchestrationStrategy> resolveServiceType(
+            final dev.getelements.elements.sdk.Element element,
+            final dev.getelements.elements.sdk.model.application.ElementServiceReference reference) {
+
+        final var typeName = reference.getServiceType();
+
+        if (typeName == null) {
+            return HostOrchestrationStrategy.class;
+        }
+
+        try {
+
+            final var type = element.getElementRecord().classLoader().loadClass(typeName);
+
+            if (HostOrchestrationStrategy.class.isAssignableFrom(type)) {
+                return (Class<? extends HostOrchestrationStrategy>) type;
+            }
+
+            logger.error("Host orchestration type {} is not assignable to HostOrchestrationStrategy. Using default.", typeName);
+
+        } catch (final ClassNotFoundException e) {
+            logger.error("Unable to load host orchestration type {}. Using default.", typeName, e);
+        }
+
+        return HostOrchestrationStrategy.class;
+
     }
 
     private void endAndRemove(final String matchId) {
@@ -200,12 +262,18 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
 
     @Override
     public void assignHost(final String matchId) {
-        throw new UnsupportedOperationException();
+        final var state = matches.get(matchId);
+        if (state != null) {
+            state.assignHost();
+        }
     }
 
     @Override
     public void assignHost(final String matchId, final String profileId) {
-        throw new UnsupportedOperationException();
+        final var state = matches.get(matchId);
+        if (state != null) {
+            state.assignHost(profileId);
+        }
     }
 
     public int getMaxBacklogSize() {
@@ -217,13 +285,14 @@ public class MemoryMatchSignalingService implements MatchSignalingService {
         this.maxBacklogSize = maxBacklogSize;
     }
 
-    public ElementRegistry getElementRegistry() {
-        return elementRegistry;
+    public HostOrchestrationStrategy getDefaultHostOrchestrationStrategy() {
+        return defaultHostOrchestrationStrategy;
     }
 
     @Inject
-    public void setElementRegistry(ElementRegistry elementRegistry) {
-        this.elementRegistry = elementRegistry;
+    public void setDefaultHostOrchestrationStrategy(
+            final HostOrchestrationStrategy defaultHostOrchestrationStrategy) {
+        this.defaultHostOrchestrationStrategy = defaultHostOrchestrationStrategy;
     }
 
     public MultiMatchDao getMongoMultiMatchDao() {
