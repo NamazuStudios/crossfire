@@ -3,6 +3,7 @@ package dev.getelements.elements.crossfire.guice;
 import com.google.inject.PrivateModule;
 import com.google.inject.TypeLiteral;
 import dev.getelements.elements.crossfire.api.FindMatchmakingAlgorithm;
+import dev.getelements.elements.crossfire.api.HostOrchestrationStrategy;
 import dev.getelements.elements.crossfire.api.JoinCodeMatchmakingAlgorithm;
 import dev.getelements.elements.crossfire.api.MatchmakingAlgorithm;
 import dev.getelements.elements.crossfire.api.model.Version;
@@ -16,6 +17,7 @@ import dev.getelements.elements.crossfire.protocol.v1.V1SignalingHandler;
 import dev.getelements.elements.crossfire.service.ControlService;
 import dev.getelements.elements.crossfire.service.MatchSignalingService;
 import dev.getelements.elements.crossfire.service.MemoryMatchSignalingService;
+import dev.getelements.elements.crossfire.service.PeerToPeerHostOrchestrationStrategy;
 import dev.getelements.elements.crossfire.service.StandardControlService;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
@@ -38,6 +40,8 @@ public class  CrossfireModule extends PrivateModule {
         expose(JoinCodeMatchmakingAlgorithm.class);
         expose(FindMatchmakingAlgorithm.class).annotatedWith(named(FIFOMatchmakingAlgorithm.NAME));
         expose(JoinCodeMatchmakingAlgorithm.class).annotatedWith(named(SimpleJoinCodeMatchmakingAlgorithm.NAME));
+        expose(HostOrchestrationStrategy.class);
+        expose(HostOrchestrationStrategy.class).annotatedWith(named(PeerToPeerHostOrchestrationStrategy.NAME));
 
         bind(Pinger.class)
                 .to(StandardPinger.class);
@@ -45,6 +49,13 @@ public class  CrossfireModule extends PrivateModule {
         bind(MatchSignalingService.class)
                 .to(MemoryMatchSignalingService.class)
                 .asEagerSingleton();
+
+        bind(HostOrchestrationStrategy.class)
+                .to(PeerToPeerHostOrchestrationStrategy.class);
+
+        bind(HostOrchestrationStrategy.class)
+                .annotatedWith(named(PeerToPeerHostOrchestrationStrategy.NAME))
+                .to(PeerToPeerHostOrchestrationStrategy.class);
 
         bind(ControlService.class)
                 .to(StandardControlService.class);
