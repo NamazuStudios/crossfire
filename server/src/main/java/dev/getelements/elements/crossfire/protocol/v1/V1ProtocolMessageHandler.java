@@ -23,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
@@ -382,17 +383,44 @@ public class V1ProtocolMessageHandler implements ProtocolMessageHandler {
     @Override
     public void terminate(final Throwable th) {
 
-        final var reason = EXPECTED_EXCEPTIONS.entrySet()
+        final var reason = truncateReasonPhrase(EXPECTED_EXCEPTIONS.entrySet()
                 .stream()
                 .filter(entry -> entry.getKey().isInstance(th))
                 .findFirst()
                 .map(Map.Entry::getValue)
                 .orElse(t -> new CloseReason(UNEXPECTED_CONDITION, t.getMessage()))
-                .apply(th);
+                .apply(th));
 
         doTerminate(reason, th);
 
     }
+
+    // jakarta.websocket caps a CloseReason's reason phrase at 123 UTF-8 bytes. Raw exception
+    // messages (a MongoDB command error carries the full clusterTime/errorLabels JSON, routinely
+    // 500+ bytes) blew that cap, throwing IllegalArgumentException *inside* terminate() — so the
+    // protocol ERROR and the close were never delivered and the client simply hung with no
+    // MATCHED, no ERROR, and no close until its own timeout. Truncate defensively and centrally.
+    private static CloseReason truncateReasonPhrase(final CloseReason reason) {
+
+        var phrase = reason.getReasonPhrase();
+
+        if (phrase == null) {
+            phrase = "";
+        }
+
+        var truncated = phrase;
+
+        while (truncated.getBytes(StandardCharsets.UTF_8).length > MAX_REASON_PHRASE_BYTES) {
+            truncated = truncated.substring(0, truncated.length() - 10);
+        }
+
+        return truncated.equals(phrase)
+                ? reason
+                : new CloseReason(reason.getCloseCode(), truncated);
+
+    }
+
+    private static final int MAX_REASON_PHRASE_BYTES = 123;
 
     private void log(
             final V1ConnectionStateRecord state,
