@@ -9,6 +9,7 @@ import dev.getelements.elements.crossfire.protocol.ProtocolMessageHandler;
 import dev.getelements.elements.crossfire.protocol.SignalingHandler;
 import dev.getelements.elements.crossfire.service.ControlService;
 import dev.getelements.elements.crossfire.service.MatchSignalingService;
+import dev.getelements.elements.sdk.dao.MultiMatchDao;
 import dev.getelements.elements.sdk.model.exception.ForbiddenException;
 import jakarta.inject.Inject;
 import jakarta.websocket.Session;
@@ -28,9 +29,19 @@ public class V1SignalingHandler implements SignalingHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(V1SignalingHandler.class);
 
+    private void joinSignaling(final String matchId, final String profileId) {
+        if (getMatchSignalingService().join(matchId, profileId)) {
+            logger.debug("Joined match {}", matchId);
+        } else {
+            logger.debug("Already in match {}", matchId);
+        }
+    }
+
     private ControlService controlService;
 
     private MatchSignalingService matchSignalingService;
+
+    private MultiMatchDao multiMatchDao;
 
     private final AtomicReference<V1SignalingState> state = new AtomicReference<>(create());
 
@@ -44,10 +55,25 @@ public class V1SignalingHandler implements SignalingHandler {
         final var matchId = match.getId();
         final var profileId = auth.profile().getId();
 
-        if (getMatchSignalingService().join(matchId, profileId)) {
-            logger.debug("Joined match {}", matchId);
-        } else {
-            logger.debug("Already in match {}", matchId);
+        try {
+            joinSignaling(matchId, profileId);
+        } catch (final ForbiddenException notMemberAtStart) {
+            // crossfire#32: the handshake already admitted this profile — the handshake
+            // response (MATCHED/CREATED) is written only after the handshake's join
+            // transaction commits — so a "not part of match" here means the membership
+            // read raced its own commit (the elements#207 snapshot wiring) and lost.
+            // The start() flow runs on the same thread that just committed, which is
+            // exactly when that staleness bites. Self-heal: re-add the profile through
+            // this Element's own (non transaction scoped) MultiMatchDao — the same
+            // immune-write path MatchMetadataWriter uses — and retry once. Genuine
+            // admission failures cannot reach this point (they are rejected in the
+            // handshake); post-admission enforcement (kick/ban) rides the REST
+            // tripwire and the #24 admission listener.
+            logger.warn(
+                    "Signaling start could not find profile {} in match {} (elements#207 stale snapshot); re-adding membership.",
+                    profileId, matchId, notMemberAtStart);
+            getMultiMatchDao().addProfile(matchId, auth.profile());
+            joinSignaling(matchId, profileId);
         }
 
         final var subscription = getMatchSignalingService().connect(
@@ -287,6 +313,15 @@ public class V1SignalingHandler implements SignalingHandler {
     @Inject
     public void setMatchSignalingService(final MatchSignalingService matchSignalingService) {
         this.matchSignalingService = matchSignalingService;
+    }
+
+    public MultiMatchDao getMultiMatchDao() {
+        return multiMatchDao;
+    }
+
+    @Inject
+    public void setMultiMatchDao(final MultiMatchDao multiMatchDao) {
+        this.multiMatchDao = multiMatchDao;
     }
 
 }
