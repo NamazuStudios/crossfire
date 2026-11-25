@@ -21,6 +21,7 @@ import java.io.UncheckedIOException;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
+import dev.getelements.elements.sdk.Subscription;
 
 import static dev.getelements.elements.crossfire.protocol.v1.V1SignalingState.create;
 import static dev.getelements.elements.crossfire.protocol.SignalingPhase.TERMINATED;
@@ -35,6 +36,18 @@ public class V1SignalingHandler implements SignalingHandler {
         } else {
             logger.debug("Already in match {}", matchId);
         }
+    }
+
+    private Subscription connectSignaling(
+            final String matchId,
+            final String profileId,
+            final Session session) {
+        return getMatchSignalingService().connect(
+                matchId,
+                profileId,
+                m -> session.getAsyncRemote().sendObject(m),
+                e -> logger.error("Error in signaling for match {} and profile {}", matchId, profileId, e)
+        );
     }
 
     private ControlService controlService;
@@ -60,32 +73,58 @@ public class V1SignalingHandler implements SignalingHandler {
         } catch (final ForbiddenException notMemberAtStart) {
             // crossfire#32: the handshake already admitted this profile — the handshake
             // response (MATCHED/CREATED) is written only after the handshake's join
-            // transaction commits — so a "not part of match" here means the membership
-            // read raced its own commit (the elements#207 snapshot wiring) and lost.
-            // The start() flow runs on the same thread that just committed, which is
-            // exactly when that staleness bites. Self-heal: re-add the profile through
-            // this Element's own (non transaction scoped) MultiMatchDao — the same
-            // immune-write path MatchMetadataWriter uses — and retry once. Genuine
+            // transaction commits — so a "not part of match" here means either (a) the
+            // membership read raced its own commit (elements#207's snapshot wiring —
+            // start() runs on the same thread that just committed) or (b) the
+            // handshake's addProfile never persisted at all (production evidence: the
+            // match document's profiles array stayed empty through MATCHED). Either
+            // way the admission decision already happened in the handshake and this
+            // check is a re-verification of data we know was approved, so the safe
+            // move is a best-effort re-add: swallow re-add failures (the profile may
+            // be present, the match may have just ended, optimistic-concurrency may
+            // exhaust — none of those change the decision to attempt the retry) and
+            // let the retry join below be the actual proof of membership. Genuine
             // admission failures cannot reach this point (they are rejected in the
             // handshake); post-admission enforcement (kick/ban) rides the REST
-            // tripwire and the #24 admission listener.
+            // tripwire and the #24 admission listener. KNOWN EDGE, accepted on
+            // record: a kick landing between the handshake's commit and this heal
+            // is overturned here — the kicked player is still removed by their next
+            // presence beat (the REST 403 tripwire).
             logger.warn(
-                    "Signaling start could not find profile {} in match {} (elements#207 stale snapshot); re-adding membership.",
+                    "Signaling start could not find profile {} in match {} (crossfire#32); attempting best-effort membership re-add.",
                     profileId, matchId, notMemberAtStart);
-            getMultiMatchDao().addProfile(matchId, auth.profile());
+            try {
+                getMultiMatchDao().addProfile(matchId, auth.profile());
+            } catch (final Exception reAddFailure) {
+                logger.warn("Membership re-add for profile {} in match {} failed; retrying the join anyway.",
+                        profileId, matchId, reAddFailure);
+            }
             joinSignaling(matchId, profileId);
         }
 
-        final var subscription = getMatchSignalingService().connect(
-                matchId,
-                profileId,
-                m -> session.getAsyncRemote().sendObject(m),
-                e -> logger.error("Error in signaling for match {} and profile {}", matchId, profileId, e)
-        );
+        // connect() repeats the membership read (unguarded in the original) — apply the
+        // same best-effort heal + single retry, since its read races the same commit.
+        Subscription subscription;
+        try {
+            subscription = connectSignaling(matchId, profileId, session);
+        } catch (final ForbiddenException notMemberAtConnect) {
+            logger.warn(
+                    "Signaling connect could not find profile {} in match {} (crossfire#32); attempting best-effort membership re-add.",
+                    profileId, matchId, notMemberAtConnect);
+            try {
+                getMultiMatchDao().addProfile(matchId, auth.profile());
+            } catch (final Exception reAddFailure) {
+                logger.warn("Membership re-add for profile {} in match {} failed; retrying the connect anyway.",
+                        profileId, matchId, reAddFailure);
+            }
+            subscription = connectSignaling(matchId, profileId, session);
+        }
+
+        final var subscriptionFinal = subscription;
 
         try {
 
-            final var updated = state.updateAndGet(s -> s.start(subscription, match, auth));
+            final var updated = state.updateAndGet(s -> s.start(subscriptionFinal, match, auth));
             logger.debug("Started signaling for match {} and profile {}", matchId, profileId);
 
             switch (updated.phase()) {
